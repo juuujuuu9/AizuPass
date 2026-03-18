@@ -8,6 +8,7 @@ import {
 } from '../../lib/db';
 import { getOrCreateQRPayload } from '../../lib/qr-token';
 import { checkRateLimit, getClientIp } from '../../lib/rate-limit';
+import { validateRSVPForm } from '../../lib/validation';
 
 export const GET: APIRoute = async ({ request }) => {
   try {
@@ -46,23 +47,26 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   try {
-    const data = (await request.json()) || {};
-    if (!data.firstName || !data.lastName || !data.email) {
+    const rawData = (await request.json()) || {};
+
+    // Validate input using zod schema
+    const validation = validateRSVPForm(rawData);
+    if (!validation.success) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
+        JSON.stringify({ error: 'Validation failed', details: validation.errors }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(data.email)) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid email format' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+
+    const data = validation.data;
     const attendee = await createAttendee({
-      ...data,
-      eventId: data.eventId ?? undefined,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      phone: data.phone ?? undefined,
+      company: data.company ?? undefined,
+      dietaryRestrictions: data.dietaryRestrictions ?? undefined,
+      eventId: data.eventId,
     });
     const qrResult = await getOrCreateQRPayload(attendee.id);
     const body = qrResult

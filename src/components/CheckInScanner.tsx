@@ -155,25 +155,16 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
         showTorchButtonIfSupported: QR_SCANNER.showTorchButtonIfSupported,
       };
 
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/09e6b154-09ed-45e8-a056-6e1990c814c7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'429a4a'},body:JSON.stringify({sessionId:'429a4a',location:'CheckInScanner.tsx:startScanning',message:'Camera started',data:{standalone,readerWidth:scannerRef.current?.clientWidth,readerHeight:scannerRef.current?.clientHeight},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       await html5QrCode.start(
         { facingMode: 'environment' },
         config,
         (decodedText: string) => {
-          // #region agent log
-          if (processingRef.current) fetch('http://127.0.0.1:7243/ingest/09e6b154-09ed-45e8-a056-6e1990c814c7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'429a4a'},body:JSON.stringify({sessionId:'429a4a',location:'CheckInScanner.tsx:onDecode',message:'Blocked by processingRef',data:{},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
           if (processingRef.current) return;
           setTimeout(async () => {
             if (processingRef.current) return;
             processingRef.current = true;
             if (!standalone) stopScanning();
 
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/09e6b154-09ed-45e8-a056-6e1990c814c7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'429a4a'},body:JSON.stringify({sessionId:'429a4a',location:'CheckInScanner.tsx:onDecode',message:'QR decoded',data:{decodedLen:decodedText?.length,decodedPreview:decodedText?.slice(0,50)},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-            // #endregion
             try {
               let result: CheckInResult;
               try {
@@ -186,9 +177,6 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
                   throw err;
                 }
               }
-              // #region agent log
-              fetch('http://127.0.0.1:7243/ingest/09e6b154-09ed-45e8-a056-6e1990c814c7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'429a4a'},body:JSON.stringify({sessionId:'429a4a',location:'CheckInScanner.tsx:apiResult',message:'Check-in API result',data:{success:result.success,alreadyCheckedIn:result.alreadyCheckedIn,msg:result.message},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-              // #endregion
               setScanResult(result);
               const ftype = feedbackTypeFromResult(result);
               provideFeedback(ftype, result.message, setAnnouncement);
@@ -200,9 +188,6 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
                 toast.error(result.message);
               }
             } catch (error) {
-              // #region agent log
-              fetch('http://127.0.0.1:7243/ingest/09e6b154-09ed-45e8-a056-6e1990c814c7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'429a4a'},body:JSON.stringify({sessionId:'429a4a',location:'CheckInScanner.tsx:apiError',message:'Check-in API error',data:{errMsg:String(error),decodedLen:decodedText?.length},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-              // #endregion
               console.error('Check-in error:', error);
               provideFeedback('error', 'Check-in failed', setAnnouncement);
               setScanResult({
@@ -224,9 +209,6 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
         setTorchSupported(false);
       }
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/09e6b154-09ed-45e8-a056-6e1990c814c7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'429a4a'},body:JSON.stringify({sessionId:'429a4a',location:'CheckInScanner.tsx:cameraError',message:'Camera failed to start',data:{errMsg:String(error)},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       console.error('Camera error:', error);
       setCameraError(
         'Unable to access camera. Please ensure you have granted camera permissions.'

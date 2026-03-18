@@ -1,10 +1,9 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { SignIn } from '@clerk/astro/components';
-import { getAuth } from '@clerk/astro/server';
 
 // Check if already signed in
-const auth = getAuth(Astro);
+const auth = Astro.locals.auth;
 if (auth?.userId) {
   const returnTo = Astro.url.searchParams.get('returnTo') || '/admin';
   // Ensure returnTo is a safe relative path

@@ -42,6 +42,21 @@ function normalizeHeader(h: string): string {
   return h.replace(/^\uFEFF/, '').trim().toLowerCase().replace(/\s+/g, '_');
 }
 
+/** Sanitize a CSV cell value to prevent formula injection attacks.
+ * Prefixes dangerous starting characters (=, +, -, @, tab, carriage return)
+ * with a single quote to prevent formula execution in spreadsheet applications.
+ */
+function sanitizeCSVValue(value: string): string {
+  if (!value) return value;
+  // Check for characters that could trigger formula execution
+  const dangerousChars = ['=', '+', '-', '@', '\t', '\r'];
+  const firstChar = value.charAt(0);
+  if (dangerousChars.includes(firstChar)) {
+    return `'` + value;
+  }
+  return value;
+}
+
 /** Map CSV row (array of values) to attendee fields using header indices. */
 function rowToAttendeeFields(
   headers: string[],
@@ -51,7 +66,9 @@ function rowToAttendeeFields(
   const get = (names: string[]): string => {
     for (const n of names) {
       const i = headers.indexOf(n);
-      if (i !== -1 && values[i] !== undefined) return String(values[i]).trim();
+      if (i !== -1 && values[i] !== undefined) {
+        return sanitizeCSVValue(String(values[i]).trim());
+      }
     }
     return '';
   };
@@ -86,7 +103,7 @@ function rowToAttendeeFields(
     if (values[i] !== undefined && values[i] !== '') {
       const key = h.replace(/^_+/, '');
       if (!['email', 'first_name', 'last_name', 'firstname', 'lastname', 'first', 'last', 'name', 'full_name', 'fullname', 'phone', 'phone_number', 'mobile', 'tel', 'company', 'organization', 'org', 'dietary_restrictions', 'dietary', 'diet'].includes(key)) {
-        extra[key] = String(values[i]).trim();
+        extra[key] = sanitizeCSVValue(String(values[i]).trim());
       }
     }
   });

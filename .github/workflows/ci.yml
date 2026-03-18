@@ -1,0 +1,66 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # Build and test
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+        env:
+          # Use placeholder values for build-time checks
+          DATABASE_URL: postgresql://placeholder
+          CLERK_PUBLISHABLE_KEY: pk_test_placeholder
+          CLERK_SECRET_KEY: sk_test_placeholder
+          RESEND_API_KEY: re_placeholder
+          FROM_EMAIL: test@example.com
+          FROM_NAME: Test
+          CORS_ORIGIN: http://localhost:4321
+
+  # Run edge case tests (optional - requires database)
+  test-edge-cases:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run edge case tests
+        run: npm run test:edge-cases:ci
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BYPASS_AUTH_FOR_TESTS: 'true'

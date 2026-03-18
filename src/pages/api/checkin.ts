@@ -9,6 +9,7 @@ import {
 import { decodeQR } from '../../lib/qr';
 import { checkRateLimit, getClientIp } from '../../lib/rate-limit';
 import { logCheckInAttempt } from '../../lib/audit';
+import { validateCheckIn, validateManualCheckIn } from '../../lib/validation';
 
 export const POST: APIRoute = async ({ request }) => {
   const ip = getClientIp(request);
@@ -33,17 +34,19 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   try {
-    const body = (await request.json()) as {
-      qrData?: string;
-      attendeeId?: string;
-      scannerDeviceId?: string;
-    } | null;
-    const qrData = body?.qrData;
-    const attendeeId = body?.attendeeId;
-    const scannerDeviceId = body?.scannerDeviceId ?? null;
+    const rawBody = (await request.json()) || {};
 
-    // Manual check-in by attendee ID (staff override)
-    if (attendeeId && typeof attendeeId === 'string') {
+    // Check if this is a manual check-in by attendee ID
+    if (rawBody.attendeeId) {
+      const validation = validateManualCheckIn(rawBody);
+      if (!validation.success) {
+        return new Response(
+          JSON.stringify({ error: 'Validation failed', details: validation.errors }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { attendeeId, scannerDeviceId } = validation.data;
       const attendee = await getAttendeeById(attendeeId);
       if (!attendee) {
         logCheckInAttempt({ ip, outcome: 'not_found', attendeeId });
@@ -83,13 +86,17 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    if (!qrData || typeof qrData !== 'string') {
+    // QR code check-in
+    const validation = validateCheckIn(rawBody);
+    if (!validation.success) {
       logCheckInAttempt({ ip, outcome: 'invalid_format' });
       return new Response(
-        JSON.stringify({ error: 'QR data or attendee ID is required' }),
+        JSON.stringify({ error: 'Validation failed', details: validation.errors }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
+
+    const { qrData, scannerDeviceId } = validation.data;
 
     // Demo codes: canned responses for staff testing (never touch DB)
     const normalized = qrData.replace(/\uFEFF/g, '').trim();

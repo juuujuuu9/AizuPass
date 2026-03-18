@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-02-18 (test plan expansion)
+**Last updated:** 2026-03-18 (production security audit - removed debug code, fixed auth bypass, added zod validation, CSV injection protection, health endpoint, CI/CD workflow)
 
 ---
 
@@ -33,6 +33,13 @@
 | Hardware scanner (keyboard wedge) | Missing | No hidden input for laser scanners. |
 | Stolen screenshot / scan count | Missing | No "duplicate use" visibility in admin/scanner. |
 | Brightness / high-contrast QR | Partial | Email copy exists; QR config not explicit. |
+| Debug code in production | **Done** | Removed agent log fetch calls from CheckInScanner.tsx. |
+| Auth bypass vulnerability | **Done** | Added NODE_ENV check to test bypass in middleware.ts. |
+| Input validation | **Done** | Added zod validation for email, forms, check-ins. |
+| CSV injection protection | **Done** | Sanitize formula-triggering characters in CSV import. |
+| Health check endpoint | **Done** | Created /api/health for monitoring. |
+| CI/CD pipeline | **Done** | GitHub Actions workflow for build and test. |
+| Production deployment docs | **Done** | VERCEL-DEPLOYMENT.md with step-by-step guide. |
 | Offline capability | **Done** | IndexedDB cache, offline queue, sync on reconnect; 409 = success. `src/lib/offline.ts`, `api/attendees/offline-cache`. |
 | Multi-event / central hub | **Done** | Events table, event-scoped attendees; microsite sync = CSV import (primary); webhook optional. |
 | Persistent event selection | **Done** | staff_preferences table; last_selected_event_id survives logout/login, works across devices. |
