@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-18 (CSV mapping tightened: required identity mapping + optional custom-labeled extra columns)
+**Last updated:** 2026-03-18 (Executed Step 11.1, 11.2, and 11.3: race/idempotency baseline + scanner feedback + offline sync resilience)
 
 ---
 
@@ -22,10 +22,19 @@
 | RSVP in DB | Done | `scripts/setup-tables.mjs`, `src/lib/db.ts` |
 | Unique identifier | **Done** | UUID + short-lived token; see STEP-1. |
 | QR gen + email | Done | `src/lib/email.ts`, RSVPForm |
+| QR download (single + bulk ZIP) | Missing | CSV export exists; no QR PNG download/ZIP flow yet. |
+| Print-ready QR badges (name below code) | Missing | No print stylesheet or badge layout currently. |
+| QR minimum size thresholds | Partial | QR width is set in config, but no explicit print-size enforcement/tests. |
+| Duplicate-name disambiguation | Missing | Canonical IDs are unique; print/search/export disambiguators are not implemented. |
 | Scanner + validation | Done | CheckInScanner, `api/checkin` with 409 for duplicate |
+| Low-light / damaged QR fallback UX | Partial | Manual name check-in exists; no dedicated degraded-scan mode/test matrix enforcement. |
+| Scanning speed / perceived latency | Partial | Debounce + preload implemented; no explicit p95 budget instrumentation/loading-state SLA. |
 | PII in QR | **Done** | QR is `id:qr_token` only; no email in payload. |
 | Staff login (Clerk) | **Done** | Clerk authentication with role-based access; any authenticated user is staff, `ADMIN_EMAILS` grants admin role. Migrated from auth-astro to Clerk in March 2026. |
+| Scanner role vs admin ACL | Partial | Scanner role type exists, but assignment/enforcement boundaries are incomplete. |
+| Session timeout + fast re-entry | Partial | Clerk session is in place; scanner-focused re-entry UX is minimal. |
 | Manual override (search by name) | **Done** | CheckInScanner "Check in by name" search; GET /api/attendees?q=; POST /api/checkin { attendeeId }. |
+| Manual check-in race safety | Missing | QR path is atomic; manual attendeeId path still needs strict conditional/idempotent handling. |
 | Traffic light UI (Green/Yellow/Red) | Done | Green/amber/red; 409 = yellow (already checked in). CheckInScanner + api/checkin. |
 | Audio / haptic feedback | Done | Preload + vibrate + success/error/already tones; aria-live. src/lib/feedback.ts, CheckInScanner. |
 | Target overlay / distance hint | **Done** | "6–10 inches" hint when scanning; qrbox. |
@@ -41,8 +50,13 @@
 | CI/CD pipeline | **Done** | GitHub Actions workflow for build and test. |
 | Production deployment docs | **Done** | VERCEL-DEPLOYMENT.md with step-by-step guide. |
 | Offline capability | **Done** | IndexedDB cache, offline queue, sync on reconnect; 409 = success. `src/lib/offline.ts`, `api/attendees/offline-cache`. |
+| Offline sync resilience (backoff/idempotency/queue visibility) | Partial | Queue + reconnect sync exist; retry/backoff, idempotency keys, richer sync UX are pending. |
 | Multi-event / central hub | **Done** | Events table, event-scoped attendees; microsite sync = CSV import (primary); webhook optional. |
+| Event-scoped scanner/manual override hardening | Partial | Event scoping exists broadly; scanner entry path/manual UX still needs stricter guardrails. |
 | Persistent event selection | **Done** | staff_preferences table; last_selected_event_id survives logout/login, works across devices. |
+| Attendance export with operational presets | Partial | Export with timestamps exists; dedicated checked-in/no-show presets pending. |
+| No-shows report | Missing | Can be derived from CSV, but no explicit in-app no-shows view/export flow. |
+| Real-time check-in counter dashboard | Partial | 30s polling exists; near real-time organizer dashboard still limited. |
 | Add to Wallet / Group / Capacity / Analytics | Not implemented | Optional; prioritize later. |
 | Rate limiting on RSVP/webhook | **Done** | `lib/rate-limit.ts`; 20/min attendees, 60/min webhook; checkin unchanged (5/min). |
 | Scanner debounce (150ms→500ms) | **Done** | `config/qr.ts` debounceMs: 500; CheckInScanner uses it. |
@@ -106,6 +120,66 @@ Follow this order; check off and date as you complete each item.
 - [x] Protect admin API routes (attendees, send-email, checkin, refresh-qr) with session check — done in middleware.
 - [ ] Capacity widget and/or no-show analytics.
 - [ ] Add to Wallet, group check-in — if needed.
+
+### 11. Edge-case hardening (operational)
+
+- [ ] **QR delivery + print**
+  - Single QR PNG download in attendee/admin QR surfaces.
+  - Bulk QR ZIP export by event/selection.
+  - Print-friendly badge layout with guest name visible below QR.
+  - Duplicate-name disambiguation for print/export/search (short ID suffix).
+- [ ] **QR scannability safeguards**
+  - Explicit print vs screen QR profiles in config.
+  - Minimum physical size threshold with documented pass/fail test matrix.
+- [ ] **Door-operations resilience**
+  - Low-light/damaged-code fallback UX improvements.
+  - Sub-second perceived feedback target with measurable latency budget.
+  - Clear re-scan copy and differentiated already-checked-in cues.
+- [ ] **Offline + multi-station correctness**
+  - Sync retry/backoff and queue visibility for operators.
+  - Manual check-in path made atomic/idempotent (409 on duplicate).
+  - Duplicate submission protection for offline replay.
+- [ ] **Roles + session ergonomics**
+  - Enforce scanner vs admin route/API boundaries in middleware.
+  - Tighten scanner-device re-auth/session-expiry flow.
+- [ ] **Post-event reporting**
+  - Dedicated no-shows report/filter + export.
+  - Enhanced live counter (`checked-in / total`) with tighter update cadence.
+
+#### 11.A Priority sequence (execution order)
+
+- **P1 — correctness + door reliability (do first)**
+  - Offline + multi-station correctness
+  - Door-operations resilience
+  - Roles + session ergonomics (API/route boundaries first)
+- **P2 — attendee asset quality**
+  - QR delivery + print
+  - QR scannability safeguards
+- **P3 — organizer visibility**
+  - Post-event reporting (no-shows + upgraded live counter)
+
+#### 11.B Next logical step (ready to execute)
+
+- [x] **Step 11.1 — Fix manual check-in race + idempotency baseline**  
+  **Why first:** Prevents double-check-ins across simultaneous staff actions; highest operational risk.  
+  **Scope:**  
+  - Make manual `attendeeId` check-in path conditional/atomic (`already checked in` => 409).  
+  - Ensure offline sync treats duplicate replay as idempotent success.  
+  - Add regression coverage for concurrent manual check-ins.  
+  **Done (2026-03-18):** Added atomic manual check-in update + 409 replay handling (`src/lib/db.ts`, `src/pages/api/checkin.ts`), queue dedupe for offline replay (`src/lib/offline.ts`), and concurrent manual race test (`scripts/test-edge-cases.mjs`).  
+  **Primary files:** `src/lib/db.ts`, `src/pages/api/checkin.ts`, `src/lib/offline.ts`, `scripts/test-edge-cases.mjs`.  
+  **Acceptance criteria:**  
+  - Two simultaneous manual check-ins for same attendee result in exactly one success and one 409.  
+  - Replayed offline queue item for already-checked-in attendee does not create duplicate state or error loop.  
+  - Existing QR token scan path behavior remains unchanged.
+
+#### 11.C Immediate follow-on steps
+
+- [x] **Step 11.2 — Scanner feedback hardening** (explicit 409 guidance, distinct already-checked-in cue, processing-state UX)  
+  **Done (2026-03-18):** Added scan/manual processing-state indicator, converted already-checked-in to warning UX, added explicit ID-check guidance in scanner UI, and made already-checked-in feedback acoustically distinct via a double-beep pattern (`src/components/CheckInScanner.tsx`, `src/lib/feedback.ts`).
+- [x] **Step 11.3 — Offline sync resilience** (retry/backoff + queue visibility)  
+  **Done (2026-03-18):** Added retry-with-backoff sync behavior for transient server failures and exposed live queued-check-in count in scanner UI (`src/lib/offline.ts`, `src/components/CheckInScanner.tsx`).
+- [ ] **Step 11.4 — Role boundary enforcement** (true scanner/admin ACL split in middleware + API surface)
 
 ### UI/UX polish (done)
 

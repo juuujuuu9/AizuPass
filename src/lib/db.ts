@@ -237,6 +237,18 @@ export async function checkInAttendee(id: string) {
   return rowToAttendee(rows[0] as Record<string, unknown>);
 }
 
+/** Atomic manual check-in that only succeeds if attendee is not already checked in. */
+export async function checkInAttendeeIfNotCheckedIn(id: string) {
+  const db = getDb();
+  const rows = await db`
+    UPDATE attendees
+    SET checked_in = true, checked_in_at = NOW()
+    WHERE id = ${id} AND checked_in = false
+    RETURNING *
+  `;
+  return rows.length ? rowToAttendee(rows[0] as Record<string, unknown>) : null;
+}
+
 export async function findAttendeeByToken(id: string, token: string) {
   const db = getDb();
   const rows = await db`

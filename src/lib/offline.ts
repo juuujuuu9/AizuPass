@@ -33,6 +33,12 @@ export type QueuedCheckIn = {
   queuedAt: string;
 };
 
+function queueSignature(item: { qrData?: string; attendeeId?: string }): string {
+  if (item.attendeeId) return `attendee:${item.attendeeId}`;
+  if (item.qrData) return `qr:${item.qrData.trim()}`;
+  return 'unknown';
+}
+
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -85,7 +91,17 @@ export async function getPendingQueue(): Promise<QueuedCheckIn[]> {
   });
 }
 
+export async function getPendingQueueCount(): Promise<number> {
+  const queue = await getPendingQueue();
+  return queue.length;
+}
+
 export async function addToQueue(item: Omit<QueuedCheckIn, 'id' | 'queuedAt'>): Promise<string> {
+  const existing = await getPendingQueue();
+  const signature = queueSignature(item);
+  const duplicate = existing.find((queued) => queueSignature(queued) === signature);
+  if (duplicate) return duplicate.id;
+
   const id = crypto.randomUUID();
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -249,16 +265,29 @@ export async function syncQueue(
   const queue = await getPendingQueue();
   let synced = 0;
   let failed = 0;
+
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const backoffMs = [250, 800, 2000] as const;
+
   for (const item of queue) {
     try {
       const body = item.qrData ? { qrData: item.qrData } : { attendeeId: item.attendeeId };
-      const res = await post(body!);
-      if (res.ok || res.status === 409) {
-        await removeFromQueue(item.id);
-        synced++;
-      } else {
-        failed++;
+      let success = false;
+      for (let i = 0; i < backoffMs.length; i++) {
+        const res = await post(body!);
+        if (res.ok || res.status === 409) {
+          await removeFromQueue(item.id);
+          synced++;
+          success = true;
+          break;
+        }
+        if (res.status >= 500 && i < backoffMs.length - 1) {
+          await sleep(backoffMs[i]);
+          continue;
+        }
+        break;
       }
+      if (!success) failed++;
     } catch {
       failed++;
     }

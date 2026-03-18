@@ -23,6 +23,7 @@ import {
   checkInAttendeeOffline,
   setCachedData,
   getCachedData,
+  getPendingQueueCount,
   syncQueue,
   isOnline,
 } from '@/lib/offline';
@@ -67,6 +68,7 @@ function feedbackTypeFromResult(result: CheckInResult): FeedbackType {
 
 export function CheckInScanner({ onCheckIn, standalone = false, eventId }: CheckInScannerProps) {
   const [scanning, setScanning] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [scanResult, setScanResult] = useState<CheckInResult | null>(null);
   const [manualQuery, setManualQuery] = useState('');
   const [manualResults, setManualResults] = useState<SearchAttendee[]>([]);
@@ -78,6 +80,7 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
   const [copyFlash, setCopyFlash] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   const [offlineMode, setOfflineMode] = useState(false);
+  const [pendingQueueCount, setPendingQueueCount] = useState(0);
   const processingRef = useRef(false);
   const scannerRef = useRef<HTMLDivElement>(null);
   const html5QrCodeRef = useRef<{ stop: () => Promise<void> } | null>(null);
@@ -100,6 +103,13 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
 
   // Cache guest list when online; sync queue when coming back online
   useEffect(() => {
+    const refreshPendingCount = async () => {
+      try {
+        setPendingQueueCount(await getPendingQueueCount());
+      } catch {
+        // Ignore queue read errors.
+      }
+    };
     const refreshCache = async () => {
       if (!isOnline()) return;
       try {
@@ -123,13 +133,19 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
         onCheckIn?.();
       }
       if (failed > 0) toast.error(`${failed} check-in${failed > 1 ? 's' : ''} failed to sync`);
+      await refreshPendingCount();
     };
+    refreshPendingCount();
     refreshCache();
     const onOnline = () => {
       doSync().then(refreshCache);
     };
     window.addEventListener('online', onOnline);
-    return () => window.removeEventListener('online', onOnline);
+    const queueInterval = window.setInterval(refreshPendingCount, 5000);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.clearInterval(queueInterval);
+    };
   }, [eventId, onCheckIn]);
 
   useEffect(() => {
@@ -168,11 +184,13 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
             try {
               let result: CheckInResult;
               try {
+                setProcessing(true);
                 result = await apiService.checkInAttendee(decodedText);
               } catch (err) {
                 if (isNetworkError(err) && !isOnline()) {
                   const offlineResult = await checkInOffline(decodedText);
                   result = toCheckInResult(offlineResult);
+                  setPendingQueueCount(await getPendingQueueCount());
                 } else {
                   throw err;
                 }
@@ -184,6 +202,8 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
               if (result.success) {
                 toast.success(result.message);
                 onCheckIn?.();
+              } else if (result.alreadyCheckedIn) {
+                toast.warning(result.message);
               } else {
                 toast.error(result.message);
               }
@@ -196,6 +216,7 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
               });
               toast.error('Check-in failed');
             } finally {
+              setProcessing(false);
               if (!standalone) processingRef.current = false;
             }
           }, QR_SCANNER.debounceMs);
@@ -350,11 +371,13 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
     try {
       let result: CheckInResult;
       try {
+        setProcessing(true);
         result = await apiService.checkInAttendeeById(attendee.id);
       } catch (err) {
         if (isNetworkError(err) && !isOnline()) {
           const offlineResult = await checkInAttendeeOffline(attendee.id);
           result = toCheckInResult(offlineResult);
+          setPendingQueueCount(await getPendingQueueCount());
         } else {
           throw err;
         }
@@ -369,7 +392,8 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
           prev.map((a) => (a.id === attendee.id ? { ...a, checkedIn: true } : a))
         );
       } else {
-        toast.error(result.message);
+        if (result.alreadyCheckedIn) toast.warning(result.message);
+        else toast.error(result.message);
         if (result.alreadyCheckedIn) {
           setManualResults((prev) =>
             prev.map((a) => (a.id === attendee.id ? { ...a, checkedIn: true } : a))
@@ -382,6 +406,7 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
       toast.error('Check-in failed');
     } finally {
       setManualCheckingIn(null);
+      setProcessing(false);
     }
   };
 
@@ -422,6 +447,17 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
           {offlineMode && (
             <span className="text-xs px-2 py-1 rounded-md bg-amber-500/20 text-amber-11 border border-amber-6">
               Offline — will sync when connected
+            </span>
+          )}
+          {pendingQueueCount > 0 && (
+            <span className="text-xs px-2 py-1 rounded-md bg-[var(--amber-2)] text-[var(--amber-11)] border border-[var(--amber-6)]">
+              {pendingQueueCount} queued for sync
+            </span>
+          )}
+          {processing && (
+            <span className="text-xs px-2 py-1 rounded-md bg-blue-500/20 text-blue-11 border border-blue-6 inline-flex items-center gap-1.5">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Processing scan...
             </span>
           )}
           {torchSupported && (
@@ -644,6 +680,11 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
         >
           Scan next
         </Button>
+        {scanResult.alreadyCheckedIn && (
+          <p className="mt-4 text-white/90 text-center max-w-sm text-sm">
+            If this is a different guest, ask for ID and use name search.
+          </p>
+        )}
       </div>
     ) : null;
 
@@ -719,6 +760,11 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
               <p className="text-sm opacity-90">
                 {scanResult.message}
               </p>
+              {scanResult.alreadyCheckedIn && (
+                <p className="text-sm mt-2 opacity-90">
+                  If this is a different guest, ask for ID and use name search.
+                </p>
+              )}
               {(scanResult.success || scanResult.alreadyCheckedIn) &&
                 scanResult.event && (
                   <p className="text-sm mt-1 opacity-90">

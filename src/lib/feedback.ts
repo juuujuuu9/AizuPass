@@ -52,6 +52,13 @@ export function provideFeedback(
   const audio = getAudio(audioKind);
   audio.currentTime = 0;
   audio.play().catch(() => {});
+  if (type === 'alreadyCheckedIn' && typeof window !== 'undefined') {
+    // Distinct "already checked in" cue: two short beeps.
+    window.setTimeout(() => {
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    }, 180);
+  }
 
   const text = message ?? DEFAULT_MESSAGE[type];
   setAnnouncement?.(text);

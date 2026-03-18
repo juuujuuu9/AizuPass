@@ -267,6 +267,30 @@ async function runTests() {
     }
   });
 
+  // 20. Checkin: Concurrent manual check-ins should be one success + one conflict
+  await test('Checkin: Concurrent manual check-in race', async () => {
+    const unique = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    const attendeeCreate = await post('/api/attendees', {
+      firstName: 'Race',
+      lastName: 'Test',
+      email: `race-${unique}@example.com`,
+    });
+    if (attendeeCreate.status !== 201 || !attendeeCreate.data?.id) {
+      throw new Error(`Failed to create attendee for race test: ${attendeeCreate.status}`);
+    }
+
+    const raceHeaders = { 'X-Forwarded-For': '10.10.10.10' };
+    const [a, b] = await Promise.all([
+      post('/api/checkin', { attendeeId: attendeeCreate.data.id }, raceHeaders),
+      post('/api/checkin', { attendeeId: attendeeCreate.data.id }, raceHeaders),
+    ]);
+
+    const statuses = [a.status, b.status].sort((x, y) => x - y);
+    if (!(statuses[0] === 200 && statuses[1] === 409)) {
+      throw new Error(`Expected one 200 and one 409, got ${a.status} and ${b.status}`);
+    }
+  });
+
   // Summary
   console.log('\n' + '='.repeat(50));
   const passed = RESULTS.filter(r => r.type === 'PASS').length;

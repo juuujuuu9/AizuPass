@@ -4,7 +4,7 @@ import {
   getEventById,
   findAttendeeByEventAndToken,
   checkInAttendeeWithTokenScoped,
-  checkInAttendee,
+  checkInAttendeeIfNotCheckedIn,
 } from '../../lib/db';
 import { decodeQR } from '../../lib/qr';
 import { checkRateLimit, getClientIp } from '../../lib/rate-limit';
@@ -46,7 +46,7 @@ export const POST: APIRoute = async ({ request }) => {
         );
       }
 
-      const { attendeeId, scannerDeviceId } = validation.data;
+      const { attendeeId } = validation.data;
       const attendee = await getAttendeeById(attendeeId);
       if (!attendee) {
         logCheckInAttempt({ ip, outcome: 'not_found', attendeeId });
@@ -70,7 +70,31 @@ export const POST: APIRoute = async ({ request }) => {
           { status: 409, headers: { 'Content-Type': 'application/json' } }
         );
       }
-      const updated = await checkInAttendee(attendeeId);
+      // Atomic update prevents double-success when two stations submit at once.
+      const updated = await checkInAttendeeIfNotCheckedIn(attendeeId);
+      if (!updated) {
+        const latest = await getAttendeeById(attendeeId);
+        const event = latest?.eventId
+          ? await getEventById(latest.eventId as string)
+          : null;
+        if (!latest) {
+          logCheckInAttempt({ ip, outcome: 'not_found', attendeeId });
+          return new Response(
+            JSON.stringify({ error: 'Attendee not found' }),
+            { status: 404, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        logCheckInAttempt({ ip, outcome: 'replay_attempt', attendeeId, eventId: latest.eventId });
+        return new Response(
+          JSON.stringify({
+            alreadyCheckedIn: true,
+            attendee: latest,
+            event: event ? { id: event.id, name: event.name } : undefined,
+            message: `Already checked in: ${latest.firstName} ${latest.lastName}`,
+          }),
+          { status: 409, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
       const event = updated.eventId
         ? await getEventById(updated.eventId as string)
         : null;
