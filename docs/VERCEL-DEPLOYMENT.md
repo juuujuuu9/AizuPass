@@ -52,11 +52,10 @@ In your Vercel project dashboard, go to **Settings > Environment Variables** and
 
 | Variable | Value | Purpose |
 |----------|-------|---------|
-| `ADMIN_EMAILS` | `admin@example.com` | Comma-separated admin emails |
-| `SCANNER_EMAILS` | `scanner1@example.com,scanner2@example.com` | Optional scanner allowlist; omit to allow all authenticated non-admin users |
 | `MICROSITE_WEBHOOK_KEY` | `openssl rand -hex 32` | Webhook security key |
 | `QR_TOKEN_TTL_DAYS` | `30` | QR validity (days) |
 | `DEFAULT_EVENT_SLUG` | `main-event` | Default event identifier |
+| `APP_URL` | `https://yourdomain.com` | Base URL used in staff invitation emails |
 
 ### 4. Database Setup
 
@@ -68,6 +67,7 @@ DATABASE_URL="your-production-db-url" npm run setup-db
 
 # If you have existing data to migrate
 DATABASE_URL="your-production-db-url" npm run migrate-events
+DATABASE_URL="your-production-db-url" npm run migrate-organizations
 DATABASE_URL="your-production-db-url" npm run migrate-qr
 ```
 
@@ -77,8 +77,8 @@ DATABASE_URL="your-production-db-url" npm run migrate-qr
 2. Configure sign-in/sign-up URLs:
    - Sign-in URL: `/login`
    - Sign-up URL: `/login`
-   - After sign-in: `/`
-   - After sign-up: `/`
+   - After sign-in: `/admin`
+   - After sign-up: `/admin`
 
 ### 6. Verify Domain in Resend
 

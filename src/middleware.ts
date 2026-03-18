@@ -1,5 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/astro/server';
-import { getStaffRole } from './lib/staff';
+import { getUserAccessSummary } from './lib/db';
 
 // Define public routes that don't require authentication
 const isPublicRoute = createRouteMatcher([
@@ -11,15 +11,17 @@ const isPublicRoute = createRouteMatcher([
   '/favicon.svg',
 ]);
 
-// Define staff-only routes
-const isStaffRoute = createRouteMatcher([
+// Define authenticated routes
+const isAuthenticatedRoute = createRouteMatcher([
   '/',
   '/admin(.*)',
   '/scanner(.*)',
   '/demo-codes(.*)',
+  '/onboarding(.*)',
+  '/invite(.*)',
 ]);
 
-export const onRequest = clerkMiddleware((auth, context, next) => {
+export const onRequest = clerkMiddleware(async (auth, context, next) => {
   const { userId, sessionClaims } = auth();
   const { url, request, redirect, locals } = context;
   const pathname = url.pathname;
@@ -30,23 +32,23 @@ export const onRequest = clerkMiddleware((auth, context, next) => {
     (sessionClaims?.email as string | undefined) ??
     (sessionClaims?.email_address as string | undefined);
 
-  // Role assignment:
-  // - admin from ADMIN_EMAILS
-  // - scanner from SCANNER_EMAILS (or default scanner when allowlist is unset)
-  // - staff = authenticated but not authorized for scanner/admin surfaces
-  const role = userId ? getStaffRole(email) ?? 'staff' : null;
+  const summary = userId
+    ? await getUserAccessSummary(userId)
+    : { hasMembership: false, hasOrganizerRole: false, organizationCount: 0, eventCount: 0 };
 
-  // Set locals (mirroring previous auth-astro structure)
+  // Set locals from app-managed membership model.
   locals.user = userId
     ? {
         id: userId,
         email: email ?? null,
-        role: role ?? 'staff',
+        role: summary.hasOrganizerRole ? 'organizer' : summary.hasMembership ? 'staff' : 'none',
       }
     : null;
-  locals.isStaff = role === 'admin' || role === 'scanner';
-  locals.isAdmin = role === 'admin';
-  locals.isScanner = role === 'scanner' || role === 'admin';
+  locals.isStaff = summary.hasMembership;
+  locals.isAdmin = summary.hasOrganizerRole;
+  locals.isScanner = summary.hasMembership;
+  locals.hasOrganization = summary.organizationCount > 0;
+  locals.hasEvent = summary.eventCount > 0;
 
   // Dev-only: bypass auth when BYPASS_AUTH_FOR_TESTS and X-Test-Mode: 1 present
   const testBypass =
@@ -57,6 +59,8 @@ export const onRequest = clerkMiddleware((auth, context, next) => {
     locals.isStaff = true;
     locals.isAdmin = true;
     locals.isScanner = true;
+    locals.hasOrganization = true;
+    locals.hasEvent = true;
   }
 
   // Check access for protected paths
@@ -66,64 +70,9 @@ export const onRequest = clerkMiddleware((auth, context, next) => {
 
   const isWebhook = pathname.startsWith('/api/webhooks/');
 
-  const requireRole = (required: 'scanner' | 'admin') => {
+  const requireAuth = () => {
     if (testBypass || isWebhook) return null;
-    if (required === 'admin' && locals.isAdmin) return null;
-    if (required === 'scanner' && locals.isScanner) return null;
-    if (pathname.startsWith('/api/')) {
-      return new Response(
-        JSON.stringify({ error: required === 'admin' ? 'Admin role required' : 'Scanner role required' }),
-        { status: userId ? 403 : 401, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-    const returnTo = encodeURIComponent(pathname + url.search);
-    const tag = required === 'admin' ? 'admin' : 'scanner';
-    return redirect(`/login?returnTo=${returnTo}&required=${tag}`);
-  };
-
-  // Scanner surfaces
-  if (pathname === '/' || pathname.startsWith('/scanner') || pathname.startsWith('/demo-codes')) {
-    const denied = requireRole('scanner');
-    if (denied) return denied;
-    return next();
-  }
-
-  // Admin surfaces
-  if (pathname.startsWith('/admin')) {
-    const denied = requireRole('admin');
-    if (denied) return denied;
-    return next();
-  }
-
-  // Scanner APIs: check-in + attendee lookup/cache only.
-  const isScannerApi =
-    (pathname === '/api/checkin' && method === 'POST') ||
-    (pathname === '/api/attendees' && method === 'GET') ||
-    (pathname === '/api/attendees/offline-cache' && method === 'GET');
-  if (isScannerApi) {
-    const denied = requireRole('scanner');
-    if (denied) return denied;
-    return next();
-  }
-
-  // Admin APIs: event management/import/export/email/preferences and attendee writes.
-  const isAdminApi =
-    pathname.startsWith('/api/send-email') ||
-    pathname.startsWith('/api/events') ||
-    pathname === '/api/update-last-event' ||
-    pathname.startsWith('/api/attendees/import') ||
-    pathname.startsWith('/api/attendees/export') ||
-    pathname.startsWith('/api/attendees/refresh-qr') ||
-    pathname.startsWith('/api/attendees/refresh-qr-bulk') ||
-    pathname.startsWith('/api/attendees/send-bulk-qr') ||
-    (pathname === '/api/attendees' && method !== 'GET');
-  if (isAdminApi) {
-    const denied = requireRole('admin');
-    if (denied) return denied;
-    return next();
-  }
-
-  if (isStaffRoute(context.request) && !locals.isStaff && !testBypass && !isWebhook) {
+    if (userId) return null;
     if (pathname.startsWith('/api/')) {
       return new Response(
         JSON.stringify({ error: 'Authentication required' }),
@@ -131,7 +80,52 @@ export const onRequest = clerkMiddleware((auth, context, next) => {
       );
     }
     const returnTo = encodeURIComponent(pathname + url.search);
-    return redirect(`/login?returnTo=${returnTo}&required=staff`);
+    return redirect(`/login?returnTo=${returnTo}&required=auth`);
+  };
+
+  // Scanner + dashboard surfaces require sign-in; org/event scope is enforced per page/API.
+  if (pathname === '/' || pathname.startsWith('/scanner') || pathname.startsWith('/demo-codes')) {
+    const denied = requireAuth();
+    if (denied) return denied;
+    return next();
+  }
+
+  // Admin and onboarding surfaces require sign-in.
+  if (pathname.startsWith('/admin')) {
+    const denied = requireAuth();
+    if (denied) return denied;
+    return next();
+  }
+  if (pathname.startsWith('/onboarding') || pathname.startsWith('/invite')) {
+    const denied = requireAuth();
+    if (denied) return denied;
+    return next();
+  }
+
+  const isProtectedApi =
+    pathname === '/api/checkin' ||
+    (pathname === '/api/attendees' && method !== 'POST') ||
+    pathname.startsWith('/api/attendees/') ||
+    pathname.startsWith('/api/send-email') ||
+    pathname.startsWith('/api/events') ||
+    pathname === '/api/update-last-event' ||
+    pathname === '/api/organizations' ||
+    pathname.startsWith('/api/organizations/');
+  if (isProtectedApi) {
+    const denied = requireAuth();
+    if (denied) return denied;
+    return next();
+  }
+
+  if (isAuthenticatedRoute(context.request) && !userId && !testBypass && !isWebhook) {
+    if (pathname.startsWith('/api/')) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    const returnTo = encodeURIComponent(pathname + url.search);
+    return redirect(`/login?returnTo=${returnTo}&required=auth`);
   }
 
   // Default: allow access

@@ -1,0 +1,87 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getOrganizationByOwnerUserId } from '../../lib/db';
+
+const userId = Astro.locals.user?.id ?? '';
+const organization = userId ? await getOrganizationByOwnerUserId(userId) : null;
+---
+
+<Layout title="Create Organization">
+  <div class="min-h-screen bg-background">
+    <main class="mx-auto max-w-xl px-4 py-10">
+      <h1 class="text-2xl font-bold text-foreground">Create your organization</h1>
+      <p class="mt-2 text-sm text-muted-foreground">
+        Start by creating one organization. Additional organizations will be part of a future paid tier.
+      </p>
+
+      {organization ? (
+        <div class="mt-6 rounded-lg border border-[var(--green-6)] bg-[var(--green-2)] p-4 text-[var(--green-11)]">
+          <p class="font-medium">Organization already created</p>
+          <p class="mt-1 text-sm">{organization.name}</p>
+          <a href="/admin" class="mt-3 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            Go to dashboard
+          </a>
+        </div>
+      ) : (
+        <form id="org-form" class="mt-6 space-y-4 rounded-lg border border-border bg-card p-6">
+          <div>
+            <label for="name" class="block text-sm font-medium text-muted-foreground">Organization name</label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              required
+              class="mt-1 w-full rounded border border-input bg-background px-3 py-2 text-foreground"
+              placeholder="e.g. Example Organization"
+            />
+          </div>
+          <p id="error" class="hidden text-sm text-[var(--red-11)]"></p>
+          <button
+            type="submit"
+            class="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Create organization
+          </button>
+        </form>
+      )}
+    </main>
+  </div>
+
+  <script>
+    const form = document.getElementById('org-form');
+    const errorEl = document.getElementById('error');
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!form) return;
+      const fd = new FormData(form);
+      const name = String(fd.get('name') ?? '').trim();
+      if (!name) return;
+      if (errorEl) errorEl.classList.add('hidden');
+      const submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn instanceof HTMLButtonElement) submitBtn.disabled = true;
+      try {
+        const res = await fetch('/api/organizations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (errorEl) {
+            errorEl.textContent = body.error || `Error ${res.status}`;
+            errorEl.classList.remove('hidden');
+          }
+          return;
+        }
+        window.location.href = '/admin';
+      } catch {
+        if (errorEl) {
+          errorEl.textContent = 'Failed to create organization';
+          errorEl.classList.remove('hidden');
+        }
+      } finally {
+        if (submitBtn instanceof HTMLButtonElement) submitBtn.disabled = false;
+      }
+    });
+  </script>
+</Layout>

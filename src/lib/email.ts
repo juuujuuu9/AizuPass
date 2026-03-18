@@ -14,6 +14,18 @@ function getResend() {
 
 const QR_CID = 'qrcode';
 
+function getConfiguredEmailSender() {
+  const apiKey = (typeof process !== 'undefined' && process.env.RESEND_API_KEY)
+    || (typeof import.meta !== 'undefined' && import.meta.env.RESEND_API_KEY);
+  const fromEmail = (typeof process !== 'undefined' && process.env.FROM_EMAIL)
+    || (typeof import.meta !== 'undefined' && import.meta.env.FROM_EMAIL)
+    || 'onboarding@resend.dev';
+  const fromName = (typeof process !== 'undefined' && process.env.FROM_NAME)
+    || (typeof import.meta !== 'undefined' && import.meta.env.FROM_NAME)
+    || 'Event Check-In';
+  return { apiKey, fromEmail, fromName };
+}
+
 function dataUrlToBase64(dataUrl: string) {
   const match = /^data:image\/\w+;base64,(.+)$/.exec(dataUrl);
   if (!match) throw new Error('Invalid QR data URL');
@@ -32,20 +44,13 @@ export async function sendQRCodeEmail(
   qrCodeBase64: string,
   overrides?: { fromName?: string; eventName?: string }
 ) {
-  // On Vercel, process.env is the runtime source of truth
-  const apiKey = (typeof process !== 'undefined' && process.env.RESEND_API_KEY)
-    || (typeof import.meta !== 'undefined' && import.meta.env.RESEND_API_KEY);
+  const { apiKey, fromEmail, fromName: defaultFromName } = getConfiguredEmailSender();
   if (!apiKey) {
     return { success: false as const, error: 'Email service not configured' };
   }
-  const fromEmail = (typeof process !== 'undefined' && process.env.FROM_EMAIL)
-    || (typeof import.meta !== 'undefined' && import.meta.env.FROM_EMAIL)
-    || 'onboarding@resend.dev';
   const fromName =
     overrides?.fromName
-    ?? (typeof process !== 'undefined' && process.env.FROM_NAME)
-    ?? (typeof import.meta !== 'undefined' && import.meta.env.FROM_NAME)
-    ?? 'Event Check-In';
+    ?? defaultFromName;
   const eventName = overrides?.eventName ?? 'the event';
   const from = fromName ? `${fromName} <${fromEmail}>` : fromEmail;
 
@@ -138,4 +143,68 @@ export async function sendQRCodeEmail(
     return { success: false as const, error: error.message };
   }
   return { success: true as const, data };
+}
+
+export async function sendOrganizationInviteEmail(data: {
+  toEmail: string;
+  organizationName: string;
+  inviteUrl: string;
+  invitedByEmail?: string | null;
+  expiresAt: Date;
+}) {
+  const { apiKey, fromEmail, fromName } = getConfiguredEmailSender();
+  if (!apiKey) {
+    return { success: false as const, error: 'Email service not configured' };
+  }
+  const from = fromName ? `${fromName} <${fromEmail}>` : fromEmail;
+  const expiresLabel = data.expiresAt.toLocaleString();
+  const inviter = data.invitedByEmail ? ` by ${data.invitedByEmail}` : '';
+  const subject = `You're invited to join ${data.organizationName}`;
+
+  const { data: resendData, error } = await getResend().emails.send({
+    from,
+    to: data.toEmail,
+    subject,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #374151; max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #374151; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .card { background: #fff; border-radius: 8px; border: 1px solid #e5e7eb; padding: 16px; margin-top: 16px; }
+          .cta { display: inline-block; margin-top: 18px; background: #111827; color: #fff !important; text-decoration: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; }
+          .muted { color: #6b7280; font-size: 13px; margin-top: 12px; }
+          .link { word-break: break-all; color: #111827; }
+        </style>
+      </head>
+      <body>
+        <div class="header"><h1>Staff Invitation</h1></div>
+        <div class="content">
+          <p>You were invited${inviter} to join <strong>${data.organizationName}</strong> as staff.</p>
+          <div class="card">
+            <p><strong>What you get access to:</strong></p>
+            <ul>
+              <li>Scanner and dashboard access for events in this organization</li>
+              <li>No organization settings or organizer-only controls</li>
+            </ul>
+            <a class="cta" href="${data.inviteUrl}">Accept Invitation</a>
+            <p class="muted">This invite expires on ${expiresLabel}.</p>
+          </div>
+          <p class="muted">If the button does not work, copy and paste this link:</p>
+          <p class="link">${data.inviteUrl}</p>
+        </div>
+      </body>
+      </html>
+    `,
+  });
+
+  if (error) {
+    console.error('Resend API error (invite):', error);
+    return { success: false as const, error: error.message || 'Failed to send invite email' };
+  }
+  return { success: true as const, data: resendData };
 }

@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
-import { getAttendeeById } from '../../lib/db';
+import { getAttendeeByIdForUser } from '../../lib/db';
 import { sendQRCodeEmail } from '../../lib/email';
+import { requireEventManage, requireUserId } from '../../lib/access';
 
 const RESEND_LINK = 'https://resend.com/api-keys';
 
@@ -16,7 +17,10 @@ export const GET: APIRoute = () => {
   );
 };
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async (context) => {
+  const userId = requireUserId(context);
+  if (userId instanceof Response) return userId;
+  const { request } = context;
   try {
     const { attendeeId, qrCodeBase64 } =
       ((await request.json()) || {}) as { attendeeId?: string; qrCodeBase64?: string };
@@ -26,13 +30,15 @@ export const POST: APIRoute = async ({ request }) => {
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
-    const attendee = await getAttendeeById(attendeeId);
-    if (!attendee) {
+    const attendee = await getAttendeeByIdForUser(attendeeId, userId);
+    if (!attendee || !attendee.eventId) {
       return new Response(
         JSON.stringify({ error: 'Attendee not found' }),
         { status: 404, headers: { 'Content-Type': 'application/json' } }
       );
     }
+    const manage = await requireEventManage(context, String(attendee.eventId));
+    if (manage instanceof Response) return manage;
     const result = await sendQRCodeEmail(attendee, qrCodeBase64);
     if (result.success) {
       return new Response(JSON.stringify({ success: true }), {

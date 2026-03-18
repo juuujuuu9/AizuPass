@@ -1,7 +1,9 @@
 import type { APIRoute } from 'astro';
 import { updateStaffLastEventId } from '../../lib/db';
+import { requireEventAccess } from '../../lib/access';
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async (context) => {
+  const { request, locals } = context;
   const user = locals.user;
   if (!user?.id) {
     return new Response(JSON.stringify({ error: 'Authentication required' }), {
@@ -22,6 +24,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   const eventId = typeof body.eventId === 'string' ? body.eventId : null;
   try {
+    if (eventId) {
+      const access = await requireEventAccess(context, eventId);
+      if (access instanceof Response) return access;
+    }
     await updateStaffLastEventId(user.id, eventId || null);
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,

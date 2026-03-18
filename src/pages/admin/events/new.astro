@@ -1,5 +1,10 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import { getEventForOrganization, getOrganizationByOwnerUserId } from '../../../lib/db';
+
+const userId = Astro.locals.user?.id ?? '';
+const organization = userId ? await getOrganizationByOwnerUserId(userId) : null;
+const existingEvent = organization ? await getEventForOrganization(organization.id) : null;
 ---
 
 <Layout title="New Event">
@@ -25,7 +30,27 @@ import Layout from '../../../layouts/Layout.astro';
     <main class="max-w-2xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
       <h1 class="text-2xl font-bold text-foreground mb-6">New event</h1>
 
-      <form id="new-event-form" class="space-y-4 rounded-lg border border-border bg-card p-6 shadow-sm">
+      {!organization && (
+        <div class="mb-6 rounded-lg border border-[var(--amber-6)] bg-[var(--amber-2)] p-4 text-[var(--amber-11)]">
+          <p class="font-medium">Create an organization first</p>
+          <p class="mt-1 text-sm">You need an organization before you can create events.</p>
+          <a href="/onboarding/organization" class="mt-3 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            Create organization
+          </a>
+        </div>
+      )}
+
+      {organization && existingEvent && (
+        <div class="mb-6 rounded-lg border border-[var(--amber-6)] bg-[var(--amber-2)] p-4 text-[var(--amber-11)]">
+          <p class="font-medium">Event limit reached</p>
+          <p class="mt-1 text-sm">This organization already has an event. Multi-event access is planned for a future paid tier.</p>
+          <a href="/admin/events" class="mt-3 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            Back to events
+          </a>
+        </div>
+      )}
+
+      <form id="new-event-form" class={`space-y-4 rounded-lg border border-border bg-card p-6 shadow-sm ${(!organization || existingEvent) ? 'opacity-60 pointer-events-none' : ''}`}>
         <div>
           <label for="name" class="block text-sm font-medium text-muted-foreground mb-1">Name</label>
           <input

@@ -1,21 +1,28 @@
 import type { APIRoute } from 'astro';
 import {
-  getAllAttendees,
-  searchAttendees,
-  getAttendeeById,
+  searchAttendeesForUser,
+  getAttendeeByIdForUser,
   createAttendee,
   deleteAttendee,
 } from '../../lib/db';
 import { getOrCreateQRPayload } from '../../lib/qr-token';
 import { checkRateLimit, getClientIp } from '../../lib/rate-limit';
 import { validateRSVPForm } from '../../lib/validation';
+import { requireEventAccess, requireEventManage, requireUserId } from '../../lib/access';
 
-export const GET: APIRoute = async ({ request }) => {
+export const GET: APIRoute = async (context) => {
+  const userId = requireUserId(context);
+  if (userId instanceof Response) return userId;
+  const { request } = context;
   try {
     const url = new URL(request.url);
     const eventId = url.searchParams.get('eventId') ?? undefined;
+    if (eventId) {
+      const check = await requireEventAccess(context, eventId);
+      if (check instanceof Response) return check;
+    }
     const q = url.searchParams.get('q')?.trim() ?? undefined;
-    const attendees = await searchAttendees(eventId, q);
+    const attendees = await searchAttendeesForUser(userId, eventId, q);
     return new Response(JSON.stringify(attendees), {
       headers: { 'Content-Type': 'application/json' },
     });
@@ -92,7 +99,10 @@ export const POST: APIRoute = async ({ request }) => {
   }
 };
 
-export const DELETE: APIRoute = async ({ request }) => {
+export const DELETE: APIRoute = async (context) => {
+  const userId = requireUserId(context);
+  if (userId instanceof Response) return userId;
+  const { request } = context;
   try {
     const { id } = ((await request.json()) || {}) as { id?: string };
     if (!id) {
@@ -101,6 +111,15 @@ export const DELETE: APIRoute = async ({ request }) => {
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
+    const attendee = await getAttendeeByIdForUser(id, userId);
+    if (!attendee?.eventId) {
+      return new Response(
+        JSON.stringify({ error: 'Attendee not found' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    const manage = await requireEventManage(context, String(attendee.eventId));
+    if (manage instanceof Response) return manage;
     const deleted = await deleteAttendee(id);
     if (!deleted) {
       return new Response(

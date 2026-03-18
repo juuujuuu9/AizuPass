@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getAllAttendees } from '../../../lib/db';
+import { requireEventAccess } from '../../../lib/access';
 
 function escapeCsvField(val: string | number | null | undefined): string {
   if (val == null) return '""';
@@ -7,7 +8,8 @@ function escapeCsvField(val: string | number | null | undefined): string {
   return `"${s.replace(/"/g, '""')}"`;
 }
 
-export const GET: APIRoute = async ({ request }) => {
+export const GET: APIRoute = async (context) => {
+  const { request } = context;
   const url = new URL(request.url);
   const eventId = url.searchParams.get('eventId')?.trim();
 
@@ -17,6 +19,8 @@ export const GET: APIRoute = async ({ request }) => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
+  const access = await requireEventAccess(context, eventId);
+  if (access instanceof Response) return access;
 
   const attendees = await getAllAttendees(eventId);
   const headers = [

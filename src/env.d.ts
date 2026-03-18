@@ -1,6 +1,6 @@
 /// <reference types="astro/client" />
 
-type StaffRole = 'admin' | 'scanner' | 'staff';
+type StaffRole = 'organizer' | 'staff' | 'none';
 
 interface User {
   id: string;
@@ -14,5 +14,7 @@ declare namespace App {
     isStaff: boolean;
     isAdmin: boolean;
     isScanner: boolean;
+    hasOrganization: boolean;
+    hasEvent: boolean;
   }
 }

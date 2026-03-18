@@ -1,9 +1,12 @@
 import type { APIRoute } from 'astro';
-import { getAllEvents, createEvent } from '../../../lib/db';
+import { createEventForUser, getAllEventsForUser } from '../../../lib/db';
+import { requireUserId } from '../../../lib/access';
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async (context) => {
+  const userId = requireUserId(context);
+  if (userId instanceof Response) return userId;
   try {
-    const events = await getAllEvents();
+    const events = await getAllEventsForUser(userId);
     return new Response(JSON.stringify(events), {
       headers: { 'Content-Type': 'application/json' },
     });
@@ -16,7 +19,10 @@ export const GET: APIRoute = async () => {
   }
 };
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async (context) => {
+  const userId = requireUserId(context);
+  if (userId instanceof Response) return userId;
+  const { request } = context;
   try {
     const body = (await request.json()) as { name?: string; slug?: string; micrositeUrl?: string };
     const name = (body?.name ?? '').trim();
@@ -27,7 +33,7 @@ export const POST: APIRoute = async ({ request }) => {
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
-    const event = await createEvent({
+    const event = await createEventForUser(userId, {
       name,
       slug,
       micrositeUrl: body?.micrositeUrl?.trim() || undefined,
@@ -38,6 +44,18 @@ export const POST: APIRoute = async ({ request }) => {
     });
   } catch (err) {
     const msg = (err as Error)?.message ?? '';
+    if (msg.includes('Organization required')) {
+      return new Response(
+        JSON.stringify({ error: 'Create an organization before creating an event' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (msg.includes('already has an event')) {
+      return new Response(
+        JSON.stringify({ error: 'Your organization already has an event. Multiple events are part of a future paid tier.' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
     if (msg.includes('unique') || msg.includes('duplicate')) {
       return new Response(
         JSON.stringify({ error: 'An event with this slug already exists' }),

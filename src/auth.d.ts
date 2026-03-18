@@ -2,7 +2,7 @@
 // No additional type declarations needed - Clerk provides its own types
 
 // Re-export StaffRole for convenience
-export type StaffRole = 'admin' | 'scanner' | 'staff';
+export type StaffRole = 'organizer' | 'staff' | 'none';
 
 export interface User {
   id: string;

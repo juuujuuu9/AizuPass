@@ -21,23 +21,23 @@ CLERK_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 For production, use your production keys from Clerk dashboard.
 
-### 3. Configure Access (Role-Based)
+### 3. Configure Access (Organization-Based)
 
-The app supports role-based access with environment variables:
+Access is app-managed in the database (not environment email allowlists).
+
+Run migrations:
 
 ```bash
-# Optional: elevate specific users to admin (full access)
-ADMIN_EMAILS=admin@yourdomain.com
-
-# Optional: scanner allowlist (check-in/search only)
-# If omitted, any authenticated non-admin user is treated as scanner
-SCANNER_EMAILS=scanner1@yourdomain.com,scanner2@yourdomain.com
+npm run migrate-events
+npm run migrate-organizations
 ```
 
 **How it works:**
-- `admin`: in `ADMIN_EMAILS`
-- `scanner`: in `SCANNER_EMAILS` (or any authenticated non-admin when `SCANNER_EMAILS` is unset)
-- `staff`: authenticated but not authorized for scanner/admin surfaces
+- Sign-in is still handled by Clerk.
+- Users create one organization (owner = organizer).
+- Organizer can create one event for that organization (current plan limit).
+- Organizer can invite staff by email.
+- Staff access is scoped to events in their organization memberships.
 
 ### 4. Configure Clerk Dashboard
 
@@ -73,17 +73,15 @@ In Clerk Dashboard → Configure → Emails:
 - Customize email templates
 - Configure your SendGrid/Resend/SMTP for sending
 
-## Role-Based Access Control
+## Access Control Model
 
-The app supports three roles:
+The app supports membership-based access:
 
-| Role | Access |
+| Membership role | Access |
 |------|--------|
-| `admin` | Full access: events, attendees, imports/exports, email workflows |
-| `scanner` | Check-in + attendee lookup/offline cache; no admin event management |
-| `staff` | Authenticated but not granted scanner/admin access when allowlists restrict access |
-
-**Note:** If `SCANNER_EMAILS` is not set, non-admin authenticated users default to scanner access.
+| `organizer` | Organization management, event management, imports/exports, email workflows |
+| `staff` | Dashboard + scanner access for events in their organization |
+| `none` | Signed in but no org/membership yet; prompted to create org or accept invite |
 
 ## Migrating from auth-astro/Google OAuth
 
@@ -91,7 +89,7 @@ If you're migrating from the previous Google OAuth setup:
 
 1. **Environment variables**: Replace `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`, `AUTH_URL` with `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`
 
-2. **Role emails**: Use `ADMIN_EMAILS` for admin permissions and optional `SCANNER_EMAILS` to restrict scanner access
+2. **Authorization model**: Replace env email role lists with organization + membership records in app DB
 
 3. **Login flow**: Users now see Clerk's sign-in component (with email + optional social providers) instead of Google-only
 
@@ -110,27 +108,23 @@ If you're migrating from the previous Google OAuth setup:
 - Check that `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` are set correctly
 - Verify keys match your Clerk application (test vs production)
 
-### User can sign in but is not an admin
+### User can sign in but cannot access dashboard/scanner
 
-- Check that the user's email is listed in `ADMIN_EMAILS`
-- The email match is case-insensitive
-
-### User can sign in but cannot access scanner
-
-- If `SCANNER_EMAILS` is set, check that the user's email is included
-- If you want all authenticated non-admin users to scan, remove `SCANNER_EMAILS`
+- Check whether the user created an organization or accepted an invitation.
+- Organizer onboarding is at `/onboarding/organization`.
+- Invitations are accepted at `/invite/accept?token=...`.
 
 ### Sign-in page not redirecting after login
 
 - Check that the `redirectUrl` in the SignIn component matches your app structure
 - Default is `/admin` for successful sign-ins
 
-### Want to use Clerk's organization/role features instead?
+### Existing Clerk users during migration
 
-The current implementation uses environment variables for simplicity. To use Clerk's built-in roles:
+No manual edits are required in Clerk user records.
 
-1. Update `src/middleware.ts` to read roles from Clerk's session claims
-2. Update `src/lib/staff.ts` to check Clerk roles instead of `ADMIN_EMAILS`
+- Existing users can keep their same Clerk account.
+- App ownership/membership is derived from local DB records keyed by Clerk `userId` and email.
 
 ## Resources
 

@@ -10,8 +10,12 @@ import { decodeQR } from '../../lib/qr';
 import { checkRateLimit, getClientIp } from '../../lib/rate-limit';
 import { logCheckInAttempt } from '../../lib/audit';
 import { validateCheckIn, validateManualCheckIn } from '../../lib/validation';
+import { requireEventAccess, requireUserId } from '../../lib/access';
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async (context) => {
+  const userId = requireUserId(context);
+  if (userId instanceof Response) return userId;
+  const { request } = context;
   const ip = getClientIp(request);
 
   const rate = checkRateLimit(ip);
@@ -56,6 +60,10 @@ export const POST: APIRoute = async ({ request }) => {
         );
       }
       if (attendee.checkedIn) {
+        if (attendee.eventId) {
+          const access = await requireEventAccess(context, String(attendee.eventId));
+          if (access instanceof Response) return access;
+        }
         const event = attendee.eventId
           ? await getEventById(attendee.eventId as string)
           : null;
@@ -69,6 +77,10 @@ export const POST: APIRoute = async ({ request }) => {
           }),
           { status: 409, headers: { 'Content-Type': 'application/json' } }
         );
+      }
+      if (attendee.eventId) {
+        const access = await requireEventAccess(context, String(attendee.eventId));
+        if (access instanceof Response) return access;
       }
       // Atomic update prevents double-success when two stations submit at once.
       const updated = await checkInAttendeeIfNotCheckedIn(attendeeId);
@@ -192,6 +204,8 @@ export const POST: APIRoute = async ({ request }) => {
         { status: 404, headers: { 'Content-Type': 'application/json' } }
       );
     }
+    const eventAccess = await requireEventAccess(context, eventId);
+    if (eventAccess instanceof Response) return eventAccess;
 
     const attendee = await findAttendeeByEventAndToken(eventId, entryId, token);
     if (!attendee) {

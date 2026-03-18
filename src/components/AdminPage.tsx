@@ -19,12 +19,15 @@ interface AdminPageProps {
   events?: EventOption[];
   /** Pre-selected event ID (URL param or DB lastSelectedEventId). */
   selectedEventId?: string;
+  /** Show organizer-only controls. */
+  canManageOrganization?: boolean;
 }
 
 export function AdminPage({
   initialAttendees = [],
   events = [],
   selectedEventId = '',
+  canManageOrganization = false,
 }: AdminPageProps) {
   // Server passes selectedEventId (URL > DB). Use as initial state.
   const [eventId, setEventId] = useState(selectedEventId || '');
@@ -119,6 +122,14 @@ export function AdminPage({
           >
             Manage events
           </a>
+          {canManageOrganization && (
+            <a
+              href="/admin/organization"
+              className="rounded border border-border bg-muted px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
+            >
+              Organization
+            </a>
+          )}
           <a
             href="/admin/events/new"
             className="text-sm text-primary hover:underline"

@@ -1,0 +1,74 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const token = Astro.url.searchParams.get('token')?.trim() ?? '';
+---
+
+<Layout title="Accept Invitation">
+  <div class="min-h-screen bg-background">
+    <main class="mx-auto max-w-xl px-4 py-10">
+      <h1 class="text-2xl font-bold text-foreground">Accept staff invitation</h1>
+      <p class="mt-2 text-sm text-muted-foreground">
+        Confirm access to your organization dashboard and scanner surfaces.
+      </p>
+
+      {!token ? (
+        <div class="mt-6 rounded-lg border border-[var(--red-6)] bg-[var(--red-2)] p-4 text-[var(--red-11)]">
+          Missing invitation token. Use the link from your invitation email.
+        </div>
+      ) : (
+        <div class="mt-6 rounded-lg border border-border bg-card p-6">
+          <p class="text-sm text-muted-foreground">Signed in as <span class="font-medium text-foreground">{Astro.locals.user?.email ?? 'your account'}</span></p>
+          <p id="status" class="mt-3 text-sm text-muted-foreground">Ready to accept invitation.</p>
+          <button
+            id="accept-btn"
+            type="button"
+            class="mt-4 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Accept invitation
+          </button>
+        </div>
+      )}
+    </main>
+  </div>
+
+  <script define:vars={{ token }}>
+    const btn = document.getElementById('accept-btn');
+    const status = document.getElementById('status');
+    btn?.addEventListener('click', async () => {
+      if (!token) return;
+      if (btn instanceof HTMLButtonElement) btn.disabled = true;
+      if (status) {
+        status.textContent = 'Accepting invitation...';
+        status.className = 'mt-3 text-sm text-muted-foreground';
+      }
+      try {
+        const res = await fetch('/api/organizations/invitations/accept', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (status) {
+            status.textContent = body.error || `Error ${res.status}`;
+            status.className = 'mt-3 text-sm text-[var(--red-11)]';
+          }
+          return;
+        }
+        if (status) {
+          status.textContent = 'Invitation accepted. Redirecting...';
+          status.className = 'mt-3 text-sm text-[var(--green-11)]';
+        }
+        window.location.href = '/admin';
+      } catch {
+        if (status) {
+          status.textContent = 'Could not accept invitation';
+          status.className = 'mt-3 text-sm text-[var(--red-11)]';
+        }
+      } finally {
+        if (btn instanceof HTMLButtonElement) btn.disabled = false;
+      }
+    });
+  </script>
+</Layout>

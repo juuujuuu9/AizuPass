@@ -4,9 +4,11 @@ import { sendQRCodeEmail } from '../../../lib/email';
 import { generateQRCodeBase64 } from '../../../lib/qr-client';
 import { QR_GENERATION } from '../../../config/qr';
 import { getOrCreateQRPayload } from '../../../lib/qr-token';
+import { requireEventManage } from '../../../lib/access';
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async (context) => {
   try {
+    const { request } = context;
     const body = (await request.json()) as {
       attendeeIds?: string[];
       eventId?: string;
@@ -36,6 +38,8 @@ export const POST: APIRoute = async ({ request }) => {
         { status: 404, headers: { 'Content-Type': 'application/json' } }
       );
     }
+    const manage = await requireEventManage(context, eventId);
+    if (manage instanceof Response) return manage;
 
     const results = {
       sent: 0,
@@ -51,6 +55,11 @@ export const POST: APIRoute = async ({ request }) => {
         if (!attendee) {
           results.failed++;
           results.errors.push({ attendeeId, error: 'Attendee not found' });
+          continue;
+        }
+        if (attendee.eventId !== eventId) {
+          results.failed++;
+          results.errors.push({ attendeeId, error: 'Attendee is not part of this event' });
           continue;
         }
 

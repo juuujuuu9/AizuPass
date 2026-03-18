@@ -27,13 +27,14 @@ If you were using the previous Google OAuth setup, here are the key changes:
 
 ### Access Control (Updated)
 
-Use role email lists to control access:
+Authorization is now app-managed with organization records:
 
 ```bash
-ADMIN_EMAILS=admin@example.com
-# Optional scanner allowlist. If omitted, authenticated non-admin users are scanners by default.
-SCANNER_EMAILS=scanner1@example.com,scanner2@example.com
+npm run migrate-events
+npm run migrate-organizations
 ```
+
+Users keep their existing Clerk accounts. Organization ownership, memberships, and invitations are stored in the app database.
 
 ### Benefits of Clerk
 

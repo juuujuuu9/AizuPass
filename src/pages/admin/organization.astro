@@ -1,0 +1,209 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import {
+  getOrganizationByOwnerUserId,
+  getOrganizationMembershipsForUser,
+  listOrganizationInvitations,
+} from '../../lib/db';
+
+const userId = Astro.locals.user?.id ?? '';
+const organization = userId ? await getOrganizationByOwnerUserId(userId) : null;
+const invitations = organization ? await listOrganizationInvitations(organization.id) : [];
+const memberships = userId ? await getOrganizationMembershipsForUser(userId) : [];
+---
+
+<Layout title="Organization">
+  <div class="min-h-screen bg-background">
+    <main class="mx-auto max-w-4xl px-4 py-10 space-y-6">
+      <div>
+        <h1 class="text-2xl font-bold text-foreground">Organization settings</h1>
+        <p class="mt-1 text-sm text-muted-foreground">Invite staff and manage organization access.</p>
+      </div>
+
+      {!organization ? (
+        <div class="rounded-lg border border-(--amber-6) bg-(--amber-2) p-4 text-(--amber-11)">
+          <p class="font-medium">No organizer organization found</p>
+          <p class="mt-1 text-sm">Create one first to invite staff.</p>
+          <a href="/onboarding/organization" class="mt-3 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            Create organization
+          </a>
+        </div>
+      ) : (
+        <>
+          <section class="rounded-lg border border-border bg-card p-6">
+            <h2 class="text-lg font-semibold text-foreground">{organization.name}</h2>
+            <p class="mt-1 text-sm text-muted-foreground">One organization per organizer on current plan.</p>
+          </section>
+
+          <section class="rounded-lg border border-border bg-card p-6">
+            <h2 class="text-lg font-semibold text-foreground">Invite staff</h2>
+            <form id="invite-form" class="mt-4 flex flex-wrap gap-3">
+              <input
+                id="invite-email"
+                type="email"
+                required
+                placeholder="staff@example.com"
+                class="min-w-[260px] flex-1 rounded border border-input bg-background px-3 py-2 text-foreground"
+              />
+              <button type="submit" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+                Send invite
+              </button>
+            </form>
+            <p id="invite-status" class="mt-3 text-sm text-muted-foreground"></p>
+          </section>
+
+          <section class="rounded-lg border border-border bg-card p-6">
+            <h2 class="text-lg font-semibold text-foreground">Pending invites</h2>
+            {invitations.length === 0 ? (
+              <p class="mt-3 text-sm text-muted-foreground">No invites yet.</p>
+            ) : (
+              <ul class="mt-3 space-y-2 text-sm">
+                {invitations.map((invite) => (
+                  <li class="rounded border border-border bg-muted/40 px-3 py-2">
+                    <span class="font-medium text-foreground">{invite.email}</span>
+                    <span class="ml-2 text-muted-foreground">({invite.status})</span>
+                    <div class="mt-1 text-xs text-muted-foreground">
+                      Invite link: <code>{`${Astro.url.origin}/invite/accept?token=${invite.token}`}</code>
+                    </div>
+                    {invite.status === 'pending' && (
+                      <div class="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          data-invite-action="resend"
+                          data-invite-id={invite.id}
+                          class="rounded border border-border bg-background px-2 py-1 text-xs text-foreground hover:bg-muted"
+                        >
+                          Resend
+                        </button>
+                        <button
+                          type="button"
+                          data-invite-action="revoke"
+                          data-invite-id={invite.id}
+                          class="rounded border border-(--red-6) bg-(--red-2) px-2 py-1 text-xs text-(--red-11) hover:bg-(--red-3)"
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section class="rounded-lg border border-border bg-card p-6">
+            <h2 class="text-lg font-semibold text-foreground">Your memberships</h2>
+            <ul class="mt-3 space-y-2 text-sm">
+              {memberships.length === 0 ? (
+                <li class="text-muted-foreground">No memberships found.</li>
+              ) : (
+                memberships.map((membership) => (
+                  <li class="rounded border border-border bg-muted/40 px-3 py-2">
+                    <span class="font-medium text-foreground">{membership.role}</span>
+                    <span class="ml-2 text-muted-foreground">Org: {membership.organizationId}</span>
+                  </li>
+                ))
+              )}
+            </ul>
+          </section>
+        </>
+      )}
+    </main>
+  </div>
+
+  <script>
+    const form = document.getElementById('invite-form');
+    const emailInput = document.getElementById('invite-email');
+    const status = document.getElementById('invite-status');
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const email = emailInput instanceof HTMLInputElement ? emailInput.value.trim() : '';
+      if (!email) return;
+      if (status) {
+        status.textContent = 'Sending invite...';
+        status.className = 'mt-3 text-sm text-muted-foreground';
+      }
+      try {
+        const res = await fetch('/api/organizations/invitations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (status) {
+            status.textContent = body.error || `Error ${res.status}`;
+            status.className = 'mt-3 text-sm text-[var(--red-11)]';
+          }
+          return;
+        }
+        if (status) {
+          if (body?.communication?.sent) {
+            status.textContent = 'Invite email sent. Refresh to view the latest invite list.';
+            status.className = 'mt-3 text-sm text-[var(--green-11)]';
+          } else {
+            const reason = body?.communication?.error || 'Email service is not configured';
+            status.textContent = `Invite created, but email was not sent: ${reason}. You can still copy the invite link below after refresh.`;
+            status.className = 'mt-3 text-sm text-[var(--amber-11)]';
+          }
+        }
+        if (emailInput instanceof HTMLInputElement) emailInput.value = '';
+      } catch {
+        if (status) {
+          status.textContent = 'Could not send invite';
+          status.className = 'mt-3 text-sm text-[var(--red-11)]';
+        }
+      }
+    });
+
+    document.addEventListener('click', async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const action = target.getAttribute('data-invite-action');
+      const inviteId = target.getAttribute('data-invite-id');
+      if (!action || !inviteId) return;
+
+      const button = target as HTMLButtonElement;
+      button.disabled = true;
+      if (status) {
+        status.textContent = action === 'revoke' ? 'Revoking invite...' : 'Resending invite...';
+        status.className = 'mt-3 text-sm text-muted-foreground';
+      }
+
+      try {
+        const res = await fetch(`/api/organizations/invitations/${encodeURIComponent(inviteId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (status) {
+            status.textContent = body.error || `Error ${res.status}`;
+            status.className = 'mt-3 text-sm text-[var(--red-11)]';
+          }
+          return;
+        }
+
+        if (status) {
+          if (action === 'revoke') {
+            status.textContent = 'Invite revoked. Refreshing...';
+          } else if (body?.communication?.sent) {
+            status.textContent = 'Invite email resent. Refreshing...';
+          } else {
+            status.textContent = `Invite exists but resend failed: ${body?.communication?.error || 'Email service unavailable'}`;
+          }
+          status.className = 'mt-3 text-sm text-[var(--green-11)]';
+        }
+        window.location.reload();
+      } catch {
+        if (status) {
+          status.textContent = 'Could not process invite action';
+          status.className = 'mt-3 text-sm text-[var(--red-11)]';
+        }
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</Layout>

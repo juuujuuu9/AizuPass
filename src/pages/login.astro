@@ -2,18 +2,36 @@
 import Layout from '../layouts/Layout.astro';
 import { SignIn } from '@clerk/astro/components';
 
-// Check if already signed in
-const { userId } = Astro.locals.auth();
-if (userId) {
-  const returnTo = Astro.url.searchParams.get('returnTo') || '/admin';
-  // Ensure returnTo is a safe relative path
-  const safeReturnTo =
-    returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/admin';
-  return Astro.redirect(safeReturnTo);
-}
-
 const required = Astro.url.searchParams.get('required');
 const error = Astro.url.searchParams.get('error');
+
+function canAccessPath(path: string, role: 'organizer' | 'staff' | 'none' | null): boolean {
+  if (!role) return false;
+  if (role === 'organizer' || role === 'staff') return true;
+  if (role === 'none') {
+    return path.startsWith('/onboarding') || path.startsWith('/invite');
+  }
+  return false;
+}
+
+// Check if already signed in and route them to an allowed surface.
+const { userId } = Astro.locals.auth();
+const currentRole = (Astro.locals.user?.role ?? null) as 'organizer' | 'staff' | 'none' | null;
+let blockedSignedIn = false;
+if (userId) {
+  const returnTo = Astro.url.searchParams.get('returnTo') || '/';
+  // Ensure returnTo is a safe relative path
+  const safeReturnTo =
+    returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/';
+  if (canAccessPath(safeReturnTo, currentRole)) {
+    return Astro.redirect(safeReturnTo);
+  }
+  const roleHome = currentRole === 'none' ? '/onboarding/organization' : '/admin';
+  if (roleHome && canAccessPath(roleHome, currentRole)) {
+    return Astro.redirect(roleHome);
+  }
+  blockedSignedIn = true;
+}
 ---
 
 <Layout title="Login | Staff Access">
@@ -32,31 +50,54 @@ const error = Astro.url.searchParams.get('error');
         </div>
       )}
 
-      <SignIn
-        routing="hash"
-        fallbackRedirectUrl="/admin"
-        appearance={{
-          elements: {
-            formButtonPrimary:
-              'bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md font-medium transition-colors',
-            formFieldInput:
-              'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
-            card: 'shadow-none border-0 bg-transparent',
-            headerTitle: 'hidden',
-            headerSubtitle: 'hidden',
-            socialButtonsBlockButton:
-              'flex items-center justify-center gap-2 px-4 py-3 border border-border rounded-lg hover:bg-muted transition-colors cursor-pointer font-medium text-foreground',
-            dividerLine: 'bg-border',
-            dividerText: 'text-muted-foreground text-sm',
-            formFieldLabel: 'text-sm font-medium text-foreground',
-            footer: 'hidden', // Hide Clerk branding for cleaner look
-          },
-        }}
-      />
+      {blockedSignedIn ? (
+        <div class="space-y-4">
+          <div class="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 px-4 py-3 rounded">
+            Your account is signed in, but setup is incomplete.
+            Create your organization or accept a staff invitation to continue.
+          </div>
+          <a
+            href="/onboarding/organization"
+            class="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+          >
+            Continue setup
+          </a>
+          <a
+            href="/api/auth/signout?callbackUrl=/login"
+            class="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+          >
+            Sign out and switch account
+          </a>
+        </div>
+      ) : (
+        <>
+          <SignIn
+            routing="hash"
+            fallbackRedirectUrl="/"
+            appearance={{
+              elements: {
+                formButtonPrimary:
+                  'bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md font-medium transition-colors',
+                formFieldInput:
+                  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+                card: 'shadow-none border-0 bg-transparent',
+                headerTitle: 'hidden',
+                headerSubtitle: 'hidden',
+                socialButtonsBlockButton:
+                  'flex items-center justify-center gap-2 px-4 py-3 border border-border rounded-lg hover:bg-muted transition-colors cursor-pointer font-medium text-foreground',
+                dividerLine: 'bg-border',
+                dividerText: 'text-muted-foreground text-sm',
+                formFieldLabel: 'text-sm font-medium text-foreground',
+                footer: 'hidden', // Hide Clerk branding for cleaner look
+              },
+            }}
+          />
 
-      <p class="text-center text-sm text-muted-foreground mt-6">
-        Sign in with any account to access this system.
-      </p>
+          <p class="text-center text-sm text-muted-foreground mt-6">
+            Sign in with any account to access this system.
+          </p>
+        </>
+      )}
     </div>
   </div>
 </Layout>

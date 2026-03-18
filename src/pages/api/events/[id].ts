@@ -1,7 +1,11 @@
 import type { APIRoute } from 'astro';
-import { getEventById, deleteEvent } from '../../../lib/db';
+import { deleteEventForUser, getEventByIdForUser } from '../../../lib/db';
+import { requireUserId } from '../../../lib/access';
 
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async (context) => {
+  const userId = requireUserId(context);
+  if (userId instanceof Response) return userId;
+  const { params } = context;
   const id = params?.id;
   if (!id) {
     return new Response(JSON.stringify({ error: 'Event ID required' }), {
@@ -10,7 +14,7 @@ export const GET: APIRoute = async ({ params }) => {
     });
   }
   try {
-    const event = await getEventById(id);
+    const event = await getEventByIdForUser(id, userId);
     if (!event) {
       return new Response(JSON.stringify({ error: 'Event not found' }), {
         status: 404,
@@ -29,7 +33,10 @@ export const GET: APIRoute = async ({ params }) => {
   }
 };
 
-export const DELETE: APIRoute = async ({ params }) => {
+export const DELETE: APIRoute = async (context) => {
+  const userId = requireUserId(context);
+  if (userId instanceof Response) return userId;
+  const { params } = context;
   const id = params?.id;
   if (!id) {
     return new Response(JSON.stringify({ error: 'Event ID required' }), {
@@ -38,10 +45,10 @@ export const DELETE: APIRoute = async ({ params }) => {
     });
   }
   try {
-    const deleted = await deleteEvent(id);
+    const deleted = await deleteEventForUser(id, userId);
     if (!deleted) {
-      return new Response(JSON.stringify({ error: 'Event not found' }), {
-        status: 404,
+      return new Response(JSON.stringify({ error: 'Event not found or access denied' }), {
+        status: 403,
         headers: { 'Content-Type': 'application/json' },
       });
     }

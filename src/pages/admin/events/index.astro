@@ -1,8 +1,9 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import { getAllEvents } from '../../../lib/db';
+import { getAllEventsForUser } from '../../../lib/db';
 
-const events = await getAllEvents();
+const userId = Astro.locals.user?.id ?? '';
+const events = userId ? await getAllEventsForUser(userId) : [];
 ---
 
 <Layout title="Events">

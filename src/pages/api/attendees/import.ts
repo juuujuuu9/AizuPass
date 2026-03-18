@@ -7,6 +7,7 @@ import {
   updateAttendeeProfile,
 } from '../../../lib/db';
 import { getOrCreateQRPayload } from '../../../lib/qr-token';
+import { requireEventManage } from '../../../lib/access';
 
 type ImportMode = 'add' | 'merge' | 'replace';
 type Delimiter = ',' | ';' | '\t';
@@ -264,7 +265,8 @@ function buildErrorRowsCSV(errorRows: ErrorRow[]): string {
   return rows.join('\n');
 }
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async (context) => {
+  const { request } = context;
   try {
     const formData = await request.formData();
     const eventId = formData.get('eventId')?.toString()?.trim();
@@ -317,6 +319,8 @@ export const POST: APIRoute = async ({ request }) => {
         headers: { 'Content-Type': 'application/json' },
       });
     }
+    const manage = await requireEventManage(context, eventId);
+    if (manage instanceof Response) return manage;
 
     const text = await file.text();
     if (text.includes('\uFFFD')) {

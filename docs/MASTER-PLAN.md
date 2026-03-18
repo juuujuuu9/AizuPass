@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-18 (Executed Step 11.1-11.4: race/idempotency baseline, scanner feedback, offline sync resilience, and scanner/admin role boundaries)
+**Last updated:** 2026-03-18 (Executed Org-based access migration: removed env email roles, added organizations/memberships/invitations, and event/org scoped authorization)
 
 ---
 
@@ -30,8 +30,8 @@
 | Low-light / damaged QR fallback UX | Partial | Manual name check-in exists; no dedicated degraded-scan mode/test matrix enforcement. |
 | Scanning speed / perceived latency | Partial | Debounce + preload implemented; no explicit p95 budget instrumentation/loading-state SLA. |
 | PII in QR | **Done** | QR is `id:qr_token` only; no email in payload. |
-| Staff login (Clerk) | **Done** | Clerk authentication with env-based role mapping (`ADMIN_EMAILS`, optional `SCANNER_EMAILS`) and middleware ACL enforcement. |
-| Scanner role vs admin ACL | **Done** | Scanner/admin route and API boundaries enforced in middleware; scanner can check in/search only. |
+| Staff login (Clerk) | **Done** | Clerk authentication + app-managed org membership authorization (`organizations`, `organization_memberships`, `organization_invitations`). |
+| Scanner role vs admin ACL | **Done** | Access is org/event scoped: organizer manages org/event; staff scans and works inside assigned org events only. |
 | Session timeout + fast re-entry | Partial | Clerk session is in place; scanner-focused re-entry UX is minimal. |
 | Manual override (search by name) | **Done** | CheckInScanner "Check in by name" search; GET /api/attendees?q=; POST /api/checkin { attendeeId }. |
 | Manual check-in race safety | **Done** | Manual attendee path now uses conditional atomic update and returns 409 on duplicate check-in. |
@@ -75,9 +75,9 @@ Follow this order; check off and date as you complete each item.
 
 - [x] **Done.** UUID for attendee `id`; QR payload is `id:qr_token` only; rate limit + audit on check-in. See [STEP-1-QR-SECURITY-PLAN.md](STEP-1-QR-SECURITY-PLAN.md). Run `npm run migrate-qr` if you have existing data.
 
-### 2. Clerk Authentication — staff-only Admin
+### 2. Clerk Authentication — org-scoped dashboard/scanner access
 
-- [x] **Done.** Migrated from auth-astro to Clerk (March 2026). Dedicated `/admin`, `/scanner`, `/login`; middleware protects routes and APIs; Clerk handles sessions; env-based role mapping supports `ADMIN_EMAILS` and optional `SCANNER_EMAILS` for scanner allowlisting. RSVP stays public on `/`. Env: `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`. Supports multiple auth providers (Google, email/password, magic links, etc.). See [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md).
+- [x] **Done.** Migrated from auth-astro to Clerk (March 2026), then moved authorization from env email roles to app-managed organizations/memberships/invitations (March 2026). Dedicated `/admin`, `/scanner`, `/login`; middleware requires sign-in and APIs enforce org/event scoping. RSVP stays public on `/`. Env: `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`. Supports multiple auth providers (Google, email/password, magic links, etc.). See [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md).
 
 ### 3. Central Hub (multi-event)
 
@@ -180,7 +180,11 @@ Follow this order; check off and date as you complete each item.
 - [x] **Step 11.3 — Offline sync resilience** (retry/backoff + queue visibility)  
   **Done (2026-03-18):** Added retry-with-backoff sync behavior for transient server failures and exposed live queued-check-in count in scanner UI (`src/lib/offline.ts`, `src/components/CheckInScanner.tsx`).
 - [x] **Step 11.4 — Role boundary enforcement** (true scanner/admin ACL split in middleware + API surface)  
-  **Done (2026-03-18):** Added env-based scanner/admin role mapping (`ADMIN_EMAILS`, optional `SCANNER_EMAILS`) and enforced scanner/admin route + API access boundaries in middleware (`src/lib/staff.ts`, `src/middleware.ts`).
+  **Done (2026-03-18):** Enforced role boundaries in middleware/API surface; later superseded by org/membership-based authorization in Step 12.
+
+### 12. Organization-based access model (one org / one event for now)
+
+- [x] **Done (2026-03-18).** Replaced env-based email role mapping with app-managed organizations, memberships, and invitations. Enforced one organization per organizer and one event per organization (paywall-ready constraint); scoped dashboard/scanner/API access to organization events. Added organizer onboarding and staff invitation acceptance flows. Primary files: `scripts/migrate-organizations.mjs`, `src/lib/db.ts`, `src/middleware.ts`, `src/pages/api/organizations/*`, `src/pages/onboarding/organization.astro`, `src/pages/invite/accept.astro`, `src/pages/admin/organization.astro`.
 
 ### UI/UX polish (done)
 
@@ -223,8 +227,7 @@ Deferred / lower priority:
 | [form-microsite-hub-integration.mdc](form-microsite-hub-integration.mdc) | Portable Cursor rule: copy to new microsite’s `.cursor/rules/` for hub integration context. |
 | [ui-modernization/](ui-modernization/) | UI Modernization: CURSOR-CHECKLIST, qr-ui-components, qr-ui-animations.css. Rule: `.cursor/rules/ui-modernization.mdc`. Radix Colors: `radix-colors-mapping.md`. |
 | [qr-edge-cases.md](qr-edge-cases.md) | API edge-case tests, CSV import validation, critical manual paths. `scripts/test-edge-cases.mjs`, `scripts/generate-test-csvs.mjs`. |
-| [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md) | Item 2: Clerk authentication setup, environment variables, role configuration. |
-| (This implementation) | Item 2: Clerk middleware, login page, open staff access + optional admin email mapping (`src/lib/staff.ts`). |
+| [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md) | Item 2 + 12: Clerk auth setup, org/membership-based authorization, onboarding/invites. |
 
 ---
 
