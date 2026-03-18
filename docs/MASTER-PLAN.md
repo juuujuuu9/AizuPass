@@ -124,7 +124,7 @@ Follow this order; check off and date as you complete each item.
 ### 11. Edge-case hardening (operational)
 
 - [ ] **QR delivery + print**
-  - Single QR PNG download in attendee/admin QR surfaces.
+  - Single QR PNG download in attendee/admin QR surfaces. **Done (2026-03-18):** Added `Download QR` action in `QRDisplay` (normal + fullscreen modes).
   - Bulk QR ZIP export by event/selection.
   - Print-friendly badge layout with guest name visible below QR.
   - Duplicate-name disambiguation for print/export/search (short ID suffix).

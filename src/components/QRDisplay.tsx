@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Maximize2, Minimize2, Smartphone, Sun, Focus, AlertCircle } from 'lucide-react';
+import { Maximize2, Minimize2, Smartphone, Sun, Focus, AlertCircle, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface QRDisplayProps {
@@ -10,6 +10,18 @@ interface QRDisplayProps {
 export function QRDisplay({ qrDataUrl, attendeeName }: QRDisplayProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showTips, setShowTips] = useState(true);
+
+  const handleDownload = useCallback(() => {
+    const safeName = attendeeName
+      ? attendeeName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+      : 'guest';
+    const a = document.createElement('a');
+    a.href = qrDataUrl;
+    a.download = `${safeName}-qr.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }, [attendeeName, qrDataUrl]);
 
   const toggleFullscreen = useCallback(() => {
     setIsFullscreen((prev) => !prev);
@@ -50,18 +62,32 @@ export function QRDisplay({ qrDataUrl, attendeeName }: QRDisplayProps) {
             <Focus className="h-5 w-5" />
             <span className="font-medium">Scan Mode</span>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-white hover:bg-white/20"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsFullscreen(false);
-            }}
-          >
-            <Minimize2 className="h-5 w-5 mr-2" />
-            Done
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-white/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDownload();
+              }}
+            >
+              <Download className="h-5 w-5 mr-2" />
+              Download
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-white/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFullscreen(false);
+              }}
+            >
+              <Minimize2 className="h-5 w-5 mr-2" />
+              Done
+            </Button>
+          </div>
         </div>
 
         <div 
@@ -118,19 +144,19 @@ export function QRDisplay({ qrDataUrl, attendeeName }: QRDisplayProps) {
             </h4>
             <ul className="space-y-1.5 text-xs text-amber-800">
               <li className="flex items-start gap-1.5">
-                <Sun className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                <Sun className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <span><strong>Max brightness</strong> — Both phones need to be bright</span>
               </li>
               <li className="flex items-start gap-1.5">
-                <Focus className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                <Focus className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <span><strong>4-6 inches apart</strong> — Too close = blurry, too far = small</span>
               </li>
               <li className="flex items-start gap-1.5">
-                <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <span><strong>Avoid glare</strong> — Tilt slightly if you see reflections</span>
               </li>
               <li className="flex items-start gap-1.5">
-                <Maximize2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                <Maximize2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <span><strong>Tap QR for full screen</strong> — Bigger, cleaner display</span>
               </li>
             </ul>
@@ -143,6 +169,17 @@ export function QRDisplay({ qrDataUrl, attendeeName }: QRDisplayProps) {
           Tap QR for scanning tips
         </p>
       )}
+      <div className="mt-3 text-center">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleDownload}
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Download QR
+        </Button>
+      </div>
     </div>
   );
 }
