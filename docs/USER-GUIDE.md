@@ -97,10 +97,18 @@ If a QR code won't scan:
 
 **2. Import Attendees:**
 - Click "Import CSV" on your event
-- Prepare a CSV file with columns: `email`, `first_name`, `last_name`
-- Optional columns: `phone`, `company`, `dietary_restrictions`
-- Upload the file
-- Review the import summary
+- Prepare a CSV file with identity data
+- Required mapping contract:
+  - **Email** must be mapped
+  - map **both** first and last name, **or** map a **full-name fallback** column
+- Upload the file and map headers in the import screen
+- Optional: add any extra columns and choose your own field labels (saved in attendee `source_data`)
+- Choose import behavior:
+  - **Add new only**: skips rows where email already exists
+  - **Merge/update existing**: updates existing attendee details by event+email
+  - **Replace event roster**: deletes current event attendees, then imports CSV rows
+- Review import summary and warnings (duplicates, malformed rows, encoding hints)
+- Download skipped rows CSV if any rows were rejected
 
 **CSV Format:**
 ```csv
@@ -198,10 +206,12 @@ bob@example.com,Bob,Johnson,Design Inc
 
 ### Duplicate Registrations
 
-The system prevents duplicates by email address:
-- Same email in CSV twice → second is skipped
-- Import same CSV twice → all duplicates skipped
-- Check the import summary to see skipped count
+CSV import dedupes by **event + email**:
+- Same email in one file twice → later rows are skipped
+- Add mode + import same file twice → existing rows are skipped
+- Merge mode + import same file twice → existing rows are updated
+- Replace mode always rebuilds the event roster from the uploaded CSV
+- Check import summary for imported/updated/deleted/skipped counts and warnings
 
 ---
 
@@ -250,4 +260,4 @@ If something isn't working:
 
 ---
 
-*Last updated: February 2026*
+*Last updated: March 2026*

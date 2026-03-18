@@ -21,22 +21,18 @@ CLERK_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 For production, use your production keys from Clerk dashboard.
 
-### 3. Configure Staff Access (Role-Based)
+### 3. Configure Access (Role-Based)
 
-The app uses environment variables to control who can sign in:
+The app allows any authenticated user to sign in. Use environment variables only for admin elevation:
 
 ```bash
-# Optional: restrict who can log in
-STAFF_EMAILS=admin@yourdomain.com,staff@yourdomain.com
+# Optional: elevate specific users to admin
 ADMIN_EMAILS=admin@yourdomain.com
-STAFF_DOMAINS=yourdomain.com  # Auto-approve anyone @yourdomain.com
 ```
 
 **How it works:**
-- If no allowlist is set, any authenticated user gets "staff" role
+- Any authenticated user gets `staff` role
 - If `ADMIN_EMAILS` is set, those users get "admin" role
-- If `STAFF_EMAILS` is set, those users get "staff" role
-- If `STAFF_DOMAINS` is set, anyone with that domain gets "staff" role
 
 ### 4. Configure Clerk Dashboard
 
@@ -82,7 +78,7 @@ The app supports three roles:
 | `staff` | General staff: check-in, view attendees |
 | `scanner` | Check-in only: scanner page only |
 
-**Note:** Currently, the role is determined by email allowlist, not by Clerk's organization roles. This keeps staff management simple via environment variables.
+**Note:** Staff access is open to authenticated users by default; optional admin elevation is still controlled by `ADMIN_EMAILS` in environment variables.
 
 ## Migrating from auth-astro/Google OAuth
 
@@ -90,7 +86,7 @@ If you're migrating from the previous Google OAuth setup:
 
 1. **Environment variables**: Replace `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`, `AUTH_URL` with `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`
 
-2. **Staff emails**: Your existing `STAFF_EMAILS`, `ADMIN_EMAILS`, and `STAFF_DOMAINS` work exactly the same way
+2. **Admin emails**: Keep using `ADMIN_EMAILS` to grant admin permissions
 
 3. **Login flow**: Users now see Clerk's sign-in component (with email + optional social providers) instead of Google-only
 
@@ -109,10 +105,10 @@ If you're migrating from the previous Google OAuth setup:
 - Check that `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` are set correctly
 - Verify keys match your Clerk application (test vs production)
 
-### User can't access admin/scanner pages
+### User can sign in but is not an admin
 
-- Check that the user's email is in `STAFF_EMAILS`, `ADMIN_EMAILS`, or matches `STAFF_DOMAINS`
-- The email must match exactly (case-insensitive)
+- Check that the user's email is listed in `ADMIN_EMAILS`
+- The email match is case-insensitive
 
 ### Sign-in page not redirecting after login
 
@@ -124,7 +120,7 @@ If you're migrating from the previous Google OAuth setup:
 The current implementation uses environment variables for simplicity. To use Clerk's built-in roles:
 
 1. Update `src/middleware.ts` to read roles from Clerk's session claims
-2. Update `src/lib/staff.ts` to check Clerk roles instead of email allowlist
+2. Update `src/lib/staff.ts` to check Clerk roles instead of `ADMIN_EMAILS`
 
 ## Resources
 

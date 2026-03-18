@@ -3,8 +3,8 @@ import Layout from '../layouts/Layout.astro';
 import { SignIn } from '@clerk/astro/components';
 
 // Check if already signed in
-const auth = Astro.locals.auth;
-if (auth?.userId) {
+const { userId } = Astro.locals.auth();
+if (userId) {
   const returnTo = Astro.url.searchParams.get('returnTo') || '/admin';
   // Ensure returnTo is a safe relative path
   const safeReturnTo =
@@ -23,18 +23,18 @@ const error = Astro.url.searchParams.get('error');
       <p class="text-muted-foreground text-center mb-6">
         {required === 'staff'
           ? 'Sign in to access this area.'
-          : 'Sign in with your work email.'}
+          : 'Sign in to continue.'}
       </p>
 
       {error && (
         <div class="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded mb-4">
-          Access denied. Contact your administrator if you need access.
+          Sign-in failed. Please try again.
         </div>
       )}
 
       <SignIn
         routing="hash"
-        redirectUrl="/admin"
+        fallbackRedirectUrl="/admin"
         appearance={{
           elements: {
             formButtonPrimary:
@@ -55,7 +55,7 @@ const error = Astro.url.searchParams.get('error');
       />
 
       <p class="text-center text-sm text-muted-foreground mt-6">
-        Only authorized staff members can access this system.
+        Sign in with any account to access this system.
       </p>
     </div>
   </div>

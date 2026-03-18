@@ -1,5 +1,6 @@
 /**
- * Staff role from env allowlist. No DB table; use STAFF_EMAILS, ADMIN_EMAILS, STAFF_DOMAINS.
+ * All authenticated users are staff.
+ * ADMIN_EMAILS can still be used to grant admin privileges.
  */
 
 export type StaffRole = 'admin' | 'scanner' | 'staff';
@@ -23,19 +24,12 @@ function parseList(value: string | undefined): string[] {
 export function getStaffRole(email: string | null | undefined): StaffRole | null {
   if (!email || typeof email !== 'string') return null;
   const normalized = email.trim().toLowerCase();
-  const domain = normalized.split('@')[1];
 
   const adminEmails = parseList(getEnv('ADMIN_EMAILS'));
-  const staffEmails = parseList(getEnv('STAFF_EMAILS'));
-  const staffDomains = parseList(getEnv('STAFF_DOMAINS'));
-
   if (adminEmails.length > 0 && adminEmails.includes(normalized)) return 'admin';
-  if (staffEmails.length > 0 && staffEmails.includes(normalized)) return 'staff';
-  if (staffDomains.length > 0 && domain && staffDomains.includes(domain)) return 'staff';
-
-  return null;
+  return 'staff';
 }
 
 export function isStaffEmail(email: string | null | undefined): boolean {
-  return getStaffRole(email) !== null;
+  return typeof email === 'string' && email.trim().length > 0;
 }

@@ -70,11 +70,75 @@ if (eventId) {
               class="w-full rounded border border-input bg-background px-3 py-2 text-foreground file:mr-4 file:rounded file:border-0 file:bg-primary file:px-4 file:py-2 file:text-primary-foreground file:text-sm"
             />
             <p class="mt-1 text-xs text-muted-foreground">
-              CSV must include headers. Map first name, last name, email. Duplicates (same email) are skipped.
+              CSV must include headers. You can map columns before import. UTF-8 is recommended.
             </p>
+          </div>
+          <div id="mapping-panel" class="hidden rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+            <div>
+              <p class="text-sm font-medium text-foreground">Column mapping</p>
+              <p class="text-xs text-muted-foreground">Map your CSV headers to attendee fields before importing.</p>
+            </div>
+            <div id="detected-delimiter" class="hidden text-xs text-muted-foreground"></div>
+            <div class="grid gap-3">
+              <div>
+                <label for="map-email" class="block text-xs font-medium text-muted-foreground mb-1">Email (required)</label>
+                <select id="map-email" class="w-full rounded border border-input bg-background px-2 py-2 text-sm text-foreground"></select>
+              </div>
+              <div>
+                <label for="map-first-name" class="block text-xs font-medium text-muted-foreground mb-1">First name (required unless full name fallback is mapped)</label>
+                <select id="map-first-name" class="w-full rounded border border-input bg-background px-2 py-2 text-sm text-foreground"></select>
+              </div>
+              <div>
+                <label for="map-last-name" class="block text-xs font-medium text-muted-foreground mb-1">Last name (required unless full name fallback is mapped)</label>
+                <select id="map-last-name" class="w-full rounded border border-input bg-background px-2 py-2 text-sm text-foreground"></select>
+              </div>
+              <div>
+                <label for="map-full-name" class="block text-xs font-medium text-muted-foreground mb-1">Full name (fallback)</label>
+                <select id="map-full-name" class="w-full rounded border border-input bg-background px-2 py-2 text-sm text-foreground"></select>
+              </div>
+            </div>
+            <div class="border-t border-border pt-3 space-y-2">
+              <div class="flex items-center justify-between">
+                <p class="text-xs font-medium text-muted-foreground">Additional columns (optional)</p>
+                <button
+                  type="button"
+                  id="add-custom-mapping"
+                  class="rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+                >
+                  Add column
+                </button>
+              </div>
+              <p class="text-xs text-muted-foreground">
+                Map any extra CSV column and set the label name to store in attendee source data.
+              </p>
+              <div id="custom-mapping-list" class="space-y-2"></div>
+            </div>
+          </div>
+          <div class="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+            <div>
+              <label for="import-mode" class="block text-sm font-medium text-foreground mb-1">Import behavior</label>
+              <select id="import-mode" class="w-full rounded border border-input bg-background px-3 py-2 text-sm text-foreground">
+                <option value="add">Add new only (skip existing emails)</option>
+                <option value="merge">Merge/update existing emails</option>
+                <option value="replace">Replace event roster (delete all, then import)</option>
+              </select>
+              <p class="mt-1 text-xs text-muted-foreground">Choose how re-uploads should behave mid-event.</p>
+            </div>
+            <label id="replace-confirm-row" class="hidden items-start gap-2 text-sm text-[var(--red-11)]">
+              <input type="checkbox" id="replace-confirm" class="mt-0.5" />
+              <span>I understand replace mode will remove all current attendees for this event before importing.</span>
+            </label>
           </div>
           <div id="form-error" class="hidden text-sm text-[var(--red-11)]"></div>
           <div id="form-success" class="hidden text-sm text-[var(--green-11)]"></div>
+          <div id="form-warnings" class="hidden rounded border border-[var(--amber-8)] bg-[var(--amber-2)] p-3 text-sm text-[var(--amber-11)]"></div>
+          <a
+            id="error-rows-download"
+            class="hidden text-sm text-primary underline underline-offset-2"
+            download="csv-import-errors.csv"
+          >
+            Download skipped rows CSV
+          </a>
 
           <!-- Post-Import Bulk Email Section -->
           <div id="bulk-email-section" class="hidden mt-6 pt-6 border-t border-border">
@@ -99,7 +163,7 @@ if (eventId) {
               </div>
             </div>
 
-            <dialog id="bulk-email-dialog" class="rounded-lg border border-border bg-card shadow-lg p-6 w-full max-w-md backdrop:bg-black/40">
+            <dialog id="bulk-email-dialog" class="fixed left-1/2 top-1/2 z-50 w-[min(92vw,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-card p-6 shadow-lg backdrop:bg-black/40">
               <h4 class="font-semibold text-foreground mb-4">Email blast settings</h4>
               <p class="text-sm text-muted-foreground mb-4">
                 These values will appear in the QR code emails sent to <span id="dialog-count">0</span> attendees.
@@ -141,7 +205,7 @@ if (eventId) {
               <div>
                 <h4 class="font-medium text-foreground">Send QR Codes via Email</h4>
                 <p class="text-sm text-muted-foreground">
-                  <span id="bulk-count">0</span> attendees will receive emails
+                  <span id="bulk-count">0</span> newly imported attendees will receive emails
                 </p>
               </div>
               <button
@@ -223,9 +287,26 @@ if (eventId) {
     const fileInput = form.querySelector('input[name="file"]');
     const errorEl = document.getElementById('form-error');
     const successEl = document.getElementById('form-success');
+    const warningsEl = document.getElementById('form-warnings');
+    const errorRowsDownload = document.getElementById('error-rows-download');
     const submitBtn = document.getElementById('submit-btn');
     const submitLabel = document.getElementById('submit-label');
     const submitSpinner = document.getElementById('submit-spinner');
+
+    // Import configuration elements
+    const mappingPanel = document.getElementById('mapping-panel');
+    const delimiterEl = document.getElementById('detected-delimiter');
+    const importModeSelect = document.getElementById('import-mode');
+    const replaceConfirmRow = document.getElementById('replace-confirm-row');
+    const replaceConfirm = document.getElementById('replace-confirm');
+    const mappingSelects = {
+      email: document.getElementById('map-email'),
+      first_name: document.getElementById('map-first-name'),
+      last_name: document.getElementById('map-last-name'),
+      full_name: document.getElementById('map-full-name'),
+    };
+    const customMappingList = document.getElementById('custom-mapping-list');
+    const addCustomMappingBtn = document.getElementById('add-custom-mapping');
 
     // Bulk email elements
     const bulkEmailSection = document.getElementById('bulk-email-section');
@@ -251,6 +332,228 @@ if (eventId) {
     const dialogSend = document.getElementById('bulk-dialog-send');
 
     let importedAttendeeIds = [];
+    let csvHeaders = [];
+    let selectedDelimiter = ',';
+    let errorRowsObjectUrl = null;
+    let customMappingRows = [];
+
+    function normalizeHeader(header) {
+      return String(header || '').replace(/^\uFEFF/, '').trim().toLowerCase().replace(/\s+/g, '_');
+    }
+
+    function normalizeCustomLabel(label) {
+      return String(label || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+    }
+
+    function parseCSVLine(line, delimiter) {
+      const out = [];
+      let i = 0;
+      while (i < line.length) {
+        if (line[i] === '"') {
+          i += 1;
+          let cell = '';
+          while (i < line.length) {
+            if (line[i] === '"') {
+              i += 1;
+              if (line[i] === '"') {
+                cell += '"';
+                i += 1;
+              } else {
+                break;
+              }
+            } else {
+              cell += line[i];
+              i += 1;
+            }
+          }
+          out.push(cell);
+        } else {
+          const idx = line.indexOf(delimiter, i);
+          const end = idx === -1 ? line.length : idx;
+          out.push(line.slice(i, end).trim());
+          i = idx === -1 ? line.length : idx + 1;
+        }
+      }
+      return out;
+    }
+
+    function detectDelimiter(headerLine) {
+      const commaCount = (headerLine.match(/,/g) || []).length;
+      const semicolonCount = (headerLine.match(/;/g) || []).length;
+      const tabCount = (headerLine.match(/\t/g) || []).length;
+      const counts = [
+        { delimiter: ',', count: commaCount },
+        { delimiter: ';', count: semicolonCount },
+        { delimiter: '\t', count: tabCount },
+      ].sort((a, b) => b.count - a.count);
+      return counts[0].count > 0 ? counts[0].delimiter : ',';
+    }
+
+    function setSelectOptions(select, headers, selectedValue = '') {
+      if (!select) return;
+      const safeSelected = headers.includes(selectedValue) ? selectedValue : '';
+      select.innerHTML = '';
+      const emptyOption = document.createElement('option');
+      emptyOption.value = '';
+      emptyOption.textContent = '(Not mapped)';
+      select.appendChild(emptyOption);
+      for (const header of headers) {
+        const option = document.createElement('option');
+        option.value = header;
+        option.textContent = header;
+        option.selected = header === safeSelected;
+        select.appendChild(option);
+      }
+    }
+
+    function getFirstHeaderMatch(headers, aliases) {
+      const byNormalized = new Map(headers.map((header) => [normalizeHeader(header), header]));
+      for (const alias of aliases) {
+        const found = byNormalized.get(alias);
+        if (found) return found;
+      }
+      return '';
+    }
+
+    function buildAutoMapping(headers) {
+      return {
+        email: getFirstHeaderMatch(headers, ['email', 'e-mail', 'email_address', 'guest_email']),
+        first_name: getFirstHeaderMatch(headers, ['first_name', 'firstname', 'first']),
+        last_name: getFirstHeaderMatch(headers, ['last_name', 'lastname', 'last']),
+        full_name: getFirstHeaderMatch(headers, ['name', 'full_name', 'fullname', 'guest']),
+      };
+    }
+
+    function currentMappingPayload() {
+      const custom = customMappingRows
+        .map((row) => ({
+          sourceHeader: row.headerSelect?.value || '',
+          label: row.labelInput?.value?.trim() || '',
+        }))
+        .filter((row) => row.sourceHeader && row.label);
+      return {
+        core: {
+          email: mappingSelects.email?.value || '',
+          first_name: mappingSelects.first_name?.value || '',
+          last_name: mappingSelects.last_name?.value || '',
+          full_name: mappingSelects.full_name?.value || '',
+        },
+        custom,
+      };
+    }
+
+    function refreshCustomHeaderOptions() {
+      for (const row of customMappingRows) {
+        const selected = row.headerSelect?.value || '';
+        setSelectOptions(row.headerSelect, csvHeaders, selected);
+      }
+    }
+
+    function createCustomMappingRow(initialHeader = '', initialLabel = '') {
+      if (!customMappingList) return;
+      const rowWrap = document.createElement('div');
+      rowWrap.className = 'grid gap-2';
+
+      const headerSelect = document.createElement('select');
+      headerSelect.className = 'w-full rounded border border-input bg-background px-2 py-2 text-sm text-foreground';
+      setSelectOptions(headerSelect, csvHeaders, initialHeader);
+
+      const labelInput = document.createElement('input');
+      labelInput.type = 'text';
+      labelInput.className = 'w-full rounded border border-input bg-background px-2 py-2 text-sm text-foreground';
+      labelInput.placeholder = 'label (e.g. table_number)';
+      labelInput.value = initialLabel;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'rounded border border-border px-2 py-2 text-xs text-muted-foreground hover:bg-muted';
+      removeBtn.textContent = 'Remove';
+
+      const row = { rowWrap, headerSelect, labelInput, removeBtn };
+      removeBtn.addEventListener('click', () => {
+        customMappingRows = customMappingRows.filter((entry) => entry !== row);
+        rowWrap.remove();
+      });
+
+      rowWrap.appendChild(headerSelect);
+      rowWrap.appendChild(labelInput);
+      rowWrap.appendChild(removeBtn);
+      customMappingList.appendChild(rowWrap);
+      customMappingRows.push(row);
+    }
+
+    function resetCustomMappingRows() {
+      customMappingRows = [];
+      if (customMappingList) customMappingList.innerHTML = '';
+    }
+
+    function updateReplaceConfirmVisibility() {
+      if (!replaceConfirmRow || !importModeSelect) return;
+      const replaceMode = importModeSelect.value === 'replace';
+      replaceConfirmRow.classList.toggle('hidden', !replaceMode);
+      replaceConfirmRow.classList.toggle('flex', replaceMode);
+      if (!replaceMode && replaceConfirm) replaceConfirm.checked = false;
+    }
+
+    async function parseHeadersFromFile(file) {
+      if (!mappingPanel || !delimiterEl) return;
+      const sampleText = await file.slice(0, 256 * 1024).text();
+      const lines = sampleText.split(/\r?\n/).filter((line) => line.trim().length > 0);
+      if (!lines.length) throw new Error('CSV appears empty.');
+      selectedDelimiter = detectDelimiter(lines[0]);
+      csvHeaders = parseCSVLine(lines[0], selectedDelimiter).map((header) => String(header).trim()).filter(Boolean);
+      if (!csvHeaders.length) throw new Error('Could not read CSV headers.');
+
+      const autoMap = buildAutoMapping(csvHeaders);
+      setSelectOptions(mappingSelects.email, csvHeaders, autoMap.email);
+      setSelectOptions(mappingSelects.first_name, csvHeaders, autoMap.first_name);
+      setSelectOptions(mappingSelects.last_name, csvHeaders, autoMap.last_name);
+      setSelectOptions(mappingSelects.full_name, csvHeaders, autoMap.full_name);
+      resetCustomMappingRows();
+
+      mappingPanel.classList.remove('hidden');
+      const delimiterLabel = selectedDelimiter === '\t' ? 'tab' : selectedDelimiter;
+      delimiterEl.classList.remove('hidden');
+      delimiterEl.textContent = `Detected delimiter: ${delimiterLabel}`;
+    }
+
+    if (importModeSelect) {
+      importModeSelect.addEventListener('change', updateReplaceConfirmVisibility);
+      updateReplaceConfirmVisibility();
+    }
+
+    if (addCustomMappingBtn) {
+      addCustomMappingBtn.addEventListener('click', () => {
+        if (csvHeaders.length === 0) return;
+        createCustomMappingRow();
+        refreshCustomHeaderOptions();
+      });
+    }
+
+    if (fileInput) {
+      fileInput.addEventListener('change', async () => {
+        if (!errorEl || !successEl || !fileInput.files?.length) return;
+        errorEl.classList.add('hidden');
+        successEl.classList.add('hidden');
+        warningsEl?.classList.add('hidden');
+        if (errorRowsObjectUrl) {
+          URL.revokeObjectURL(errorRowsObjectUrl);
+          errorRowsObjectUrl = null;
+        }
+        if (errorRowsDownload) errorRowsDownload.classList.add('hidden');
+        try {
+          await parseHeadersFromFile(fileInput.files[0]);
+        } catch (err) {
+          errorEl.textContent = err instanceof Error ? err.message : 'Could not parse CSV headers.';
+          errorEl.classList.remove('hidden');
+          mappingPanel?.classList.add('hidden');
+        }
+      });
+    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -280,12 +583,77 @@ if (eventId) {
       if (!errorEl || !successEl || !submitBtn || !fileInput?.files?.length) return;
       errorEl.classList.add('hidden');
       successEl.classList.add('hidden');
+      warningsEl?.classList.add('hidden');
+      if (errorRowsDownload) errorRowsDownload.classList.add('hidden');
+
+      if (csvHeaders.length === 0) {
+        errorEl.textContent = 'Please choose a CSV file so we can map headers first.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      const mappingPayload = currentMappingPayload();
+      const core = mappingPayload.core;
+      if (!core.email) {
+        errorEl.textContent = 'Email mapping is required.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      const hasFirstLastPair = Boolean(core.first_name && core.last_name);
+      const hasFullNameFallback = Boolean(core.full_name);
+      if (!hasFirstLastPair && !hasFullNameFallback) {
+        errorEl.textContent = 'Map both first and last name, or map a full-name fallback column.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      const selectedCustomHeaders = new Set();
+      const selectedCustomLabels = new Set();
+      for (const row of customMappingRows) {
+        const sourceHeader = row.headerSelect?.value || '';
+        const labelRaw = row.labelInput?.value?.trim() || '';
+        if (!sourceHeader && !labelRaw) continue;
+        if (!sourceHeader || !labelRaw) {
+          errorEl.textContent = 'Each additional column mapping needs both a source column and a label.';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+        const normalizedLabel = normalizeCustomLabel(labelRaw);
+        if (!normalizedLabel) {
+          errorEl.textContent = 'Additional column labels must contain letters or numbers.';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+        if (selectedCustomHeaders.has(sourceHeader)) {
+          errorEl.textContent = `Additional column "${sourceHeader}" is mapped more than once.`;
+          errorEl.classList.remove('hidden');
+          return;
+        }
+        if (selectedCustomLabels.has(normalizedLabel)) {
+          errorEl.textContent = `Additional label "${labelRaw}" is used more than once.`;
+          errorEl.classList.remove('hidden');
+          return;
+        }
+        selectedCustomHeaders.add(sourceHeader);
+        selectedCustomLabels.add(normalizedLabel);
+      }
+
+      const importMode = importModeSelect?.value || 'add';
+      if (importMode === 'replace' && !replaceConfirm?.checked) {
+        errorEl.textContent = 'Please confirm replace mode before importing.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
       submitBtn.disabled = true;
       if (submitLabel) submitLabel.textContent = 'Importing…';
       if (submitSpinner) submitSpinner.classList.remove('hidden');
       const formData = new FormData();
       formData.append('eventId', eventId);
       formData.append('file', fileInput.files[0]);
+      formData.append('importMode', importMode);
+      formData.append('confirmReplace', importMode === 'replace' && replaceConfirm?.checked ? 'true' : 'false');
+      formData.append('mapping', JSON.stringify(mappingPayload));
       try {
         const res = await fetch('/api/attendees/import', {
           method: 'POST',
@@ -298,13 +666,32 @@ if (eventId) {
           return;
         }
 
-        // Show success and bulk email option
-        importedAttendeeIds = data.importedAttendeeIds || [];
-        successEl.textContent = `Imported ${data.imported} attendee(s). Skipped ${data.skipped} duplicate(s).`;
+        importedAttendeeIds = data.newlyImportedAttendeeIds || data.importedAttendeeIds || [];
+        const summaryBits = [
+          `Imported ${data.imported || 0}`,
+          `Updated ${data.updated || 0}`,
+          `Deleted ${data.deleted || 0}`,
+          `Skipped ${data.skipped || 0}`,
+        ];
+        successEl.textContent = `${summaryBits.join(' · ')} attendee(s).`;
         successEl.classList.remove('hidden');
 
-        // Hide form elements and show bulk email section
-        form.querySelector('div:first-of-type').classList.add('hidden');
+        if (Array.isArray(data.warnings) && data.warnings.length > 0 && warningsEl) {
+          const warningLines = data.warnings
+            .slice(0, 10)
+            .map((warning) => `• ${warning.message || 'Import warning'}`);
+          warningsEl.innerHTML = `<strong>Warnings</strong><br>${warningLines.join('<br>')}`;
+          warningsEl.classList.remove('hidden');
+        }
+
+        if (data.errorRowsCsv && errorRowsDownload) {
+          if (errorRowsObjectUrl) URL.revokeObjectURL(errorRowsObjectUrl);
+          const blob = new Blob([data.errorRowsCsv], { type: 'text/csv;charset=utf-8' });
+          errorRowsObjectUrl = URL.createObjectURL(blob);
+          errorRowsDownload.href = errorRowsObjectUrl;
+          errorRowsDownload.classList.remove('hidden');
+        }
+
         const formActions = document.getElementById('form-actions');
         if (formActions) formActions.classList.add('hidden');
 
@@ -312,11 +699,8 @@ if (eventId) {
           bulkEmailSection.classList.remove('hidden');
           if (bulkCount) bulkCount.textContent = importedAttendeeIds.length;
           if (skipEmailLink) skipEmailLink.href = `/admin?event=${eventId}`;
-        } else {
-          // No attendees to email, redirect after a delay
-          setTimeout(() => {
-            window.location.href = `/admin?event=${eventId}`;
-          }, 2000);
+        } else if (bulkEmailSection) {
+          bulkEmailSection.classList.add('hidden');
         }
       } catch (err) {
         errorEl.textContent = 'Import failed. Try again.';

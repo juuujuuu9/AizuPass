@@ -2,19 +2,15 @@
 import Layout from '../../layouts/Layout.astro';
 import { AdminPage } from '../../components/AdminPage';
 import { ThemeToggle } from '../../components/ThemeToggle';
+import { SignOutButton } from '@clerk/astro/components';
 import { getAllEvents, getStaffLastEventId, getEventById } from '../../lib/db';
-import { getSignOutUrl, getSignOutFormProps } from '../../lib/auth-url';
 
 const { user } = Astro.locals;
-let signOutUrl = '/api/auth/signout?callbackUrl=/';
-let signOutForm: { action: string; callbackUrl: string; csrfToken: string } | null = null;
 let events: { id: string; name: string; slug: string }[] = [];
 let pageError = '';
 let lastSelectedEventId = '';
 
 try {
-  signOutUrl = getSignOutUrl(Astro.request, Astro.url.origin);
-  signOutForm = await getSignOutFormProps(Astro.request);
   const rows = await getAllEvents();
   events = rows.map((e) => ({ id: String(e.id), name: String(e.name), slug: String(e.slug) }));
   if (user?.id) {
@@ -51,15 +47,9 @@ const selectedEventId = urlEventId || lastSelectedEventId;
           <div class="flex items-center gap-4">
             <ThemeToggle client:load />
             <span class="text-sm text-muted-foreground">{user?.name ?? user?.email ?? 'Staff'}</span>
-            {signOutForm ? (
-              <form action={signOutForm.action} method="POST" class="inline">
-                <input type="hidden" name="callbackUrl" value={signOutForm.callbackUrl} />
-                <input type="hidden" name="csrfToken" value={signOutForm.csrfToken} />
-                <button type="submit" class="text-sm text-muted-foreground hover:text-primary bg-transparent border-none cursor-pointer p-0 font-inherit">Sign out</button>
-              </form>
-            ) : (
-              <a href={signOutUrl} class="text-sm text-muted-foreground hover:text-primary">Sign out</a>
-            )}
+            <SignOutButton asChild redirectUrl="/">
+              <button type="button" class="text-sm text-muted-foreground hover:text-primary bg-transparent border-none cursor-pointer p-0 font-inherit">Sign out</button>
+            </SignOutButton>
           </div>
         </div>
       </div>

@@ -25,14 +25,12 @@ If you were using the previous Google OAuth setup, here are the key changes:
 | — | `CLERK_PUBLISHABLE_KEY` (required) |
 | — | `CLERK_SECRET_KEY` (required) |
 
-### Staff Access Control (Unchanged)
+### Access Control (Updated)
 
-These environment variables work the same way:
+Use `ADMIN_EMAILS` to elevate admin users. All authenticated users can sign in as staff:
 
 ```bash
-STAFF_EMAILS=admin@example.com,staff@example.com
 ADMIN_EMAILS=admin@example.com
-STAFF_DOMAINS=example.com
 ```
 
 ### Benefits of Clerk

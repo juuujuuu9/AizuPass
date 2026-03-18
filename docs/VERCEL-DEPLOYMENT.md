@@ -53,8 +53,6 @@ In your Vercel project dashboard, go to **Settings > Environment Variables** and
 | Variable | Value | Purpose |
 |----------|-------|---------|
 | `ADMIN_EMAILS` | `admin@example.com` | Comma-separated admin emails |
-| `STAFF_EMAILS` | `staff@example.com` | Comma-separated staff emails |
-| `STAFF_DOMAINS` | `yourcompany.com` | Auto-approve email domain |
 | `MICROSITE_WEBHOOK_KEY` | `openssl rand -hex 32` | Webhook security key |
 | `QR_TOKEN_TTL_DAYS` | `30` | QR validity (days) |
 | `DEFAULT_EVENT_SLUG` | `main-event` | Default event identifier |
@@ -107,7 +105,7 @@ Check the following endpoints:
 ## Post-Deployment Checklist
 
 - [ ] Health check returns `{"status":"ok"}`
-- [ ] Staff can log in with allowed emails
+- [ ] Authenticated users can log in
 - [ ] RSVP form creates attendees
 - [ ] QR emails are sent and received
 - [ ] Scanner can check in attendees

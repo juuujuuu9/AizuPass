@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-18 (production security audit - removed debug code, fixed auth bypass, added zod validation, CSV injection protection, health endpoint, CI/CD workflow)
+**Last updated:** 2026-03-18 (CSV mapping tightened: required identity mapping + optional custom-labeled extra columns)
 
 ---
 
@@ -24,7 +24,7 @@
 | QR gen + email | Done | `src/lib/email.ts`, RSVPForm |
 | Scanner + validation | Done | CheckInScanner, `api/checkin` with 409 for duplicate |
 | PII in QR | **Done** | QR is `id:qr_token` only; no email in payload. |
-| Staff login (Clerk) | **Done** | Clerk authentication with role-based access; STAFF_EMAILS/ADMIN_EMAILS/STAFF_DOMAINS allowlist. Migrated from auth-astro to Clerk in March 2026. |
+| Staff login (Clerk) | **Done** | Clerk authentication with role-based access; any authenticated user is staff, `ADMIN_EMAILS` grants admin role. Migrated from auth-astro to Clerk in March 2026. |
 | Manual override (search by name) | **Done** | CheckInScanner "Check in by name" search; GET /api/attendees?q=; POST /api/checkin { attendeeId }. |
 | Traffic light UI (Green/Yellow/Red) | Done | Green/amber/red; 409 = yellow (already checked in). CheckInScanner + api/checkin. |
 | Audio / haptic feedback | Done | Preload + vibrate + success/error/already tones; aria-live. src/lib/feedback.ts, CheckInScanner. |
@@ -63,7 +63,7 @@ Follow this order; check off and date as you complete each item.
 
 ### 2. Clerk Authentication — staff-only Admin
 
-- [x] **Done.** Migrated from auth-astro to Clerk (March 2026). Dedicated `/admin`, `/scanner`, `/login`; middleware protects routes and APIs; Clerk handles sessions; role from env allowlist (STAFF_EMAILS, ADMIN_EMAILS, STAFF_DOMAINS). RSVP stays public on `/`. Env: `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`. Supports multiple auth providers (Google, email/password, magic links, etc.). See [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md).
+- [x] **Done.** Migrated from auth-astro to Clerk (March 2026). Dedicated `/admin`, `/scanner`, `/login`; middleware protects routes and APIs; Clerk handles sessions; any authenticated user is treated as staff, `ADMIN_EMAILS` grants admin role. RSVP stays public on `/`. Env: `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`. Supports multiple auth providers (Google, email/password, magic links, etc.). See [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md).
 
 ### 3. Central Hub (multi-event)
 
@@ -73,6 +73,8 @@ Follow this order; check off and date as you complete each item.
 - [x] **Done.** Admin: event selector, filter attendees/stats by event; `GET /api/events`, `GET /api/attendees?eventId=`; `/admin/events`, `/admin/events/new`.
 - [x] **Done.** Scanner: event name shown in success result when present.
 - [x] **Done.** CSV import: Admin → select event → Import CSV; map columns to attendees; dedupe by event+email; `source_data` for import metadata. See [STEP-2-CENTRAL-HUB.md](STEP-2-CENTRAL-HUB.md).
+- [x] **Done (Mar 2026 hardening).** CSV import edge cases: delimiter auto-detect (comma/semicolon/tab), UTF-8 guidance, row-level warnings + downloadable skipped-row CSV, explicit `add`/`merge`/`replace` import modes, and batched server processing for larger files.
+- [x] **Done (Mar 2026 identity contract tightening).** CSV import now requires `email` plus either (`first_name` + `last_name`) or `full_name` fallback mapping; optional extra columns are explicitly user-mapped with custom labels and saved in `source_data`.
 
 ### 4. Manual check-in by name
 
@@ -147,7 +149,7 @@ Deferred / lower priority:
 | [ui-modernization/](ui-modernization/) | UI Modernization: CURSOR-CHECKLIST, qr-ui-components, qr-ui-animations.css. Rule: `.cursor/rules/ui-modernization.mdc`. Radix Colors: `radix-colors-mapping.md`. |
 | [qr-edge-cases.md](qr-edge-cases.md) | API edge-case tests, CSV import validation, critical manual paths. `scripts/test-edge-cases.mjs`, `scripts/generate-test-csvs.mjs`. |
 | [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md) | Item 2: Clerk authentication setup, environment variables, role configuration. |
-| (This implementation) | Item 2: Clerk middleware, login page, staff allowlist (src/lib/staff.ts). |
+| (This implementation) | Item 2: Clerk middleware, login page, open staff access + optional admin email mapping (`src/lib/staff.ts`). |
 
 ---
 

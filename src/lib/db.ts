@@ -361,6 +361,75 @@ export async function findAttendeeByEventAndEmail(
   return rows.length ? (rows[0] as { id: string }) : null;
 }
 
+/** Batch event+email lookup for CSV imports. */
+export async function findAttendeesByEventAndEmails(
+  eventId: string,
+  emails: string[]
+): Promise<Array<{ id: string; email: string }>> {
+  const normalized = Array.from(
+    new Set(
+      emails
+        .map((email) => String(email ?? '').trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+  if (normalized.length === 0) return [];
+
+  const db = getDb();
+  const rows = await db`
+    SELECT id, email
+    FROM attendees
+    WHERE event_id = ${eventId}
+      AND LOWER(TRIM(email)) = ANY(${normalized}::text[])
+  `;
+  return rows.map((row) => ({
+    id: String(row.id ?? ''),
+    email: String(row.email ?? ''),
+  }));
+}
+
+/** Update attendee profile fields for CSV merge mode. */
+export async function updateAttendeeProfile(
+  id: string,
+  data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    company?: string;
+    dietaryRestrictions?: string;
+    sourceData?: Record<string, unknown>;
+  }
+) {
+  const db = getDb();
+  const sourceDataJson = data.sourceData != null ? JSON.stringify(data.sourceData) : null;
+  const rows = await db`
+    UPDATE attendees
+    SET first_name = ${data.firstName},
+        last_name = ${data.lastName},
+        email = ${data.email},
+        phone = ${data.phone ?? ''},
+        company = ${data.company ?? ''},
+        dietary_restrictions = ${data.dietaryRestrictions ?? ''},
+        source_data = ${sourceDataJson}
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  if (!rows.length) throw new Error('Attendee not found');
+  return rowToAttendee(rows[0] as Record<string, unknown>);
+}
+
+/** Remove all attendees for an event (CSV replace mode). */
+export async function deleteAttendeesByEventId(eventId: string): Promise<number> {
+  const db = getDb();
+  const rows = await db`
+    DELETE FROM attendees
+    WHERE event_id = ${eventId}
+    RETURNING id
+  `;
+  return rows.length;
+}
+
 export async function createEvent(data: {
   name: string;
   slug: string;

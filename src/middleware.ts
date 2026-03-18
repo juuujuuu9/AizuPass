@@ -34,11 +34,13 @@ export const onRequest = clerkMiddleware((auth, context, next) => {
   const pathname = url.pathname;
   const method = request.method;
 
-  // Get email from session claims
-  const email = sessionClaims?.email as string | undefined;
+  // Get email from session claims (provider-dependent key naming)
+  const email =
+    (sessionClaims?.email as string | undefined) ??
+    (sessionClaims?.email_address as string | undefined);
 
-  // Determine role based on staff.ts logic
-  const role = getStaffRole(email);
+  // Any authenticated user is staff; admin can still be elevated by email.
+  const role = userId ? getStaffRole(email) ?? 'staff' : null;
 
   // Set locals (mirroring previous auth-astro structure)
   locals.user = userId
@@ -48,7 +50,7 @@ export const onRequest = clerkMiddleware((auth, context, next) => {
         role: role ?? 'staff',
       }
     : null;
-  locals.isStaff = !!role && ['admin', 'scanner', 'staff'].includes(role);
+  locals.isStaff = !!userId;
   locals.isAdmin = role === 'admin';
   locals.isScanner = role === 'scanner' || role === 'admin';
 

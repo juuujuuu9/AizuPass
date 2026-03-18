@@ -150,7 +150,16 @@ class ApiService {
   async importAttendeesCSV(
     eventId: string,
     file: File
-  ): Promise<{ imported: number; skipped: number }> {
+  ): Promise<{
+    imported: number;
+    updated: number;
+    deleted: number;
+    skipped: number;
+    skippedDuplicates: number;
+    skippedEmptyRows: number;
+    skippedMalformedRows: number;
+    warnings: Array<{ row?: number; type: string; message: string }>;
+  }> {
     const formData = new FormData();
     formData.set('eventId', eventId);
     formData.set('file', file);
@@ -161,7 +170,16 @@ class ApiService {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    return { imported: data.imported ?? 0, skipped: data.skipped ?? 0 };
+    return {
+      imported: data.imported ?? 0,
+      updated: data.updated ?? 0,
+      deleted: data.deleted ?? 0,
+      skipped: data.skipped ?? 0,
+      skippedDuplicates: data.skippedDuplicates ?? 0,
+      skippedEmptyRows: data.skippedEmptyRows ?? 0,
+      skippedMalformedRows: data.skippedMalformedRows ?? 0,
+      warnings: Array.isArray(data.warnings) ? data.warnings : [],
+    };
   }
 
   async getOfflineCache(eventId?: string): Promise<OfflineCacheData> {
