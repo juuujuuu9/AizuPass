@@ -23,16 +23,21 @@ For production, use your production keys from Clerk dashboard.
 
 ### 3. Configure Access (Role-Based)
 
-The app allows any authenticated user to sign in. Use environment variables only for admin elevation:
+The app supports role-based access with environment variables:
 
 ```bash
-# Optional: elevate specific users to admin
+# Optional: elevate specific users to admin (full access)
 ADMIN_EMAILS=admin@yourdomain.com
+
+# Optional: scanner allowlist (check-in/search only)
+# If omitted, any authenticated non-admin user is treated as scanner
+SCANNER_EMAILS=scanner1@yourdomain.com,scanner2@yourdomain.com
 ```
 
 **How it works:**
-- Any authenticated user gets `staff` role
-- If `ADMIN_EMAILS` is set, those users get "admin" role
+- `admin`: in `ADMIN_EMAILS`
+- `scanner`: in `SCANNER_EMAILS` (or any authenticated non-admin when `SCANNER_EMAILS` is unset)
+- `staff`: authenticated but not authorized for scanner/admin surfaces
 
 ### 4. Configure Clerk Dashboard
 
@@ -74,11 +79,11 @@ The app supports three roles:
 
 | Role | Access |
 |------|--------|
-| `admin` | Full access: events, attendees, settings, exports |
-| `staff` | General staff: check-in, view attendees |
-| `scanner` | Check-in only: scanner page only |
+| `admin` | Full access: events, attendees, imports/exports, email workflows |
+| `scanner` | Check-in + attendee lookup/offline cache; no admin event management |
+| `staff` | Authenticated but not granted scanner/admin access when allowlists restrict access |
 
-**Note:** Staff access is open to authenticated users by default; optional admin elevation is still controlled by `ADMIN_EMAILS` in environment variables.
+**Note:** If `SCANNER_EMAILS` is not set, non-admin authenticated users default to scanner access.
 
 ## Migrating from auth-astro/Google OAuth
 
@@ -86,7 +91,7 @@ If you're migrating from the previous Google OAuth setup:
 
 1. **Environment variables**: Replace `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`, `AUTH_URL` with `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`
 
-2. **Admin emails**: Keep using `ADMIN_EMAILS` to grant admin permissions
+2. **Role emails**: Use `ADMIN_EMAILS` for admin permissions and optional `SCANNER_EMAILS` to restrict scanner access
 
 3. **Login flow**: Users now see Clerk's sign-in component (with email + optional social providers) instead of Google-only
 
@@ -109,6 +114,11 @@ If you're migrating from the previous Google OAuth setup:
 
 - Check that the user's email is listed in `ADMIN_EMAILS`
 - The email match is case-insensitive
+
+### User can sign in but cannot access scanner
+
+- If `SCANNER_EMAILS` is set, check that the user's email is included
+- If you want all authenticated non-admin users to scan, remove `SCANNER_EMAILS`
 
 ### Sign-in page not redirecting after login
 

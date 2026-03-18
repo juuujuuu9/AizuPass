@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-18 (Executed Step 11.1, 11.2, and 11.3: race/idempotency baseline + scanner feedback + offline sync resilience)
+**Last updated:** 2026-03-18 (Executed Step 11.1-11.4: race/idempotency baseline, scanner feedback, offline sync resilience, and scanner/admin role boundaries)
 
 ---
 
@@ -30,11 +30,11 @@
 | Low-light / damaged QR fallback UX | Partial | Manual name check-in exists; no dedicated degraded-scan mode/test matrix enforcement. |
 | Scanning speed / perceived latency | Partial | Debounce + preload implemented; no explicit p95 budget instrumentation/loading-state SLA. |
 | PII in QR | **Done** | QR is `id:qr_token` only; no email in payload. |
-| Staff login (Clerk) | **Done** | Clerk authentication with role-based access; any authenticated user is staff, `ADMIN_EMAILS` grants admin role. Migrated from auth-astro to Clerk in March 2026. |
-| Scanner role vs admin ACL | Partial | Scanner role type exists, but assignment/enforcement boundaries are incomplete. |
+| Staff login (Clerk) | **Done** | Clerk authentication with env-based role mapping (`ADMIN_EMAILS`, optional `SCANNER_EMAILS`) and middleware ACL enforcement. |
+| Scanner role vs admin ACL | **Done** | Scanner/admin route and API boundaries enforced in middleware; scanner can check in/search only. |
 | Session timeout + fast re-entry | Partial | Clerk session is in place; scanner-focused re-entry UX is minimal. |
 | Manual override (search by name) | **Done** | CheckInScanner "Check in by name" search; GET /api/attendees?q=; POST /api/checkin { attendeeId }. |
-| Manual check-in race safety | Missing | QR path is atomic; manual attendeeId path still needs strict conditional/idempotent handling. |
+| Manual check-in race safety | **Done** | Manual attendee path now uses conditional atomic update and returns 409 on duplicate check-in. |
 | Traffic light UI (Green/Yellow/Red) | Done | Green/amber/red; 409 = yellow (already checked in). CheckInScanner + api/checkin. |
 | Audio / haptic feedback | Done | Preload + vibrate + success/error/already tones; aria-live. src/lib/feedback.ts, CheckInScanner. |
 | Target overlay / distance hint | **Done** | "6–10 inches" hint when scanning; qrbox. |
@@ -50,7 +50,7 @@
 | CI/CD pipeline | **Done** | GitHub Actions workflow for build and test. |
 | Production deployment docs | **Done** | VERCEL-DEPLOYMENT.md with step-by-step guide. |
 | Offline capability | **Done** | IndexedDB cache, offline queue, sync on reconnect; 409 = success. `src/lib/offline.ts`, `api/attendees/offline-cache`. |
-| Offline sync resilience (backoff/idempotency/queue visibility) | Partial | Queue + reconnect sync exist; retry/backoff, idempotency keys, richer sync UX are pending. |
+| Offline sync resilience (backoff/idempotency/queue visibility) | **Done** | Added queue dedupe, retry-with-backoff sync, and scanner-visible queue count. |
 | Multi-event / central hub | **Done** | Events table, event-scoped attendees; microsite sync = CSV import (primary); webhook optional. |
 | Event-scoped scanner/manual override hardening | Partial | Event scoping exists broadly; scanner entry path/manual UX still needs stricter guardrails. |
 | Persistent event selection | **Done** | staff_preferences table; last_selected_event_id survives logout/login, works across devices. |
@@ -77,7 +77,7 @@ Follow this order; check off and date as you complete each item.
 
 ### 2. Clerk Authentication — staff-only Admin
 
-- [x] **Done.** Migrated from auth-astro to Clerk (March 2026). Dedicated `/admin`, `/scanner`, `/login`; middleware protects routes and APIs; Clerk handles sessions; any authenticated user is treated as staff, `ADMIN_EMAILS` grants admin role. RSVP stays public on `/`. Env: `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`. Supports multiple auth providers (Google, email/password, magic links, etc.). See [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md).
+- [x] **Done.** Migrated from auth-astro to Clerk (March 2026). Dedicated `/admin`, `/scanner`, `/login`; middleware protects routes and APIs; Clerk handles sessions; env-based role mapping supports `ADMIN_EMAILS` and optional `SCANNER_EMAILS` for scanner allowlisting. RSVP stays public on `/`. Env: `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`. Supports multiple auth providers (Google, email/password, magic links, etc.). See [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md).
 
 ### 3. Central Hub (multi-event)
 
@@ -179,7 +179,8 @@ Follow this order; check off and date as you complete each item.
   **Done (2026-03-18):** Added scan/manual processing-state indicator, converted already-checked-in to warning UX, added explicit ID-check guidance in scanner UI, and made already-checked-in feedback acoustically distinct via a double-beep pattern (`src/components/CheckInScanner.tsx`, `src/lib/feedback.ts`).
 - [x] **Step 11.3 — Offline sync resilience** (retry/backoff + queue visibility)  
   **Done (2026-03-18):** Added retry-with-backoff sync behavior for transient server failures and exposed live queued-check-in count in scanner UI (`src/lib/offline.ts`, `src/components/CheckInScanner.tsx`).
-- [ ] **Step 11.4 — Role boundary enforcement** (true scanner/admin ACL split in middleware + API surface)
+- [x] **Step 11.4 — Role boundary enforcement** (true scanner/admin ACL split in middleware + API surface)  
+  **Done (2026-03-18):** Added env-based scanner/admin role mapping (`ADMIN_EMAILS`, optional `SCANNER_EMAILS`) and enforced scanner/admin route + API access boundaries in middleware (`src/lib/staff.ts`, `src/middleware.ts`).
 
 ### UI/UX polish (done)
 

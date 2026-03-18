@@ -27,10 +27,12 @@ If you were using the previous Google OAuth setup, here are the key changes:
 
 ### Access Control (Updated)
 
-Use `ADMIN_EMAILS` to elevate admin users. All authenticated users can sign in as staff:
+Use role email lists to control access:
 
 ```bash
 ADMIN_EMAILS=admin@example.com
+# Optional scanner allowlist. If omitted, authenticated non-admin users are scanners by default.
+SCANNER_EMAILS=scanner1@example.com,scanner2@example.com
 ```
 
 ### Benefits of Clerk

@@ -1,6 +1,8 @@
 /**
- * All authenticated users are staff.
- * ADMIN_EMAILS can still be used to grant admin privileges.
+ * Role mapping:
+ * - ADMIN_EMAILS => admin
+ * - SCANNER_EMAILS (optional) => scanner allowlist
+ * - If SCANNER_EMAILS is unset/empty, any non-admin authenticated user is scanner
  */
 
 export type StaffRole = 'admin' | 'scanner' | 'staff';
@@ -27,7 +29,13 @@ export function getStaffRole(email: string | null | undefined): StaffRole | null
 
   const adminEmails = parseList(getEnv('ADMIN_EMAILS'));
   if (adminEmails.length > 0 && adminEmails.includes(normalized)) return 'admin';
-  return 'staff';
+
+  const scannerEmails = parseList(getEnv('SCANNER_EMAILS'));
+  if (scannerEmails.length > 0) {
+    return scannerEmails.includes(normalized) ? 'scanner' : 'staff';
+  }
+
+  return 'scanner';
 }
 
 export function isStaffEmail(email: string | null | undefined): boolean {

@@ -53,6 +53,7 @@ In your Vercel project dashboard, go to **Settings > Environment Variables** and
 | Variable | Value | Purpose |
 |----------|-------|---------|
 | `ADMIN_EMAILS` | `admin@example.com` | Comma-separated admin emails |
+| `SCANNER_EMAILS` | `scanner1@example.com,scanner2@example.com` | Optional scanner allowlist; omit to allow all authenticated non-admin users |
 | `MICROSITE_WEBHOOK_KEY` | `openssl rand -hex 32` | Webhook security key |
 | `QR_TOKEN_TTL_DAYS` | `30` | QR validity (days) |
 | `DEFAULT_EVENT_SLUG` | `main-event` | Default event identifier |
