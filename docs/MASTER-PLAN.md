@@ -24,7 +24,7 @@
 | QR gen + email | Done | `src/lib/email.ts`, RSVPForm |
 | Scanner + validation | Done | CheckInScanner, `api/checkin` with 409 for duplicate |
 | PII in QR | **Done** | QR is `id:qr_token` only; no email in payload. |
-| Google login (staff / admin) | **Done** | Option B: middleware, auth-astro, /admin, /scanner, /login; STAFF_EMAILS/ADMIN_EMAILS allowlist. |
+| Staff login (Clerk) | **Done** | Clerk authentication with role-based access; STAFF_EMAILS/ADMIN_EMAILS/STAFF_DOMAINS allowlist. Migrated from auth-astro to Clerk in March 2026. |
 | Manual override (search by name) | **Done** | CheckInScanner "Check in by name" search; GET /api/attendees?q=; POST /api/checkin { attendeeId }. |
 | Traffic light UI (Green/Yellow/Red) | Done | Green/amber/red; 409 = yellow (already checked in). CheckInScanner + api/checkin. |
 | Audio / haptic feedback | Done | Preload + vibrate + success/error/already tones; aria-live. src/lib/feedback.ts, CheckInScanner. |
@@ -54,9 +54,9 @@ Follow this order; check off and date as you complete each item.
 
 - [x] **Done.** UUID for attendee `id`; QR payload is `id:qr_token` only; rate limit + audit on check-in. See [STEP-1-QR-SECURITY-PLAN.md](STEP-1-QR-SECURITY-PLAN.md). Run `npm run migrate-qr` if you have existing data.
 
-### 2. Google login (auth-astro) — staff-only Admin
+### 2. Clerk Authentication — staff-only Admin
 
-- [x] **Done.** Option B: dedicated `/admin`, `/scanner`, `/login`; middleware protects routes and APIs; auth-astro + Google; role from env allowlist (STAFF_EMAILS, ADMIN_EMAILS, STAFF_DOMAINS). RSVP stays public on `/`. Env: `AUTH_SECRET`, `AUTH_TRUST_HOST`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`. Graceful handling when auth misconfigured (getSessionSafe in middleware; login page shows config hint).
+- [x] **Done.** Migrated from auth-astro to Clerk (March 2026). Dedicated `/admin`, `/scanner`, `/login`; middleware protects routes and APIs; Clerk handles sessions; role from env allowlist (STAFF_EMAILS, ADMIN_EMAILS, STAFF_DOMAINS). RSVP stays public on `/`. Env: `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`. Supports multiple auth providers (Google, email/password, magic links, etc.). See [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md).
 
 ### 3. Central Hub (multi-event)
 
@@ -139,7 +139,8 @@ Deferred / lower priority:
 | [form-microsite-hub-integration.mdc](form-microsite-hub-integration.mdc) | Portable Cursor rule: copy to new microsite’s `.cursor/rules/` for hub integration context. |
 | [ui-modernization/](ui-modernization/) | UI Modernization: CURSOR-CHECKLIST, qr-ui-components, qr-ui-animations.css. Rule: `.cursor/rules/ui-modernization.mdc`. Radix Colors: `radix-colors-mapping.md`. |
 | [qr-edge-cases.md](qr-edge-cases.md) | API edge-case tests, CSV import validation, critical manual paths. `scripts/test-edge-cases.mjs`, `scripts/generate-test-csvs.mjs`. |
-| (This implementation) | Item 2: auth-astro, middleware, login.astro, staff allowlist (src/lib/staff.ts). |
+| [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md) | Item 2: Clerk authentication setup, environment variables, role configuration. |
+| (This implementation) | Item 2: Clerk middleware, login page, staff allowlist (src/lib/staff.ts). |
 
 ---
 

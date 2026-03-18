@@ -6,17 +6,16 @@ import { fileURLToPath } from 'url';
 import react from '@astrojs/react';
 import tailwindcss from '@tailwindcss/vite';
 import vercel from '@astrojs/vercel';
-import authAstro from 'auth-astro';
+import clerk from '@clerk/astro';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // https://astro.build/config
 export default defineConfig({
   output: 'server',
-  // Disable Astro's origin check on Vercel — it blocks auth POSTs due to serverless URL/origin mismatch.
-  // Auth.js has its own CSRF protection for OAuth.
+  // Clerk handles its own CSRF protection
   security: { checkOrigin: false },
-  integrations: [react(), authAstro()],
+  integrations: [react(), clerk()],
 
   vite: {
     plugins: [tailwindcss()],

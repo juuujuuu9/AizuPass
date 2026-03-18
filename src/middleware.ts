@@ -1,19 +1,10 @@
 import { defineMiddleware } from 'astro:middleware';
-import { getSession } from 'auth-astro/server';
-
-/** Get session or null if auth is misconfigured (e.g. missing AUTH_SECRET). */
-async function getSessionSafe(request: Request): Promise<Awaited<ReturnType<typeof getSession>>> {
-  try {
-    return await getSession(request);
-  } catch (err) {
-    console.error('[auth] getSession failed (check AUTH_SECRET and auth config):', err);
-    return null;
-  }
-}
+import { clerkMiddleware, getAuth } from '@clerk/astro/server';
+import { getStaffRole } from './lib/staff';
 
 const PUBLIC_PATH_PATTERNS = [
   /^\/login$/,
-  /^\/api\/auth\//,
+  /^\/api\/webhooks\//,
   /^\/_astro\//,
   /^\/favicon\.(ico|png|svg)$/,
 ];
@@ -29,9 +20,8 @@ function isStaffPage(pathname: string): boolean {
 }
 
 function isStaffOnlyApi(pathname: string, method: string): boolean {
-  if (pathname.startsWith('/api/auth/')) return false;
-  if (pathname.startsWith('/api/attendees')) return true; // attendees + offline-cache, etc.
-  if (pathname === '/api/webhooks/entry' && method === 'POST') return false; // auth via Bearer in handler
+  if (pathname.startsWith('/api/webhooks/')) return false; // webhooks have their own auth
+  if (pathname.startsWith('/api/attendees')) return true;
   if (pathname === '/api/checkin' && method === 'POST') return true;
   if (pathname === '/api/send-email' && (method === 'GET' || method === 'POST')) return true;
   if (pathname === '/api/attendees/refresh-qr' && method === 'POST') return true;
@@ -46,27 +36,33 @@ function isApiRequest(pathname: string): boolean {
   return pathname.startsWith('/api/');
 }
 
+// Clerk middleware wrapper
+const clerk = clerkMiddleware();
+
 export const onRequest = defineMiddleware(async (context, next) => {
-  const { url, request, redirect, locals } = context;
-  const pathname = url.pathname;
-  const method = request.method;
+  // First, run Clerk middleware
+  const clerkResult = await clerk(context, async () => {
+    // This inner function runs after Clerk sets up auth
+    const { url, request, redirect, locals } = context;
+    const pathname = url.pathname;
+    const method = request.method;
 
-  if (isPublicPath(pathname)) {
-    const session = await getSessionSafe(request);
-    locals.session = session;
-    locals.user = session?.user ?? null;
-    const role = locals.user?.role;
-    locals.isStaff = !!role && ['admin', 'scanner', 'staff'].includes(role);
-    locals.isAdmin = role === 'admin';
-    locals.isScanner = role === 'scanner' || role === 'admin';
-    return next();
-  }
+    // Get auth from Clerk
+    const auth = getAuth(context);
+    const userId = auth?.userId;
+    const email = auth?.sessionClaims?.email as string | undefined;
 
-  if (isStaffPage(pathname) || isStaffOnlyApi(pathname, method)) {
-    const session = await getSessionSafe(request);
-    locals.session = session;
-    locals.user = session?.user ?? null;
-    const role = locals.user?.role;
+    // Determine role based on staff.ts logic
+    const role = getStaffRole(email);
+
+    // Set locals (mirroring previous auth-astro structure)
+    locals.user = userId
+      ? {
+          id: userId,
+          email: email ?? null,
+          role: role ?? 'staff', // default to staff if authenticated but no specific role
+        }
+      : null;
     locals.isStaff = !!role && ['admin', 'scanner', 'staff'].includes(role);
     locals.isAdmin = role === 'admin';
     locals.isScanner = role === 'scanner' || role === 'admin';
@@ -81,26 +77,28 @@ export const onRequest = defineMiddleware(async (context, next) => {
       locals.isScanner = true;
     }
 
-    if (!locals.isStaff) {
-      if (isApiRequest(pathname)) {
-        return new Response(
-          JSON.stringify({ error: 'Authentication required' }),
-          { status: 401, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-      const returnTo = encodeURIComponent(pathname + url.search);
-      return redirect(`/login?returnTo=${returnTo}&required=staff`);
+    // Check access for protected paths
+    if (isPublicPath(pathname)) {
+      return next();
     }
 
-    return next();
-  }
+    if (isStaffPage(pathname) || isStaffOnlyApi(pathname, method)) {
+      if (!locals.isStaff && !testBypass) {
+        if (isApiRequest(pathname)) {
+          return new Response(
+            JSON.stringify({ error: 'Authentication required' }),
+            { status: 401, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        const returnTo = encodeURIComponent(pathname + url.search);
+        return redirect(`/login?returnTo=${returnTo}&required=staff`);
+      }
+      return next();
+    }
 
-  const session = await getSessionSafe(request);
-  locals.session = session;
-  locals.user = session?.user ?? null;
-  const role = locals.user?.role;
-  locals.isStaff = !!role && ['admin', 'scanner', 'staff'].includes(role);
-  locals.isAdmin = role === 'admin';
-  locals.isScanner = role === 'scanner' || role === 'admin';
-  return next();
+    // Default: allow access
+    return next();
+  });
+
+  return clerkResult;
 });

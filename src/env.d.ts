@@ -1,9 +1,16 @@
 /// <reference types="astro/client" />
 
+type StaffRole = 'admin' | 'scanner' | 'staff';
+
+interface User {
+  id: string;
+  email: string | null;
+  role: StaffRole;
+}
+
 declare namespace App {
   interface Locals {
-    session: import('@auth/core/types').Session | null;
-    user: import('@auth/core/types').User | null;
+    user: User | null;
     isStaff: boolean;
     isAdmin: boolean;
     isScanner: boolean;

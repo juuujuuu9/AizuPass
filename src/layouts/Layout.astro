@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { ClerkProvider } from '@clerk/astro/components';
 
 interface Props {
   title?: string;
@@ -21,6 +22,8 @@ const { title = 'Event RSVP & Check-in' } = Astro.props;
     <title>{title}</title>
   </head>
   <body>
-    <slot />
+    <ClerkProvider>
+      <slot />
+    </ClerkProvider>
   </body>
 </html>

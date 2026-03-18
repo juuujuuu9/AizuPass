@@ -1,7 +1,11 @@
-import type { DefaultUser } from '@auth/core/types';
+// Auth types for Clerk integration
+// No additional type declarations needed - Clerk provides its own types
 
-declare module '@auth/core/types' {
-  interface User extends DefaultUser {
-    role?: 'admin' | 'scanner' | 'staff';
-  }
+// Re-export StaffRole for convenience
+export type StaffRole = 'admin' | 'scanner' | 'staff';
+
+export interface User {
+  id: string;
+  email: string | null;
+  role: StaffRole;
 }
