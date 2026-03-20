@@ -123,10 +123,10 @@ export function AdminPage({
           </a>
           {canManageOrganization && (
             <a
-              href="/admin/organization"
+              href="/admin"
               className="rounded border border-border bg-muted px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
             >
-              Organization
+              Organizations
             </a>
           )}
           <a
