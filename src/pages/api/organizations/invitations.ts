@@ -7,6 +7,7 @@ import {
 import { requireUserId } from '../../../lib/access';
 import { sendOrganizationInviteEmail } from '../../../lib/email';
 import { getAppBaseUrl } from '../../../lib/env';
+import { json, errorResponse } from '../../../lib/api-response';
 
 const DEFAULT_INVITE_TTL_DAYS = 7;
 
@@ -16,21 +17,13 @@ export const GET: APIRoute = async (context) => {
   try {
     const organization = await getOrganizationByOwnerUserId(userId);
     if (!organization) {
-      return new Response(JSON.stringify({ error: 'Organization required' }), {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return errorResponse('Organization required', 403);
     }
     const invitations = await listOrganizationInvitations(organization.id);
-    return new Response(JSON.stringify({ invitations }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json({ invitations });
   } catch (err) {
     console.error('GET /api/organizations/invitations', err);
-    return new Response(JSON.stringify({ error: 'Failed to fetch invitations' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return errorResponse('Failed to fetch invitations', 500);
   }
 };
 
@@ -40,18 +33,12 @@ export const POST: APIRoute = async (context) => {
   try {
     const organization = await getOrganizationByOwnerUserId(userId);
     if (!organization) {
-      return new Response(JSON.stringify({ error: 'Organization required' }), {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return errorResponse('Organization required', 403);
     }
     const body = (await context.request.json()) as { email?: string };
     const email = String(body?.email ?? '').trim().toLowerCase();
     if (!email || !email.includes('@')) {
-      return new Response(JSON.stringify({ error: 'Valid email is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return errorResponse('Valid email is required');
     }
 
     const expiresAt = new Date(Date.now() + DEFAULT_INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
@@ -74,21 +61,18 @@ export const POST: APIRoute = async (context) => {
       expiresAt,
     });
 
-    return new Response(JSON.stringify({
-      invitation,
-      communication: {
-        sent: emailResult.success,
-        error: emailResult.success ? null : emailResult.error,
+    return json(
+      {
+        invitation,
+        communication: {
+          sent: emailResult.success,
+          error: emailResult.success ? null : emailResult.error,
+        },
       },
-    }), {
-      status: 201,
-      headers: { 'Content-Type': 'application/json' },
-    });
+      201
+    );
   } catch (err) {
     console.error('POST /api/organizations/invitations', err);
-    return new Response(JSON.stringify({ error: 'Failed to create invitation' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return errorResponse('Failed to create invitation', 500);
   }
 };

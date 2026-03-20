@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { json, errorResponse } from '../../lib/api-response';
 import { getAttendeeByIdForUser } from '../../lib/db';
 import { sendQRCodeEmail } from '../../lib/email';
 import { requireEventManage, requireUserId } from '../../lib/access';
@@ -8,10 +9,7 @@ const RESEND_LINK = 'https://resend.com/api-keys';
 
 export const GET: APIRoute = () => {
   const configured = Boolean(getEnv('RESEND_API_KEY'));
-  return new Response(
-    JSON.stringify({ configured, link: RESEND_LINK }),
-    { headers: { 'Content-Type': 'application/json' } }
-  );
+  return json({ configured, link: RESEND_LINK });
 };
 
 export const POST: APIRoute = async (context) => {
@@ -22,35 +20,21 @@ export const POST: APIRoute = async (context) => {
     const { attendeeId, qrCodeBase64 } =
       ((await request.json()) || {}) as { attendeeId?: string; qrCodeBase64?: string };
     if (!attendeeId || !qrCodeBase64) {
-      return new Response(
-        JSON.stringify({ error: 'Attendee ID and QR code are required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Attendee ID and QR code are required');
     }
     const attendee = await getAttendeeByIdForUser(attendeeId, userId);
     if (!attendee || !attendee.eventId) {
-      return new Response(
-        JSON.stringify({ error: 'Attendee not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Attendee not found', 404);
     }
     const manage = await requireEventManage(context, String(attendee.eventId));
     if (manage instanceof Response) return manage;
     const result = await sendQRCodeEmail(attendee, qrCodeBase64);
     if (result.success) {
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return json({ success: true });
     }
-    return new Response(
-      JSON.stringify({ error: result.error || 'Failed to send email' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return errorResponse(result.error || 'Failed to send email', 500);
   } catch (err) {
     console.error('POST /api/send-email', err);
-    return new Response(
-      JSON.stringify({ error: 'Failed to send email' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return errorResponse('Failed to send email', 500);
   }
 };

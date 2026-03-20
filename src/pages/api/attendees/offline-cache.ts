@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { json, errorResponse } from '../../../lib/api-response';
 import {
   getAllEventsForUser,
   getAttendeesForOfflineCacheForUser,
@@ -37,14 +38,9 @@ export const GET: APIRoute = async (context) => {
       attendees,
     };
 
-    return new Response(JSON.stringify(data), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json(data);
   } catch (err) {
     console.error('GET /api/attendees/offline-cache', err);
-    return new Response(
-      JSON.stringify({ error: 'Failed to fetch offline cache' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return errorResponse('Failed to fetch offline cache', 500);
   }
 };

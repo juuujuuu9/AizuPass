@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { json, errorResponse } from '../../lib/api-response';
 import {
   getAttendeeById,
   getEventById,
@@ -21,19 +22,10 @@ export const POST: APIRoute = async (context) => {
   const rate = checkRateLimit(ip);
   if (!rate.allowed) {
     logCheckInAttempt({ ip, outcome: 'rate_limited' });
-    return new Response(
-      JSON.stringify({
-        error: 'Too many check-in attempts. Please try again later.',
-      }),
-      {
-        status: 429,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(rate.retryAfterSec != null && {
-            'Retry-After': String(rate.retryAfterSec),
-          }),
-        },
-      }
+    return json(
+      { error: 'Too many check-in attempts. Please try again later.' },
+      429,
+      rate.retryAfterSec != null ? { 'Retry-After': String(rate.retryAfterSec) } : undefined
     );
   }
 
@@ -44,20 +36,14 @@ export const POST: APIRoute = async (context) => {
     if (rawBody.attendeeId) {
       const validation = validateManualCheckIn(rawBody);
       if (!validation.success) {
-        return new Response(
-          JSON.stringify({ error: 'Validation failed', details: validation.errors }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
-        );
+        return json({ error: 'Validation failed', details: validation.errors }, 400);
       }
 
       const { attendeeId } = validation.data;
       const attendee = await getAttendeeById(attendeeId);
       if (!attendee) {
         logCheckInAttempt({ ip, outcome: 'not_found', attendeeId });
-        return new Response(
-          JSON.stringify({ error: 'Attendee not found' }),
-          { status: 404, headers: { 'Content-Type': 'application/json' } }
-        );
+        return errorResponse('Attendee not found', 404);
       }
       if (attendee.checkedIn) {
         if (attendee.eventId) {
@@ -68,14 +54,14 @@ export const POST: APIRoute = async (context) => {
           ? await getEventById(attendee.eventId as string)
           : null;
         logCheckInAttempt({ ip, outcome: 'replay_attempt', attendeeId, eventId: attendee.eventId });
-        return new Response(
-          JSON.stringify({
+        return json(
+          {
             alreadyCheckedIn: true,
             attendee,
             event: event ? { id: event.id, name: event.name } : undefined,
             message: `Already checked in: ${attendee.firstName} ${attendee.lastName}`,
-          }),
-          { status: 409, headers: { 'Content-Type': 'application/json' } }
+          },
+          409
         );
       }
       if (attendee.eventId) {
@@ -91,45 +77,36 @@ export const POST: APIRoute = async (context) => {
           : null;
         if (!latest) {
           logCheckInAttempt({ ip, outcome: 'not_found', attendeeId });
-          return new Response(
-            JSON.stringify({ error: 'Attendee not found' }),
-            { status: 404, headers: { 'Content-Type': 'application/json' } }
-          );
+          return errorResponse('Attendee not found', 404);
         }
         logCheckInAttempt({ ip, outcome: 'replay_attempt', attendeeId, eventId: latest.eventId });
-        return new Response(
-          JSON.stringify({
+        return json(
+          {
             alreadyCheckedIn: true,
             attendee: latest,
             event: event ? { id: event.id, name: event.name } : undefined,
             message: `Already checked in: ${latest.firstName} ${latest.lastName}`,
-          }),
-          { status: 409, headers: { 'Content-Type': 'application/json' } }
+          },
+          409
         );
       }
       const event = updated.eventId
         ? await getEventById(updated.eventId as string)
         : null;
       logCheckInAttempt({ ip, outcome: 'success', attendeeId: updated.id, eventId: updated.eventId });
-      return new Response(
-        JSON.stringify({
-          success: true,
-          event: event ? { id: event.id, name: event.name } : undefined,
-          attendee: updated,
-          message: `${updated.firstName} ${updated.lastName} checked in successfully!`,
-        }),
-        { headers: { 'Content-Type': 'application/json' } }
-      );
+      return json({
+        success: true,
+        event: event ? { id: event.id, name: event.name } : undefined,
+        attendee: updated,
+        message: `${updated.firstName} ${updated.lastName} checked in successfully!`,
+      });
     }
 
     // QR code check-in
     const validation = validateCheckIn(rawBody);
     if (!validation.success) {
       logCheckInAttempt({ ip, outcome: 'invalid_format' });
-      return new Response(
-        JSON.stringify({ error: 'Validation failed', details: validation.errors }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return json({ error: 'Validation failed', details: validation.errors }, 400);
     }
 
     const { qrData, scannerDeviceId } = validation.data;
@@ -164,10 +141,7 @@ export const POST: APIRoute = async (context) => {
       const demo = demoResponses[normalized];
       if (demo) {
         logCheckInAttempt({ ip, outcome: `demo_${normalized.toLowerCase().replace('demo-', '')}` as any });
-        return new Response(JSON.stringify(demo.body), {
-          status: demo.status ?? 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
+        return json(demo.body, demo.status ?? 200);
       }
     }
 
@@ -181,19 +155,13 @@ export const POST: APIRoute = async (context) => {
       token = payload.token;
     } catch {
       logCheckInAttempt({ ip, outcome: 'invalid_format' });
-      return new Response(
-        JSON.stringify({ error: 'Invalid QR code format' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Invalid QR code format');
     }
 
     const event = await getEventById(eventId);
     if (!event) {
       logCheckInAttempt({ ip, outcome: 'not_found', eventId, entryId });
-      return new Response(
-        JSON.stringify({ error: 'Event not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Event not found', 404);
     }
     const eventAccess = await requireEventAccess(context, eventId);
     if (eventAccess instanceof Response) return eventAccess;
@@ -203,37 +171,28 @@ export const POST: APIRoute = async (context) => {
       const existing = await getAttendeeById(entryId);
       if (existing?.eventId !== eventId) {
         logCheckInAttempt({ ip, outcome: 'invalid_or_expired', attendeeId: entryId });
-        return new Response(
-          JSON.stringify({ error: 'Invalid or expired QR code' }),
-          { status: 401, headers: { 'Content-Type': 'application/json' } }
-        );
+        return errorResponse('Invalid or expired QR code', 401);
       }
       if (existing?.qrUsedAt || existing?.checkedIn) {
         logCheckInAttempt({ ip, outcome: 'replay_attempt', attendeeId: entryId });
         const message = existing
           ? `Already checked in: ${existing.firstName} ${existing.lastName}`
           : 'QR code already used';
-        return new Response(
-          JSON.stringify({
+        return json(
+          {
             alreadyCheckedIn: true,
             attendee: existing,
             event: { id: event.id, name: event.name },
             message,
-          }),
-          { status: 409, headers: { 'Content-Type': 'application/json' } }
+          },
+          409
         );
       }
       if (existing?.qrExpiresAt && new Date(existing.qrExpiresAt as string) < new Date()) {
-        return new Response(
-          JSON.stringify({ error: 'QR code expired' }),
-          { status: 410, headers: { 'Content-Type': 'application/json' } }
-        );
+        return errorResponse('QR code expired', 410);
       }
       logCheckInAttempt({ ip, outcome: 'invalid_or_expired', attendeeId: entryId });
-      return new Response(
-        JSON.stringify({ error: 'Invalid or expired QR code' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Invalid or expired QR code', 401);
     }
 
     const updated = await checkInAttendeeWithTokenScoped(
@@ -243,21 +202,15 @@ export const POST: APIRoute = async (context) => {
       scannerDeviceId ?? null
     );
     logCheckInAttempt({ ip, outcome: 'success', attendeeId: updated.id, eventId });
-    return new Response(
-      JSON.stringify({
-        success: true,
-        event: { id: event.id, name: event.name },
-        attendee: updated,
-        message: `${updated.firstName} ${updated.lastName} checked in successfully!`,
-      }),
-      { headers: { 'Content-Type': 'application/json' } }
-    );
+    return json({
+      success: true,
+      event: { id: event.id, name: event.name },
+      attendee: updated,
+      message: `${updated.firstName} ${updated.lastName} checked in successfully!`,
+    });
   } catch (err) {
     console.error('POST /api/checkin', err);
     logCheckInAttempt({ ip, outcome: 'error' });
-    return new Response(
-      JSON.stringify({ error: 'Failed to process check-in' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return errorResponse('Failed to process check-in', 500);
   }
 };

@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { json, errorResponse } from '../../../lib/api-response';
 import {
   getEventById,
   createAttendee,
@@ -280,44 +281,23 @@ export const POST: APIRoute = async (context) => {
     const errorRows: ErrorRow[] = [];
 
     if (!eventId) {
-      return new Response(JSON.stringify({ error: 'eventId is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return errorResponse('eventId is required');
     }
     if (!file || !(file instanceof File)) {
-      return new Response(JSON.stringify({ error: 'file is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return errorResponse('file is required');
     }
     if (file.size > FILE_SIZE_LIMIT_BYTES) {
-      return new Response(
-        JSON.stringify({
-          error: `File is too large. Max size is ${Math.floor(FILE_SIZE_LIMIT_BYTES / (1024 * 1024))}MB.`,
-        }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
+      return errorResponse(
+        `File is too large. Max size is ${Math.floor(FILE_SIZE_LIMIT_BYTES / (1024 * 1024))}MB.`
       );
     }
     if (importMode === 'replace' && !confirmReplace) {
-      return new Response(
-        JSON.stringify({ error: 'Replace mode requires explicit confirmation.' }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+      return errorResponse('Replace mode requires explicit confirmation.');
     }
 
     const event = await getEventById(eventId);
     if (!event) {
-      return new Response(JSON.stringify({ error: 'Event not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return errorResponse('Event not found', 404);
     }
     const manage = await requireEventManage(context, eventId);
     if (manage instanceof Response) return manage;
@@ -336,10 +316,7 @@ export const POST: APIRoute = async (context) => {
       .map((line, idx) => ({ line, idx }))
       .filter(({ line }) => line.trim().length > 0);
     if (nonEmptyLineIndices.length < 2) {
-      return new Response(JSON.stringify({ error: 'CSV must have a header row and at least one data row' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return errorResponse('CSV must have a header row and at least one data row');
     }
 
     const headerLine = nonEmptyLineIndices[0].line;
@@ -350,33 +327,17 @@ export const POST: APIRoute = async (context) => {
     }
     const headers = parseCSVLine(headerLine, delimiter).map(normalizeHeader);
     if (!headers.length) {
-      return new Response(
-        JSON.stringify({ error: 'Could not parse CSV headers. Please check the delimiter and file format.' }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
+      return errorResponse(
+        'Could not parse CSV headers. Please check the delimiter and file format.'
       );
     }
 
     const mappedEmailHeader = coreMapping.email ? normalizeHeader(coreMapping.email) : '';
     if (mappedEmailHeader && !headers.includes(mappedEmailHeader)) {
-      return new Response(
-        JSON.stringify({ error: 'Mapped email column was not found in the uploaded CSV headers.' }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+      return errorResponse('Mapped email column was not found in the uploaded CSV headers.');
     }
     if (!mappedEmailHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Email mapping is required.' }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+      return errorResponse('Email mapping is required.');
     }
 
     const mappedFirstHeader = coreMapping.first_name ? normalizeHeader(coreMapping.first_name) : '';
@@ -385,41 +346,17 @@ export const POST: APIRoute = async (context) => {
     const hasFirstLastPair = Boolean(mappedFirstHeader && mappedLastHeader);
     const hasFullNameFallback = Boolean(mappedFullNameHeader);
     if (!hasFirstLastPair && !hasFullNameFallback) {
-      return new Response(
-        JSON.stringify({
-          error: 'Map both first name and last name, or map full name fallback.',
-        }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+      return errorResponse('Map both first name and last name, or map full name fallback.');
     }
     if (mappedFirstHeader && !headers.includes(mappedFirstHeader)) {
-      return new Response(
-        JSON.stringify({ error: 'Mapped first-name column was not found in the uploaded CSV headers.' }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+      return errorResponse('Mapped first-name column was not found in the uploaded CSV headers.');
     }
     if (mappedLastHeader && !headers.includes(mappedLastHeader)) {
-      return new Response(
-        JSON.stringify({ error: 'Mapped last-name column was not found in the uploaded CSV headers.' }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+      return errorResponse('Mapped last-name column was not found in the uploaded CSV headers.');
     }
     if (mappedFullNameHeader && !headers.includes(mappedFullNameHeader)) {
-      return new Response(
-        JSON.stringify({ error: 'Mapped full-name fallback column was not found in the uploaded CSV headers.' }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
+      return errorResponse(
+        'Mapped full-name fallback column was not found in the uploaded CSV headers.'
       );
     }
 
@@ -428,41 +365,19 @@ export const POST: APIRoute = async (context) => {
     for (const customMapping of customMappings) {
       const normalizedHeader = normalizeHeader(customMapping.sourceHeader);
       if (!headers.includes(normalizedHeader)) {
-        return new Response(
-          JSON.stringify({ error: `Mapped custom header "${customMapping.sourceHeader}" was not found.` }),
-          {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
+        return errorResponse(`Mapped custom header "${customMapping.sourceHeader}" was not found.`);
       }
       if (!normalizeCustomLabel(customMapping.label)) {
-        return new Response(
-          JSON.stringify({ error: 'Custom mapped column labels must include at least one letter or number.' }),
-          {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          }
+        return errorResponse(
+          'Custom mapped column labels must include at least one letter or number.'
         );
       }
       const normalizedLabel = normalizeCustomLabel(customMapping.label);
       if (seenCustomHeaders.has(normalizedHeader)) {
-        return new Response(
-          JSON.stringify({ error: `Custom header "${customMapping.sourceHeader}" is mapped more than once.` }),
-          {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
+        return errorResponse(`Custom header "${customMapping.sourceHeader}" is mapped more than once.`);
       }
       if (seenCustomLabels.has(normalizedLabel)) {
-        return new Response(
-          JSON.stringify({ error: `Custom label "${customMapping.label}" is used more than once.` }),
-          {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
+        return errorResponse(`Custom label "${customMapping.label}" is used more than once.`);
       }
       seenCustomHeaders.add(normalizedHeader);
       seenCustomLabels.add(normalizedLabel);
@@ -528,24 +443,21 @@ export const POST: APIRoute = async (context) => {
 
     if (validRows.length === 0) {
       const skipped = skippedDuplicates + skippedEmptyRows + skippedMalformedRows;
-      return new Response(
-        JSON.stringify({
-          importMode,
-          imported,
-          updated,
-          deleted,
-          skipped,
-          skippedDuplicates,
-          skippedEmptyRows,
-          skippedMalformedRows,
-          warnings,
-          errorRows,
-          errorRowsCsv: buildErrorRowsCSV(errorRows),
-          newlyImportedAttendeeIds: importedAttendeeIds,
-          importedAttendeeIds,
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      );
+      return json({
+        importMode,
+        imported,
+        updated,
+        deleted,
+        skipped,
+        skippedDuplicates,
+        skippedEmptyRows,
+        skippedMalformedRows,
+        warnings,
+        errorRows,
+        errorRowsCsv: buildErrorRowsCSV(errorRows),
+        newlyImportedAttendeeIds: importedAttendeeIds,
+        importedAttendeeIds,
+      });
     }
 
     if (importMode === 'replace') {
@@ -623,30 +535,24 @@ export const POST: APIRoute = async (context) => {
       });
     }
 
-    return new Response(
-      JSON.stringify({
-        importMode,
-        delimiter: delimiter === '\t' ? 'tab' : delimiter,
-        imported,
-        updated,
-        deleted,
-        skipped,
-        skippedDuplicates,
-        skippedEmptyRows,
-        skippedMalformedRows,
-        warnings,
-        errorRows,
-        errorRowsCsv: buildErrorRowsCSV(errorRows),
-        newlyImportedAttendeeIds: importedAttendeeIds,
-        importedAttendeeIds,
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    return json({
+      importMode,
+      delimiter: delimiter === '\t' ? 'tab' : delimiter,
+      imported,
+      updated,
+      deleted,
+      skipped,
+      skippedDuplicates,
+      skippedEmptyRows,
+      skippedMalformedRows,
+      warnings,
+      errorRows,
+      errorRowsCsv: buildErrorRowsCSV(errorRows),
+      newlyImportedAttendeeIds: importedAttendeeIds,
+      importedAttendeeIds,
+    });
   } catch (err) {
     console.error('[import]', err);
-    return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : 'Import failed' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return errorResponse(err instanceof Error ? err.message : 'Import failed', 500);
   }
 };

@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { acceptOrganizationInvitation } from '../../../../lib/db';
 import { requireUserId } from '../../../../lib/access';
+import { json, errorResponse } from '../../../../lib/api-response';
 
 export const POST: APIRoute = async (context) => {
   const userId = requireUserId(context);
@@ -11,10 +12,7 @@ export const POST: APIRoute = async (context) => {
     const body = (await context.request.json()) as { token?: string };
     const token = String(body?.token ?? '').trim();
     if (!token) {
-      return new Response(JSON.stringify({ error: 'Invite token is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return errorResponse('Invite token is required');
     }
     const result = await acceptOrganizationInvitation(token, userId, email);
     if (!result.ok) {
@@ -24,19 +22,11 @@ export const POST: APIRoute = async (context) => {
         expired: { status: 410, error: 'Invitation expired' },
       };
       const out = map[result.reason] ?? { status: 400, error: 'Could not accept invitation' };
-      return new Response(JSON.stringify({ error: out.error }), {
-        status: out.status,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return errorResponse(out.error, out.status);
     }
-    return new Response(JSON.stringify({ ok: true, organizationId: result.organizationId }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json({ ok: true, organizationId: result.organizationId });
   } catch (err) {
     console.error('POST /api/organizations/invitations/accept', err);
-    return new Response(JSON.stringify({ error: 'Failed to accept invitation' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return errorResponse('Failed to accept invitation', 500);
   }
 };

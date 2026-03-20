@@ -11,6 +11,7 @@ import { generateQRToken } from '../../../lib/qr-token';
 import { sendQRCodeEmail } from '../../../lib/email';
 import { updateAttendeeQRToken } from '../../../lib/db';
 import { getEnv } from '../../../lib/env';
+import { json, errorResponse } from '../../../lib/api-response';
 
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24h default for webhook-created QRs
 
@@ -29,26 +30,16 @@ export const POST: APIRoute = async ({ request }) => {
   const auth = request.headers.get('Authorization');
   const key = getWebhookKey();
   if (!key || auth !== `Bearer ${key}`) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return errorResponse('Unauthorized', 401);
   }
 
   const ip = getClientIp(request);
   const rate = checkRateLimit(`webhook:${ip}`, { maxAttempts: 60 });
   if (!rate.allowed) {
-    return new Response(
-      JSON.stringify({ error: 'Too many requests. Please try again later.' }),
-      {
-        status: 429,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(rate.retryAfterSec != null && {
-            'Retry-After': String(rate.retryAfterSec),
-          }),
-        },
-      }
+    return json(
+      { error: 'Too many requests. Please try again later.' },
+      429,
+      rate.retryAfterSec != null ? { 'Retry-After': String(rate.retryAfterSec) } : undefined
     );
   }
 
@@ -72,18 +63,12 @@ export const POST: APIRoute = async ({ request }) => {
     const sendEmail = Boolean(body?.sendEmail);
 
     if (!eventSlug || !email) {
-      return new Response(
-        JSON.stringify({ error: 'eventSlug and email are required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('eventSlug and email are required');
     }
 
     const event = await getEventBySlug(eventSlug);
     if (!event) {
-      return new Response(JSON.stringify({ error: 'Event not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return errorResponse('Event not found', 404);
     }
 
     if (micrositeEntryId) {
@@ -105,16 +90,13 @@ export const POST: APIRoute = async ({ request }) => {
 
         // On Vercel, process.env is the runtime source of truth
         const baseUrl = getEnv('PUBLIC_APP_URL') || '';
-        return new Response(
-          JSON.stringify({
-            entryId: existing.id,
-            qrPayload,
-            qrUrl: qrPayload && baseUrl ? `${baseUrl.replace(/\/$/, '')}/qr/${encodeURIComponent(qrPayload)}` : null,
-            existing: true,
-            refreshed,
-          }),
-          { headers: { 'Content-Type': 'application/json' } }
-        );
+        return json({
+          entryId: existing.id,
+          qrPayload,
+          qrUrl: qrPayload && baseUrl ? `${baseUrl.replace(/\/$/, '')}/qr/${encodeURIComponent(qrPayload)}` : null,
+          existing: true,
+          refreshed,
+        });
       }
     }
 
@@ -151,19 +133,13 @@ export const POST: APIRoute = async ({ request }) => {
 
     // On Vercel, process.env is the runtime source of truth
     const baseUrl = getEnv('PUBLIC_APP_URL') || '';
-    return new Response(
-      JSON.stringify({
-        entryId: attendee.id,
-        qrPayload,
-        qrUrl: qrPayload && baseUrl ? `${baseUrl.replace(/\/$/, '')}/qr/${encodeURIComponent(qrPayload)}` : null,
-      }),
-      { headers: { 'Content-Type': 'application/json' } }
-    );
+    return json({
+      entryId: attendee.id,
+      qrPayload,
+      qrUrl: qrPayload && baseUrl ? `${baseUrl.replace(/\/$/, '')}/qr/${encodeURIComponent(qrPayload)}` : null,
+    });
   } catch (err) {
     console.error('POST /api/webhooks/entry', err);
-    return new Response(
-      JSON.stringify({ error: 'Failed to process webhook' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return errorResponse('Failed to process webhook', 500);
   }
 };

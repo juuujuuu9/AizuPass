@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { json, errorResponse } from '../../lib/api-response';
 import {
   searchAttendeesForUser,
   getAttendeeByIdForUser,
@@ -23,15 +24,10 @@ export const GET: APIRoute = async (context) => {
     }
     const q = url.searchParams.get('q')?.trim() ?? undefined;
     const attendees = await searchAttendeesForUser(userId, eventId, q);
-    return new Response(JSON.stringify(attendees), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json(attendees);
   } catch (err) {
     console.error('GET /api/attendees', err);
-    return new Response(
-      JSON.stringify({ error: 'Failed to fetch attendees' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return errorResponse('Failed to fetch attendees', 500);
   }
 };
 
@@ -39,17 +35,10 @@ export const POST: APIRoute = async ({ request }) => {
   const ip = getClientIp(request);
   const rate = checkRateLimit(`attendees:${ip}`, { maxAttempts: 20 });
   if (!rate.allowed) {
-    return new Response(
-      JSON.stringify({ error: 'Too many RSVPs. Please try again later.' }),
-      {
-        status: 429,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(rate.retryAfterSec != null && {
-            'Retry-After': String(rate.retryAfterSec),
-          }),
-        },
-      }
+    return json(
+      { error: 'Too many RSVPs. Please try again later.' },
+      429,
+      rate.retryAfterSec != null ? { 'Retry-After': String(rate.retryAfterSec) } : undefined
     );
   }
 
@@ -59,10 +48,7 @@ export const POST: APIRoute = async ({ request }) => {
     // Validate input using zod schema
     const validation = validateRSVPForm(rawData);
     if (!validation.success) {
-      return new Response(
-        JSON.stringify({ error: 'Validation failed', details: validation.errors }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return json({ error: 'Validation failed', details: validation.errors }, 400);
     }
 
     const data = validation.data;
@@ -79,23 +65,14 @@ export const POST: APIRoute = async ({ request }) => {
     const body = qrResult
       ? { ...attendee, qrPayload: qrResult.qrPayload, qrExpiresAt: qrResult.expiresAt.toISOString() }
       : attendee;
-    return new Response(JSON.stringify(body), {
-      status: 201,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json(body, 201);
   } catch (err) {
     const msg = (err as Error)?.message || '';
     if (msg.includes('unique') || msg.includes('duplicate')) {
-      return new Response(
-        JSON.stringify({ error: 'This email is already registered for this event' }),
-        { status: 409, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('This email is already registered for this event', 409);
     }
     console.error('POST /api/attendees', err);
-    return new Response(
-      JSON.stringify({ error: 'Failed to create attendee' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return errorResponse('Failed to create attendee', 500);
   }
 };
 
@@ -106,35 +83,21 @@ export const DELETE: APIRoute = async (context) => {
   try {
     const { id } = ((await request.json()) || {}) as { id?: string };
     if (!id) {
-      return new Response(
-        JSON.stringify({ error: 'Attendee ID is required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Attendee ID is required');
     }
     const attendee = await getAttendeeByIdForUser(id, userId);
     if (!attendee?.eventId) {
-      return new Response(
-        JSON.stringify({ error: 'Attendee not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Attendee not found', 404);
     }
     const manage = await requireEventManage(context, String(attendee.eventId));
     if (manage instanceof Response) return manage;
     const deleted = await deleteAttendee(id);
     if (!deleted) {
-      return new Response(
-        JSON.stringify({ error: 'Attendee not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Attendee not found', 404);
     }
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json({ success: true });
   } catch (err) {
     console.error('DELETE /api/attendees', err);
-    return new Response(
-      JSON.stringify({ error: 'Failed to delete attendee' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return errorResponse('Failed to delete attendee', 500);
   }
 };

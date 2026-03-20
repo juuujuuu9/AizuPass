@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { errorResponse } from '../../../lib/api-response';
 import { getAllAttendeesForUser } from '../../../lib/db';
 import { requireEventAccess, requireUserId } from '../../../lib/access';
 
@@ -16,10 +17,7 @@ export const GET: APIRoute = async (context) => {
   const eventId = url.searchParams.get('eventId')?.trim();
 
   if (!eventId) {
-    return new Response(JSON.stringify({ error: 'eventId is required' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return errorResponse('eventId is required');
   }
   const access = await requireEventAccess(context, eventId);
   if (access instanceof Response) return access;
