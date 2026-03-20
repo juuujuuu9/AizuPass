@@ -1,5 +1,5 @@
 import { clerkMiddleware, createRouteMatcher, clerkClient } from '@clerk/astro/server';
-import { getUserAccessSummary } from './lib/db';
+import { ensureUserRow, getUserAccessSummary, isUserProfileComplete } from './lib/db';
 
 // Routes that never require authentication.
 // Everything else requires sign-in; org/event scope is enforced per page/API.
@@ -71,8 +71,29 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
     locals.hasEvent = true;
   }
 
+  let profileComplete = true;
+  const uidForProfile = testBypass ? '' : userId ?? '';
+  const emailForProfile = testBypass ? null : (email ?? null);
+  if (uidForProfile && !testBypass) {
+    try {
+      await ensureUserRow(uidForProfile, emailForProfile);
+      profileComplete = await isUserProfileComplete(uidForProfile);
+    } catch (err) {
+      // e.g. `users` table missing — fail open until migration is applied
+      console.error('[middleware] user profile sync', err);
+      profileComplete = true;
+    }
+  }
+  locals.profileComplete = testBypass ? true : profileComplete;
+
   // Public routes + RSVP POST (unauthenticated form submission)
-  if (isPublicRoute(context.request)) return next();
+  if (isPublicRoute(context.request)) {
+    if (uidForProfile && !testBypass && !profileComplete && pathname.startsWith('/invite/accept')) {
+      const returnTo = encodeURIComponent(pathname + url.search);
+      return redirect(`/onboarding/profile?returnTo=${returnTo}`);
+    }
+    return next();
+  }
   if (pathname === '/api/attendees' && request.method === 'POST') return next();
 
   // Everything else requires authentication
@@ -85,6 +106,21 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
     }
     const returnTo = encodeURIComponent(pathname + url.search);
     return redirect(`/login?returnTo=${returnTo}&required=auth`);
+  }
+
+  if (!testBypass && userId && !profileComplete) {
+    const allowedIncomplete =
+      pathname === '/onboarding/profile' || pathname.startsWith('/api/me/profile');
+    if (!allowedIncomplete) {
+      if (pathname.startsWith('/api/')) {
+        return new Response(
+          JSON.stringify({ error: 'Complete your profile first', code: 'profile_incomplete' }),
+          { status: 403, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      const returnTo = encodeURIComponent(pathname + url.search);
+      return redirect(`/onboarding/profile?returnTo=${returnTo}`);
+    }
   }
 
   return next();

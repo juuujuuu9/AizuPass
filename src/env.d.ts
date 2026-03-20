@@ -16,5 +16,7 @@ declare namespace App {
     isScanner: boolean;
     hasOrganization: boolean;
     hasEvent: boolean;
+    /** False until first/last name saved in `users` (see /onboarding/profile). */
+    profileComplete?: boolean;
   }
 }

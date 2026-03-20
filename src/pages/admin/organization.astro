@@ -3,12 +3,18 @@ import Layout from '../../layouts/Layout.astro';
 import DashboardHeader from '../../components/DashboardHeader.astro';
 import {
   getOrganizationByOwnerUserId,
-  getOrganizationMembershipsForUser,
+  getOrganizationStaffMembers,
+  getEventForOrganization,
 } from '../../lib/db';
 
 const userId = Astro.locals.user?.id ?? '';
 const organization = userId ? await getOrganizationByOwnerUserId(userId) : null;
-const memberships = userId ? await getOrganizationMembershipsForUser(userId) : [];
+const staffMembers = organization ? await getOrganizationStaffMembers(organization.id) : [];
+const event = organization ? await getEventForOrganization(organization.id) : null;
+
+// Group staff by status
+const activeStaff = staffMembers.filter(m => m.status === 'active');
+const pendingInvites = staffMembers.filter(m => m.status === 'pending');
 ---
 
 <Layout title="Organization">
@@ -21,25 +27,14 @@ const memberships = userId ? await getOrganizationMembershipsForUser(userId) : [
       isAdmin={Astro.locals.isAdmin}
       userEmail={Astro.locals.user?.email ?? ''}
       userRole={Astro.locals.user?.role ?? ''}
-      inviteButtonId="open-invite-staff-modal-header"
-      secondaryLinks={[{ href: '/admin/organization', label: 'Organization' }]}
+      organization={organization ? { label: organization.name, href: '/admin/organization' } : undefined}
     />
     <main class="mx-auto max-w-6xl px-4 py-10 space-y-6">
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 class="text-2xl font-bold text-foreground">Organization settings</h1>
-          <p class="mt-1 text-sm text-muted-foreground">Manage team access and invitation status.</p>
+          <h1 class="text-2xl font-bold text-foreground">Organization overview</h1>
+          <p class="mt-1 text-sm text-muted-foreground">Manage your team and event settings.</p>
         </div>
-        {organization && Astro.locals.isAdmin && (
-          <button
-            id="open-invite-staff-modal-page"
-            data-open-invite-staff-modal="true"
-            type="button"
-            class="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-          >
-            Invite Staff
-          </button>
-        )}
       </div>
 
       {!organization ? (
@@ -52,33 +47,233 @@ const memberships = userId ? await getOrganizationMembershipsForUser(userId) : [
         </div>
       ) : (
         <>
-          <section class="rounded-xl border border-border bg-card p-6">
-            <h2 class="text-lg font-semibold text-foreground">{organization.name}</h2>
-            <p class="mt-1 text-sm text-muted-foreground">One organization per organizer on the current plan.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Organization Info */}
+            <section class="rounded-xl border border-border bg-card p-6">
+              <h2 class="text-lg font-semibold text-foreground">{organization.name}</h2>
+              <p class="mt-1 text-sm text-muted-foreground">One organization per organizer on the current plan.</p>
+            </section>
+
+            {/* Create Event Card */}
+            <a
+              href="/admin/events/new"
+              class="group flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 hover:bg-card hover:border-primary/50 transition-all"
+            >
+              <div class="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-3 group-hover:bg-primary/10 transition-colors">
+                <svg class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <span class="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Create event</span>
+            </a>
+          </div>
+
+          {/* Events Section */}
+          <section class="rounded-xl border border-border bg-card">
+            <div class="border-b border-border px-6 py-4 flex items-center justify-between">
+              <h2 class="text-lg font-semibold text-foreground">Events</h2>
+              {!event && (
+                <a
+                  href="/admin/events/new"
+                  class="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+                >
+                  + New event
+                </a>
+              )}
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-border">
+                <thead class="bg-muted">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground">Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground">Slug</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase text-muted-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-border">
+                  {!event ? (
+                    <tr>
+                      <td colspan="3" class="px-6 py-8 text-center text-muted-foreground">
+                        No events yet. Create one to get started.
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr class="hover:bg-muted/50">
+                      <td class="px-6 py-4 text-sm font-medium text-foreground">{event.name}</td>
+                      <td class="px-6 py-4 text-sm text-muted-foreground">{event.slug}</td>
+                      <td class="px-6 py-4 flex items-center gap-3 flex-wrap">
+                        <a
+                          href={`/admin?event=${event.id}`}
+                          class="inline-flex items-center gap-1.5 px-2 py-1.5 text-sm text-primary hover:bg-(--red-2) rounded"
+                          title="View attendees"
+                          aria-label={`View attendees for ${event.name}`}
+                        >
+                          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          View
+                        </a>
+                        <a
+                          href={`/admin/events/import?event=${event.id}`}
+                          class="inline-flex items-center gap-1.5 px-2 py-1.5 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded"
+                          title="Import CSV"
+                          aria-label={`Import CSV for ${event.name}`}
+                        >
+                          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                          Import
+                        </a>
+                        <a
+                          href={`/api/attendees/export?eventId=${event.id}`}
+                          class="inline-flex items-center gap-1.5 px-2 py-1.5 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded"
+                          title="Export CSV"
+                          aria-label={`Export CSV for ${event.name}`}
+                        >
+                          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Export
+                        </a>
+                        {Astro.locals.isAdmin && (
+                          <button
+                            type="button"
+                            data-delete-event
+                            data-event-id={event.id}
+                            data-event-name={event.name}
+                            class="inline-flex items-center gap-1.5 px-2 py-1.5 text-sm text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded"
+                            title="Delete event"
+                            aria-label={`Delete event ${event.name}`}
+                          >
+                            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Delete
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </section>
 
           <p id="organization-page-status" class="min-h-5 text-sm text-muted-foreground"></p>
 
+          {/* Staff Members Section */}
           <section class="rounded-xl border border-border bg-card">
-            <div class="border-b border-border px-6 py-4">
-              <h2 class="text-lg font-semibold text-foreground">Your memberships</h2>
+            <div class="border-b border-border px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-semibold text-foreground">Staff members</h2>
+                <p class="text-sm text-muted-foreground mt-0.5">{activeStaff.length} active, {pendingInvites.length} pending</p>
+              </div>
+              {Astro.locals.isAdmin && (
+                <button
+                  id="open-invite-staff-modal-page"
+                  data-open-invite-staff-modal="true"
+                  type="button"
+                  class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Invite
+                </button>
+              )}
             </div>
-            {memberships.length === 0 ? (
-              <p class="px-6 py-6 text-sm text-muted-foreground">No memberships found.</p>
+
+            {staffMembers.length === 0 ? (
+              <div class="px-6 py-8 text-center">
+                <p class="text-sm text-muted-foreground">No staff members yet.</p>
+                <p class="text-xs text-muted-foreground mt-1">Invite staff to help manage events.</p>
+              </div>
             ) : (
               <div class="overflow-x-auto">
                 <table class="min-w-full text-left text-sm">
                   <thead class="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
+                      <th class="px-6 py-3 font-medium">User</th>
                       <th class="px-6 py-3 font-medium">Role</th>
-                      <th class="px-6 py-3 font-medium">Organization ID</th>
+                      <th class="px-6 py-3 font-medium">Status</th>
+                      <th class="px-6 py-3 font-medium text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {memberships.map((membership) => (
+                    {staffMembers.map((member) => (
                       <tr class="border-b border-border/80 last:border-b-0">
-                        <td class="px-6 py-4 font-medium text-foreground">{membership.role}</td>
-                        <td class="px-6 py-4 text-muted-foreground">{membership.organizationId}</td>
+                        <td class="px-6 py-4">
+                          <div class="flex items-center gap-3">
+                            <div class="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                              <span class="text-xs font-medium text-muted-foreground">
+                                {member.firstName?.[0]}{member.lastName?.[0]}
+                              </span>
+                            </div>
+                            <div>
+                              {member.firstName && member.lastName ? (
+                                <p class="font-medium text-foreground">{member.firstName} {member.lastName}</p>
+                              ) : member.firstName || member.lastName ? (
+                                <p class="font-medium text-foreground">{member.firstName || member.lastName}</p>
+                              ) : (
+                                <p class="font-medium text-foreground">User ID: {member.userId.slice(0, 8)}...</p>
+                              )}
+                              {member.email && (
+                                <p class="text-xs text-muted-foreground">{member.email}</p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td class="px-6 py-4">
+                          <span class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                            member.role === 'organizer'
+                              ? 'bg-purple-500/10 text-purple-600'
+                              : 'bg-blue-500/10 text-blue-600'
+                          }`}>
+                            {member.role === 'organizer' ? 'Organizer' : 'Staff'}
+                          </span>
+                        </td>
+                        <td class="px-6 py-4">
+                          {member.status === 'active' ? (
+                            <span class="inline-flex items-center gap-1.5 text-sm text-foreground">
+                              <span class="h-2 w-2 rounded-full bg-green-500"></span>
+                              Active
+                            </span>
+                          ) : member.status === 'pending' ? (
+                            <span class="inline-flex items-center gap-1.5 text-sm text-amber-600">
+                              <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+                              Pending
+                            </span>
+                          ) : (
+                            <span class="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                              <span class="h-2 w-2 rounded-full bg-gray-400"></span>
+                              {member.status}
+                            </span>
+                          )}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                          {Astro.locals.isAdmin && member.status === 'pending' && (
+                            <button
+                              type="button"
+                              data-revoke-invitation={member.id}
+                              class="text-sm text-red-600 hover:text-red-700 font-medium"
+                            >
+                              Revoke
+                            </button>
+                          )}
+                          {Astro.locals.isAdmin && member.status === 'active' && member.userId !== userId && (
+                            <button
+                              type="button"
+                              data-remove-member={member.id}
+                              class="text-sm text-muted-foreground hover:text-red-600 font-medium"
+                            >
+                              Remove
+                            </button>
+                          )}
+                          {member.userId === userId && (
+                            <span class="text-xs text-muted-foreground">You</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -238,5 +433,76 @@ const memberships = userId ? await getOrganizationMembershipsForUser(userId) : [
       }
     });
 
+    // Handle revoke invitation buttons
+    document.querySelectorAll('[data-revoke-invitation]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const invitationId = btn.getAttribute('data-revoke-invitation');
+        if (!invitationId || !confirm('Revoke this invitation? The user will no longer be able to join.')) return;
+        try {
+          const res = await fetch(`/api/organizations/invitations/${invitationId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'revoke' }),
+          });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            alert(data.error || 'Failed to revoke invitation');
+            return;
+          }
+          window.location.reload();
+        } catch {
+          alert('Failed to revoke invitation');
+        }
+      });
+    });
+
+    // Handle remove member buttons
+    document.querySelectorAll('[data-remove-member]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const membershipId = btn.getAttribute('data-remove-member');
+        if (!membershipId || !confirm('Remove this staff member from the organization?')) return;
+        if (pageStatus instanceof HTMLElement) {
+          pageStatus.textContent = 'Removing member...';
+          pageStatus.className = 'min-h-5 text-sm text-muted-foreground';
+        }
+        try {
+          const res = await fetch(`/api/organizations/memberships/${membershipId}`, { method: 'DELETE' });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            if (pageStatus instanceof HTMLElement) {
+              pageStatus.textContent = data.error || 'Failed to remove member';
+              pageStatus.className = 'min-h-5 text-sm text-[var(--red-11)]';
+            }
+            return;
+          }
+          window.location.reload();
+        } catch {
+          if (pageStatus instanceof HTMLElement) {
+            pageStatus.textContent = 'Failed to remove member';
+            pageStatus.className = 'min-h-5 text-sm text-[var(--red-11)]';
+          }
+        }
+      });
+    });
+
+    // Handle delete event buttons
+    document.querySelectorAll('[data-delete-event]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-event-id');
+        const name = btn.getAttribute('data-event-name');
+        if (!id || !confirm(`Delete event "${name}"? This will also remove all attendees for this event.`)) return;
+        try {
+          const res = await fetch(`/api/events/${id}`, { method: 'DELETE' });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            alert(data.error || 'Failed to delete event');
+            return;
+          }
+          window.location.reload();
+        } catch {
+          alert('Failed to delete event');
+        }
+      });
+    });
   </script>
 </Layout>

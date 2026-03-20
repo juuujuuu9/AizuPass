@@ -1,0 +1,125 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { isUserProfileComplete } from '../../lib/db';
+
+const userId = Astro.locals.user?.id ?? '';
+const userEmail = Astro.locals.user?.email ?? '';
+
+if (!userId) {
+  return Astro.redirect('/login');
+}
+
+// Already complete → send them back (avoid loop)
+const returnToRaw = Astro.url.searchParams.get('returnTo');
+let safeReturnTo =
+  returnToRaw && returnToRaw.startsWith('/') && !returnToRaw.startsWith('//')
+    ? returnToRaw
+    : '/admin';
+// `/` is the check-in scanner; after first account + name, staff should land in admin.
+if (safeReturnTo.split('?')[0] === '/') {
+  safeReturnTo = '/admin';
+}
+
+if (await isUserProfileComplete(userId)) {
+  return Astro.redirect(safeReturnTo);
+}
+---
+
+<Layout title="Complete your profile">
+  <div class="min-h-screen bg-background">
+    <main class="mx-auto max-w-xl px-4 py-10">
+      <h1 class="text-2xl font-bold text-foreground">Your name</h1>
+      <p class="mt-2 text-sm text-muted-foreground">
+        Enter how you want to appear in the app. This is your account profile and applies to every organization you join.
+      </p>
+
+      <form id="profile-form" class="mt-6 space-y-4 rounded-lg border border-border bg-card p-6">
+        <div class="flex items-center gap-3 pb-4 border-b border-border">
+          <div class="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <svg class="h-5 w-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-xs text-muted-foreground font-medium">Signed in</p>
+            <p class="text-sm text-foreground">{userEmail}</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="firstName" class="block text-sm font-medium text-muted-foreground">First name</label>
+            <input
+              id="firstName"
+              name="firstName"
+              type="text"
+              required
+              autocomplete="given-name"
+              class="mt-1 w-full rounded border border-input bg-background px-3 py-2 text-foreground"
+              placeholder="e.g. Jane"
+            />
+          </div>
+          <div>
+            <label for="lastName" class="block text-sm font-medium text-muted-foreground">Last name</label>
+            <input
+              id="lastName"
+              name="lastName"
+              type="text"
+              required
+              autocomplete="family-name"
+              class="mt-1 w-full rounded border border-input bg-background px-3 py-2 text-foreground"
+              placeholder="e.g. Smith"
+            />
+          </div>
+        </div>
+
+        <p id="error" class="hidden text-sm text-[var(--red-11)]"></p>
+        <button
+          type="submit"
+          class="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          Continue
+        </button>
+      </form>
+    </main>
+  </div>
+
+  <script define:vars={{ safeReturnTo }}>
+    const form = document.getElementById('profile-form');
+    const errorEl = document.getElementById('error');
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!form) return;
+      const fd = new FormData(form);
+      const firstName = String(fd.get('firstName') ?? '').trim();
+      const lastName = String(fd.get('lastName') ?? '').trim();
+      if (!firstName || !lastName) return;
+      if (errorEl) errorEl.classList.add('hidden');
+      const submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn instanceof HTMLButtonElement) submitBtn.disabled = true;
+      try {
+        const res = await fetch('/api/me/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ firstName, lastName }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (errorEl) {
+            errorEl.textContent = body.error || `Error ${res.status}`;
+            errorEl.classList.remove('hidden');
+          }
+          return;
+        }
+        window.location.href = safeReturnTo;
+      } catch {
+        if (errorEl) {
+          errorEl.textContent = 'Failed to save profile';
+          errorEl.classList.remove('hidden');
+        }
+      } finally {
+        if (submitBtn instanceof HTMLButtonElement) submitBtn.disabled = false;
+      }
+    });
+  </script>
+</Layout>

@@ -7,9 +7,20 @@ type HeaderLink = {
   label: string;
 };
 
+type NavSegment = {
+  label: string;
+  href?: string;
+  badge?: string;
+  badgeColor?: 'default' | 'muted' | 'primary' | 'secondary';
+};
+
 interface Props {
   homeHref?: string;
   homeLabel?: string;
+  // Breadcrumb navigation segments
+  organization?: NavSegment;
+  event?: NavSegment;
+  // Legacy props (deprecated, use organization/event instead)
   secondaryLinks?: HeaderLink[];
   showThemeToggle?: boolean;
   showSignOut?: boolean;
@@ -22,6 +33,8 @@ interface Props {
 const {
   homeHref = '/admin',
   homeLabel = 'Dashboard',
+  organization,
+  event,
   secondaryLinks = [],
   showThemeToggle = false,
   showSignOut = false,
@@ -32,24 +45,94 @@ const {
 } = Astro.props;
 
 const roleLabel = userRole === 'organizer' ? 'Organizer' : userRole === 'staff' ? 'Staff' : '';
+
+const badgeClasses = {
+  default: 'bg-muted text-muted-foreground',
+  muted: 'bg-muted text-muted-foreground',
+  primary: 'bg-primary/10 text-primary',
+  secondary: 'bg-secondary text-secondary-foreground',
+};
 ---
 
 <header class="bg-card border-b border-border sticky top-0 z-50">
-  <div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+  <div class="w-full px-4">
     <div class="flex items-center justify-between h-16">
-      <div class="flex items-center gap-3">
-        <a href={homeHref} class="flex items-center gap-3">
-          <div class="bg-primary p-2 rounded-lg">
-            <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <!-- Breadcrumb Navigation -->
+      <nav class="flex items-center gap-2" aria-label="Breadcrumb">
+        <!-- Dashboard Home -->
+        <a href={homeHref} class="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
+          <div class="bg-primary p-1.5 rounded-md">
+            <svg class="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
           </div>
-          <span class="font-bold text-foreground">{homeLabel}</span>
+          <span class="font-semibold text-sm">{homeLabel}</span>
         </a>
+
+        <!-- Organization Segment -->
+        {organization && (
+          <>
+            <span class="text-muted-foreground">/</span>
+            <div class="flex items-center gap-2">
+              {organization.href ? (
+                <a href={organization.href} class="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors">
+                  {organization.label}
+                  {organization.badge && (
+                    <span class={`rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[organization.badgeColor || 'default']}`}>
+                      {organization.badge}
+                    </span>
+                  )}
+                </a>
+              ) : (
+                <div class="flex items-center gap-2 text-sm text-foreground">
+                  {organization.label}
+                  {organization.badge && (
+                    <span class={`rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[organization.badgeColor || 'default']}`}>
+                      {organization.badge}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        <!-- Event Segment -->
+        {event && (
+          <>
+            <span class="text-muted-foreground">/</span>
+            <div class="flex items-center gap-2">
+              {event.href ? (
+                <a href={event.href} class="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors">
+                  {event.label}
+                  {event.badge && (
+                    <span class={`rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[event.badgeColor || 'default']}`}>
+                      {event.badge}
+                    </span>
+                  )}
+                </a>
+              ) : (
+                <div class="flex items-center gap-2 text-sm text-foreground">
+                  {event.label}
+                  {event.badge && (
+                    <span class={`rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[event.badgeColor || 'default']}`}>
+                      {event.badge}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        <!-- Legacy secondary links (for backward compatibility) -->
         {secondaryLinks.map((link) => (
-          <a href={link.href} class="text-sm text-muted-foreground hover:text-primary">{link.label}</a>
+          <>
+            <span class="text-muted-foreground">/</span>
+            <a href={link.href} class="text-sm text-muted-foreground hover:text-primary transition-colors">{link.label}</a>
+          </>
         ))}
-      </div>
+      </nav>
       {(showThemeToggle || showSignOut || isAdmin || userEmail) && (
         <div class="flex items-center gap-4">
           {userEmail && (

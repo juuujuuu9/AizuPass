@@ -29,13 +29,11 @@ if (!token) {
 } else if (new Date(invitation.expiresAt) < new Date()) {
   state = { kind: 'expired' };
 } else if (userId) {
-  // Authenticated — try to auto-accept
   if (userEmail.toLowerCase() === invitation.email.toLowerCase()) {
     const result = await acceptOrganizationInvitation(token, userId, userEmail);
     if (result.ok) {
       return Astro.redirect('/admin');
     }
-    // Shouldn't happen given checks above, but handle gracefully
     state = { kind: 'accept', inviteEmail: invitation.email, organizationName: invitation.organizationName };
   } else {
     state = { kind: 'email_mismatch', inviteEmail: invitation.email };
@@ -113,10 +111,10 @@ const signInUrl = `/login?returnTo=${encodeURIComponent(acceptUrl)}`;
       {state.kind === 'accept' && (
         <div class="text-center">
           <h1 class="text-2xl font-bold text-foreground mb-2">Join {state.organizationName}</h1>
-          <p class="text-sm text-muted-foreground mb-4">
-            Signed in as <span class="font-medium text-foreground">{state.inviteEmail}</span>
+          <p class="text-sm text-muted-foreground mb-6">
+            Signed in as <span class="font-medium text-foreground">{state.inviteEmail}</span>. We couldn&apos;t accept automatically — try again below.
           </p>
-          <p id="status" class="text-sm text-muted-foreground mb-4">Ready to accept invitation.</p>
+          <p id="status" class="hidden text-sm mb-4"></p>
           <button
             id="accept-btn"
             type="button"
@@ -181,6 +179,8 @@ const signInUrl = `/login?returnTo=${encodeURIComponent(acceptUrl)}`;
         if (btn instanceof HTMLButtonElement) btn.disabled = true;
         if (status) {
           status.textContent = 'Accepting invitation...';
+          status.className = 'text-sm text-muted-foreground';
+          status.classList.remove('hidden');
         }
         try {
           const res = await fetch('/api/organizations/invitations/accept', {
@@ -190,13 +190,24 @@ const signInUrl = `/login?returnTo=${encodeURIComponent(acceptUrl)}`;
           });
           const body = await res.json().catch(() => ({}));
           if (!res.ok) {
-            if (status) status.textContent = body.error || `Error ${res.status}`;
+            if (status) {
+              status.textContent = body.error || `Error ${res.status}`;
+              status.className = 'text-sm text-[var(--red-11)]';
+              status.classList.remove('hidden');
+            }
             return;
           }
-          if (status) status.textContent = 'Invitation accepted! Redirecting...';
+          if (status) {
+            status.textContent = 'Invitation accepted! Redirecting...';
+            status.className = 'text-sm text-[var(--green-11)]';
+          }
           window.location.href = '/admin';
         } catch {
-          if (status) status.textContent = 'Could not accept invitation. Please try again.';
+          if (status) {
+            status.textContent = 'Could not accept invitation. Please try again.';
+            status.className = 'text-sm text-[var(--red-11)]';
+            status.classList.remove('hidden');
+          }
         } finally {
           if (btn instanceof HTMLButtonElement) btn.disabled = false;
         }

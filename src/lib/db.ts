@@ -35,6 +35,10 @@ export interface OrganizationRow {
   createdAt?: string;
 }
 
+export interface OrganizationWithRole extends OrganizationRow {
+  userRole: OrganizationRole;
+}
+
 export type OrganizationRole = 'organizer' | 'staff';
 
 export interface OrganizationMembershipRow {
@@ -44,6 +48,16 @@ export interface OrganizationMembershipRow {
   role: OrganizationRole;
   invitedByUserId?: string | null;
   createdAt?: string;
+}
+
+/** One row per Clerk user; display name for the account (all orgs). */
+export interface UserRow {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface OrganizationInvitationRow {
@@ -88,6 +102,63 @@ function rowToMembership(row: Record<string, unknown>): OrganizationMembershipRo
     invitedByUserId: row.invited_by_user_id as string | null,
     createdAt: row.created_at as string | undefined,
   };
+}
+
+function rowToUser(row: Record<string, unknown>): UserRow {
+  return {
+    id: String(row.id),
+    email: String(row.email ?? ''),
+    firstName: (row.first_name as string | null) ?? null,
+    lastName: (row.last_name as string | null) ?? null,
+    createdAt: row.created_at as string | undefined,
+    updatedAt: row.updated_at as string | undefined,
+  };
+}
+
+/** Ensure a row exists for this Clerk user (email updated when non-empty). */
+export async function ensureUserRow(userId: string, email: string | null): Promise<void> {
+  if (!userId) return;
+  const db = getDb();
+  const em = email?.trim() ?? '';
+  await db`
+    INSERT INTO users (id, email, created_at, updated_at)
+    VALUES (${userId}, ${em}, NOW(), NOW())
+    ON CONFLICT (id) DO UPDATE SET
+      email = COALESCE(NULLIF(EXCLUDED.email, ''), users.email),
+      updated_at = NOW()
+  `;
+}
+
+export async function getUserById(userId: string): Promise<UserRow | null> {
+  if (!userId) return null;
+  const db = getDb();
+  const rows = await db`SELECT * FROM users WHERE id = ${userId} LIMIT 1`;
+  return rows.length ? rowToUser(rows[0] as Record<string, unknown>) : null;
+}
+
+export async function isUserProfileComplete(userId: string): Promise<boolean> {
+  const u = await getUserById(userId);
+  if (!u) return false;
+  return Boolean(String(u.firstName ?? '').trim() && String(u.lastName ?? '').trim());
+}
+
+export async function updateUserProfile(
+  userId: string,
+  data: { firstName: string; lastName: string; email?: string | null }
+): Promise<void> {
+  if (!userId) return;
+  const firstName = data.firstName.trim();
+  const lastName = data.lastName.trim();
+  if (!firstName || !lastName) throw new Error('First and last name are required');
+  await ensureUserRow(userId, data.email ?? null);
+  const db = getDb();
+  await db`
+    UPDATE users
+    SET first_name = ${firstName},
+        last_name = ${lastName},
+        updated_at = NOW()
+    WHERE id = ${userId}
+  `;
 }
 
 function rowToInvitation(row: Record<string, unknown>): OrganizationInvitationRow {
@@ -155,6 +226,30 @@ export async function getOrganizationForUser(userId: string): Promise<Organizati
   return rows.length ? rowToOrganization(rows[0] as Record<string, unknown>) : null;
 }
 
+export async function getAllOrganizationsForUser(userId: string): Promise<OrganizationWithRole[]> {
+  if (!userId) return [];
+  const db = getDb();
+  // Get organizations where user is either a member OR the owner
+  // Also determine the user's role: owner = 'organizer', otherwise use membership role
+  const rows = await db`
+    SELECT DISTINCT o.*,
+      CASE
+        WHEN o.owner_user_id = ${userId} THEN 'organizer'
+        ELSE m.role
+      END as user_role
+    FROM organizations o
+    LEFT JOIN organization_memberships m
+      ON m.organization_id = o.id AND m.user_id = ${userId}
+    WHERE o.owner_user_id = ${userId}
+       OR m.user_id = ${userId}
+    ORDER BY o.created_at ASC
+  `;
+  return rows.map((row) => ({
+    ...rowToOrganization(row as Record<string, unknown>),
+    userRole: row.user_role as OrganizationRole,
+  }));
+}
+
 export async function getOrganizationMembership(
   userId: string,
   organizationId: string
@@ -184,10 +279,76 @@ export async function getOrganizationMembershipsForUser(
   return rows.map((row) => rowToMembership(row as Record<string, unknown>));
 }
 
-export async function createOrganizationForOwner(
-  ownerUserId: string,
-  name: string
-): Promise<OrganizationRow> {
+export type StaffMember = OrganizationMembershipRow & {
+  email?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  status?: 'active' | 'pending' | 'revoked' | 'expired';
+  displayName?: string;
+};
+
+export async function getOrganizationStaffMembers(
+  organizationId: string
+): Promise<StaffMember[]> {
+  if (!organizationId) return [];
+  const db = getDb();
+
+  const membershipRows = await db`
+    SELECT m.*,
+           u.email AS user_email,
+           u.first_name AS profile_first_name,
+           u.last_name AS profile_last_name
+    FROM organization_memberships m
+    LEFT JOIN users u ON u.id = m.user_id
+    WHERE m.organization_id = ${organizationId}
+    ORDER BY m.created_at DESC
+  `;
+
+  const invitationRows = await db`
+    SELECT i.*
+    FROM organization_invitations i
+    WHERE i.organization_id = ${organizationId}
+      AND i.status = 'pending'
+      AND i.expires_at > NOW()
+    ORDER BY i.created_at DESC
+  `;
+
+  const staff: StaffMember[] = [];
+
+  for (const row of membershipRows) {
+    const membership = rowToMembership(row as Record<string, unknown>);
+    const fn = (row.profile_first_name as string | null) ?? null;
+    const ln = (row.profile_last_name as string | null) ?? null;
+    const userEmail = (row.user_email as string | null) ?? undefined;
+    const displayName =
+      fn && ln ? `${fn} ${ln}` : fn || ln || undefined;
+    staff.push({
+      ...membership,
+      email: userEmail,
+      firstName: fn,
+      lastName: ln,
+      status: 'active',
+      displayName,
+    });
+  }
+
+  for (const row of invitationRows) {
+    staff.push({
+      id: String(row.id),
+      organizationId: String(row.organization_id),
+      userId: '',
+      role: String(row.role) as OrganizationRole,
+      invitedByUserId: String(row.invited_by_user_id),
+      createdAt: String(row.created_at),
+      email: String(row.email),
+      status: 'pending',
+    });
+  }
+
+  return staff;
+}
+
+export async function createOrganizationForOwner(ownerUserId: string, name: string): Promise<OrganizationRow> {
   const existing = await getOrganizationByOwnerUserId(ownerUserId);
   if (existing) return existing;
   const db = getDb();
@@ -524,6 +685,19 @@ export async function revokeOrganizationInvitation(
     WHERE organization_id = ${organizationId}
       AND id = ${invitationId}
       AND status = 'pending'
+    RETURNING id
+  `;
+  return rows.length > 0;
+}
+
+export async function removeOrganizationMembership(
+  membershipId: string
+): Promise<boolean> {
+  if (!membershipId) return false;
+  const db = getDb();
+  const rows = await db`
+    DELETE FROM organization_memberships
+    WHERE id = ${membershipId}
     RETURNING id
   `;
   return rows.length > 0;

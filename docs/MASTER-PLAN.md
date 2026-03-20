@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-19 (Bloat audit completed: ~500 lines removed, demo-codes security fix, structural improvements)
+**Last updated:** 2026-03-20 (`users` table for global display name; `/onboarding/profile` gate; names removed from `organization_memberships` — run `docs/sql/003-users-profile.sql`)
 
 ---
 

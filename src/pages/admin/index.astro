@@ -1,36 +1,43 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { AdminPage } from '../../components/AdminPage';
 import DashboardHeader from '../../components/DashboardHeader.astro';
-import { getAllEventsForUser, getStaffLastEventId, getEventByIdForUser } from '../../lib/db';
+import { getAllOrganizationsForUser, getEventForOrganization, type OrganizationWithRole } from '../../lib/db';
 
 const { user } = Astro.locals;
-let events: { id: string; name: string; slug: string }[] = [];
-let pageError = '';
-let lastSelectedEventId = '';
-const hasOrganization = Astro.locals.hasOrganization;
-const hasEvent = Astro.locals.hasEvent;
+const userId = user?.id ?? '';
 
-try {
-  const rows = user?.id ? await getAllEventsForUser(user.id) : [];
-  events = rows.map((e) => ({ id: String(e.id), name: String(e.name), slug: String(e.slug) }));
-  if (user?.id) {
-    const raw = await getStaffLastEventId(user.id);
-    // Safety: if event was deleted (or soft-deleted), don't use stale ref
-    if (raw) {
-      const event = await getEventByIdForUser(raw, user.id);
-      lastSelectedEventId = event?.id ?? '';
-    }
-  }
-} catch (err) {
-  console.error('[admin] page setup failed:', err);
-  pageError = err instanceof Error ? err.message : 'Failed to load page';
+// Fetch all organizations for this user
+const organizations = userId ? await getAllOrganizationsForUser(userId) : [];
+
+// Fetch events count for each organization
+const organizationsWithEvents = await Promise.all(
+  organizations.map(async (org) => {
+    const event = await getEventForOrganization(org.id);
+    return {
+      ...org,
+      hasEvent: !!event,
+      eventName: event?.name ?? null,
+    };
+  })
+);
+
+// Format date relative (e.g., "7d ago")
+function formatRelativeDate(dateString: string | undefined): string {
+  if (!dateString) return 'Recently';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 1) return 'Today';
+  if (diffDays === 1) return '1d ago';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+  return `${Math.floor(diffDays / 30)}mo ago`;
 }
-const urlEventId = Astro.url.searchParams.get('event') ?? '';
-const selectedEventId = urlEventId || lastSelectedEventId;
 ---
 
-<Layout title="Attendees | Organization">
+<Layout title="Dashboard | Organizations">
   <div class="min-h-screen bg-background">
     <DashboardHeader
       homeHref="/admin"
@@ -42,177 +49,85 @@ const selectedEventId = urlEventId || lastSelectedEventId;
       userRole={user?.role ?? ''}
     />
 
-    <main class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
-      {!hasOrganization && (
-        <div class="mb-6 rounded-lg border border-[var(--amber-6)] bg-[var(--amber-2)] p-4 text-[var(--amber-11)]">
-          <p class="font-medium">Organization setup required</p>
-          <p class="mt-1 text-sm">Create your organization to continue.</p>
-          <a href="/onboarding/organization" class="mt-3 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-            Create organization
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <h1 class="text-2xl font-bold text-foreground mb-6">Organizations</h1>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {/* Create Organization Card */}
+        <a
+          href="/onboarding/organization"
+          class="group flex flex-col items-center justify-center min-h-[180px] rounded-xl border border-dashed border-border bg-card/50 hover:bg-card hover:border-primary/50 transition-all"
+        >
+          <div class="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-3 group-hover:bg-primary/10 transition-colors">
+            <svg class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+          </div>
+          <span class="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Create organization</span>
+        </a>
+
+          {/* Organization Cards */}
+        {organizationsWithEvents.map((org) => (
+          <a
+            href={`/admin/organization?id=${org.id}`}
+            class="group flex flex-col rounded-xl border border-border bg-card hover:border-primary/50 hover:shadow-sm transition-all"
+          >
+            {/* Top accent line */}
+            <div class="h-1 w-full bg-gradient-to-r from-primary/60 to-primary rounded-t-xl" />
+
+            <div class="p-4 flex flex-col flex-1">
+              {/* Organization icon, domain, and role badge */}
+              <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-muted">
+                    <svg class="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  <span class="text-xs text-muted-foreground font-mono truncate max-w-[140px]">{org.id.slice(0, 8)}...</span>
+                </div>
+                <span class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                  (org as OrganizationWithRole).userRole === 'organizer'
+                    ? 'bg-purple-500/10 text-purple-600'
+                    : 'bg-blue-500/10 text-blue-600'
+                }`}>
+                  {(org as OrganizationWithRole).userRole === 'organizer' ? 'Organizer' : 'Staff'}
+                </span>
+              </div>
+
+              {/* Organization name */}
+              <h3 class="text-base font-semibold text-foreground mb-4">{org.name}</h3>
+
+              {/* Status badge */}
+              <div class="mt-auto">
+                {org.hasEvent ? (
+                  <span class="inline-flex items-center gap-1.5 rounded-md bg-green-500/10 px-2 py-1 text-xs font-medium text-green-600">
+                    <span class="h-1.5 w-1.5 rounded-full bg-green-500" />
+                    Active
+                  </span>
+                ) : (
+                  <span class="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-600">
+                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    No Event
+                  </span>
+                )}
+              </div>
+
+              {/* Updated time */}
+              <p class="mt-3 text-xs text-muted-foreground">Updated {formatRelativeDate(org.createdAt)}</p>
+            </div>
           </a>
+        ))}
+      </div>
+
+      {/* Empty state - no organizations */}
+      {organizationsWithEvents.length === 0 && (
+        <div class="mt-8 text-center">
+          <p class="text-muted-foreground">No organizations yet. Create your first one to get started.</p>
         </div>
-      )}
-      {hasOrganization && !hasEvent && (
-        <div class="mb-6 rounded-lg border border-[var(--amber-6)] bg-[var(--amber-2)] p-4 text-[var(--amber-11)]">
-          <p class="font-medium">Create your first event</p>
-          <p class="mt-1 text-sm">Free tier currently includes one event per organization.</p>
-          <a href="/admin/events/new" class="mt-3 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-            Create event
-          </a>
-        </div>
-      )}
-      {pageError ? (
-        <div class="rounded-lg border border-[var(--red-6)] bg-[var(--red-2)] p-4 text-[var(--red-11)]">
-          <p class="font-medium">Could not load admin</p>
-          <p class="mt-1 text-sm">{pageError}</p>
-          <p class="mt-2 text-sm">Check the server logs and ensure DATABASE_URL is set. Refresh the page to retry.</p>
-        </div>
-      ) : (
-        <AdminPage
-          client:load
-          events={events}
-          selectedEventId={selectedEventId}
-          canManageOrganization={Astro.locals.isAdmin}
-        />
       )}
     </main>
   </div>
-
-  {Astro.locals.isAdmin && (
-    <>
-      <div
-        id="invite-staff-modal"
-        class="fixed inset-0 z-70 hidden items-center justify-center bg-black/60 px-4"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="invite-staff-modal-title"
-      >
-        <div class="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-2xl">
-          <h2 id="invite-staff-modal-title" class="text-2xl font-bold text-foreground">Invite user</h2>
-          <p class="mt-1 text-sm text-muted-foreground">Invite a staff member to your workspace by email.</p>
-
-          <form id="invite-staff-form" class="mt-5 space-y-4">
-            <div>
-              <label for="invite-staff-email" class="mb-1 block text-sm font-medium text-foreground">Email</label>
-              <input
-                id="invite-staff-email"
-                type="email"
-                required
-                placeholder="john@example.com"
-                class="w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-
-            <p id="invite-staff-status" class="min-h-5 text-sm text-muted-foreground"></p>
-
-            <div class="mt-2 flex gap-3">
-              <button
-                id="cancel-invite-staff-modal"
-                type="button"
-                class="flex-1 rounded-md border border-border bg-muted px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted/80"
-              >
-                Cancel
-              </button>
-              <button
-                id="submit-invite-staff"
-                type="submit"
-                class="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-              >
-                Invite
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <script>
-        const modal = document.getElementById('invite-staff-modal');
-        const openButton = document.getElementById('open-invite-staff-modal');
-        const cancelButton = document.getElementById('cancel-invite-staff-modal');
-        const form = document.getElementById('invite-staff-form');
-        const emailInput = document.getElementById('invite-staff-email');
-        const status = document.getElementById('invite-staff-status');
-        const submitButton = document.getElementById('submit-invite-staff');
-
-        const openModal = () => {
-          if (!(modal instanceof HTMLElement)) return;
-          modal.classList.remove('hidden');
-          modal.classList.add('flex');
-          if (emailInput instanceof HTMLInputElement) emailInput.focus();
-          if (status instanceof HTMLElement) {
-            status.textContent = '';
-            status.className = 'min-h-5 text-sm text-muted-foreground';
-          }
-        };
-
-        const closeModal = () => {
-          if (!(modal instanceof HTMLElement)) return;
-          modal.classList.add('hidden');
-          modal.classList.remove('flex');
-          if (form instanceof HTMLFormElement) form.reset();
-          if (status instanceof HTMLElement) {
-            status.textContent = '';
-            status.className = 'min-h-5 text-sm text-muted-foreground';
-          }
-        };
-
-        openButton?.addEventListener('click', openModal);
-        cancelButton?.addEventListener('click', closeModal);
-
-        modal?.addEventListener('click', (event) => {
-          if (event.target === modal) closeModal();
-        });
-
-        document.addEventListener('keydown', (event) => {
-          if (event.key === 'Escape' && modal instanceof HTMLElement && !modal.classList.contains('hidden')) {
-            closeModal();
-          }
-        });
-
-        form?.addEventListener('submit', async (event) => {
-          event.preventDefault();
-          const email = emailInput instanceof HTMLInputElement ? emailInput.value.trim() : '';
-          if (!email) return;
-          if (submitButton instanceof HTMLButtonElement) submitButton.disabled = true;
-          if (status instanceof HTMLElement) {
-            status.textContent = 'Sending invite...';
-            status.className = 'min-h-5 text-sm text-muted-foreground';
-          }
-          try {
-            const res = await fetch('/api/organizations/invitations', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email }),
-            });
-            const body = await res.json().catch(() => ({}));
-            if (!res.ok) {
-              if (status instanceof HTMLElement) {
-                status.textContent = body.error || `Error ${res.status}`;
-                status.className = 'min-h-5 text-sm text-[var(--red-11)]';
-              }
-              return;
-            }
-            if (status instanceof HTMLElement) {
-              if (body?.communication?.sent) {
-                status.textContent = 'Invite email sent.';
-                status.className = 'min-h-5 text-sm text-[var(--green-11)]';
-              } else {
-                const reason = body?.communication?.error || 'Email service is not configured';
-                status.textContent = `Invite created, but email was not sent: ${reason}`;
-                status.className = 'min-h-5 text-sm text-[var(--amber-11)]';
-              }
-            }
-            if (emailInput instanceof HTMLInputElement) emailInput.value = '';
-          } catch {
-            if (status instanceof HTMLElement) {
-              status.textContent = 'Could not send invite';
-              status.className = 'min-h-5 text-sm text-[var(--red-11)]';
-            }
-          } finally {
-            if (submitButton instanceof HTMLButtonElement) submitButton.disabled = false;
-          }
-        });
-      </script>
-    </>
-  )}
 </Layout>

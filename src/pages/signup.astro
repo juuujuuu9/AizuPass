@@ -6,7 +6,7 @@ const returnToRaw = Astro.url.searchParams.get('returnTo');
 const safeReturnTo =
   returnToRaw && returnToRaw.startsWith('/') && !returnToRaw.startsWith('//')
     ? returnToRaw
-    : '/';
+    : '/admin';
 
 const signInUrl = `/login${returnToRaw ? `?returnTo=${encodeURIComponent(safeReturnTo)}` : ''}`;
 

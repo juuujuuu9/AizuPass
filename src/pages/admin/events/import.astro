@@ -21,9 +21,10 @@ const fromEmail = getEnv('FROM_EMAIL') || 'onboarding@resend.dev';
 <Layout title="Import CSV">
   <div class="min-h-screen bg-background">
     <DashboardHeader
-      homeHref="/admin/events"
-      homeLabel="Events"
-      secondaryLinks={[{ href: '/admin', label: 'Attendees' }]}
+      homeHref="/admin"
+      homeLabel="Dashboard"
+      organization={organization ? { label: organization.name, href: `/admin?event=${event?.id || ''}` } : undefined}
+      event={event ? { label: event.name, badge: 'Import' } : undefined}
       showSignOut={true}
       userEmail={Astro.locals.user?.email ?? ''}
       userRole={Astro.locals.user?.role ?? ''}

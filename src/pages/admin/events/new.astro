@@ -11,9 +11,8 @@ const existingEvent = organization ? await getEventForOrganization(organization.
 <Layout title="New Event">
   <div class="min-h-screen bg-background">
     <DashboardHeader
-      homeHref="/admin/events"
-      homeLabel="Events"
-      secondaryLinks={[{ href: '/admin', label: 'Attendees' }]}
+      homeHref="/admin"
+      homeLabel="Dashboard"
       showSignOut={true}
       userEmail={Astro.locals.user?.email ?? ''}
       userRole={Astro.locals.user?.role ?? ''}

@@ -4,6 +4,8 @@ import { getOrganizationByOwnerUserId } from '../../lib/db';
 
 const userId = Astro.locals.user?.id ?? '';
 const organization = userId ? await getOrganizationByOwnerUserId(userId) : null;
+
+const userEmail = Astro.locals.user?.email ?? '';
 ---
 
 <Layout title="Create Organization">
@@ -24,6 +26,18 @@ const organization = userId ? await getOrganizationByOwnerUserId(userId) : null;
         </div>
       ) : (
         <form id="org-form" class="mt-6 space-y-4 rounded-lg border border-border bg-card p-6">
+          <div class="flex items-center gap-3 pb-4 border-b border-border">
+            <div class="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <svg class="h-5 w-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <div>
+              <p class="font-medium text-foreground">Organizer</p>
+              <p class="text-xs text-muted-foreground">{userEmail}</p>
+            </div>
+          </div>
+
           <div>
             <label for="name" class="block text-sm font-medium text-muted-foreground">Organization name</label>
             <input
