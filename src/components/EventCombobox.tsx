@@ -68,17 +68,12 @@ export function EventCombobox({
             <>
               <li
                 role="option"
-                aria-selected={!value}
-                className={`cursor-pointer px-3 py-2 text-sm hover:bg-accent ${
-                  !value ? 'bg-accent' : ''
-                }`}
+                className="cursor-pointer px-3 py-2 text-sm hover:bg-accent text-primary"
                 onClick={() => {
-                  onSelect('');
-                  setQuery('');
-                  setOpen(false);
+                  window.location.href = '/admin/organization';
                 }}
               >
-                Select Event
+                Manage events →
               </li>
               {filtered.map((ev) => (
                 <li

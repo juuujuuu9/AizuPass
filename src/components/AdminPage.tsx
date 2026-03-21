@@ -116,26 +116,6 @@ export function AdminPage({
             />
           </div>
           <a
-            href="/admin/organization"
-            className="rounded border border-border bg-muted px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
-          >
-            Manage events
-          </a>
-          {canManageOrganization && (
-            <a
-              href="/admin"
-              className="rounded border border-border bg-muted px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
-            >
-              Organizations
-            </a>
-          )}
-          <a
-            href="/admin/events/new"
-            className="text-sm text-primary hover:underline"
-          >
-            + New event
-          </a>
-          <a
             href="/"
             className="ml-auto inline-flex items-center gap-2 rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
           >
