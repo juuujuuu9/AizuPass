@@ -70,17 +70,20 @@ const badgeClasses = {
   primary: 'bg-primary/10 text-primary',
   secondary: 'bg-secondary text-secondary-foreground',
 };
+
+const showHeaderActions = showThemeToggle || showSignOut || isAdmin || Boolean(userEmail);
 ---
 
 <header class="bg-card border-b border-border sticky top-0 z-50 overflow-x-hidden">
   <div class="w-full min-w-0 px-4">
     <div class="flex h-16 min-w-0 items-center justify-between gap-3">
       <!-- Breadcrumb: single line; scroll horizontally when path is long (starts at left / Event Workspace first) -->
-      <nav
-        class="header-breadcrumb-scroll flex min-h-0 min-w-0 flex-1 items-center overflow-x-auto overflow-y-clip overscroll-x-contain [-webkit-overflow-scrolling:touch]"
-        aria-label="Breadcrumb"
-      >
-        <div class="flex w-max shrink-0 flex-nowrap items-center gap-2 whitespace-nowrap">
+      <div class="relative min-h-0 min-w-0 flex-1">
+        <nav
+          class="header-breadcrumb-scroll flex min-h-0 min-w-0 flex-1 items-center overflow-x-auto overflow-y-clip overscroll-x-contain [-webkit-overflow-scrolling:touch]"
+          aria-label="Breadcrumb"
+        >
+          <div class="flex w-max shrink-0 flex-nowrap items-center gap-2 whitespace-nowrap pr-8 md:pr-0">
           <!-- Event workspace home -->
           <a
             href={homeHref}
@@ -103,7 +106,9 @@ const badgeClasses = {
                   <a href={organization.href} class="flex items-center gap-2 text-sm whitespace-nowrap text-foreground hover:text-primary transition-colors">
                     {organization.label}
                     {organization.badge && (
-                      <span class={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[organization.badgeColor || 'default']}`}>
+                      <span
+                        class={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${event ? '' : 'hidden md:inline-flex '}${badgeClasses[organization.badgeColor || 'default']}`}
+                      >
                         {organization.badge}
                       </span>
                     )}
@@ -112,7 +117,9 @@ const badgeClasses = {
                   <div class="flex items-center gap-2 text-sm whitespace-nowrap text-foreground">
                     {organization.label}
                     {organization.badge && (
-                      <span class={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[organization.badgeColor || 'default']}`}>
+                      <span
+                        class={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${event ? '' : 'hidden md:inline-flex '}${badgeClasses[organization.badgeColor || 'default']}`}
+                      >
                         {organization.badge}
                       </span>
                     )}
@@ -131,7 +138,9 @@ const badgeClasses = {
                   <a href={event.href} class="flex items-center gap-2 text-sm whitespace-nowrap text-foreground hover:text-primary transition-colors">
                     {event.label}
                     {event.badge && (
-                      <span class={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[event.badgeColor || 'default']}`}>
+                      <span
+                        class={`hidden shrink-0 rounded px-1.5 py-0.5 text-xs font-medium md:inline-flex ${badgeClasses[event.badgeColor || 'default']}`}
+                      >
                         {event.badge}
                       </span>
                     )}
@@ -140,7 +149,9 @@ const badgeClasses = {
                   <div class="flex items-center gap-2 text-sm whitespace-nowrap text-foreground">
                     {event.label}
                     {event.badge && (
-                      <span class={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[event.badgeColor || 'default']}`}>
+                      <span
+                        class={`hidden shrink-0 rounded px-1.5 py-0.5 text-xs font-medium md:inline-flex ${badgeClasses[event.badgeColor || 'default']}`}
+                      >
                         {event.badge}
                       </span>
                     )}
@@ -157,9 +168,17 @@ const badgeClasses = {
               <a href={link.href} class="shrink-0 text-sm whitespace-nowrap text-muted-foreground hover:text-primary transition-colors">{link.label}</a>
             </>
           ))}
-        </div>
-      </nav>
-      {(showThemeToggle || showSignOut || isAdmin || userEmail) && (
+          </div>
+        </nav>
+        <!-- Fade at overflow edge toward header actions; pointer-events-none so the nav still receives touch scroll -->
+        {showHeaderActions && (
+          <div
+            class="pointer-events-none absolute inset-y-0 -right-px z-10 w-10 bg-linear-to-l from-card to-transparent sm:w-12"
+            aria-hidden="true"
+          />
+        )}
+      </div>
+      {showHeaderActions && (
         <div class="flex shrink-0 items-center gap-4">
           {userEmail && (
             <div class="hidden md:flex items-center gap-2 text-sm">

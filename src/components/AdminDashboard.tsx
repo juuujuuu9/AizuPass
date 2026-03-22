@@ -222,6 +222,18 @@ export function AdminDashboard({
     return sortDescending ? -cmp : cmp;
   });
 
+  const totalAttendees = attendees.length;
+  const checkedInCount = attendees.filter((a) => a.checkedIn).length;
+  const pendingCount = totalAttendees - checkedInCount;
+  const checkInPercent =
+    totalAttendees > 0
+      ? Math.round((checkedInCount / totalAttendees) * 100)
+      : 0;
+  const donutRadius = 36;
+  const donutCirc = 2 * Math.PI * donutRadius;
+  const donutDashOffset =
+    donutCirc - (checkInPercent / 100) * donutCirc;
+
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this attendee?')) return;
     setDeletingId(id);
@@ -265,7 +277,7 @@ export function AdminDashboard({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-stretch">
         {showScannerCta && (
           <a
@@ -281,36 +293,87 @@ export function AdminDashboard({
             </span>
           </a>
         )}
-        <div className="grid min-h-0 min-w-0 flex-1 grid-cols-2 gap-4 md:grid-cols-3">
-        <Card className="col-span-2 md:col-span-1">
+        <Card className="min-w-0 flex-1 md:hidden">
+          <CardContent className="flex items-stretch justify-between gap-2 px-3 py-4">
+            <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-center">
+              <span className="text-3xl font-bold tabular-nums text-green-600 leading-none">
+                {checkedInCount}
+              </span>
+              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                checked in
+              </span>
+            </div>
+            <div className="flex shrink-0 flex-col items-center justify-center gap-1 px-1">
+              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Check-in rate
+              </span>
+              <div className="relative flex size-44 items-center justify-center">
+                <svg
+                  className="size-full -rotate-90"
+                  viewBox="0 0 100 100"
+                  aria-hidden
+                >
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r={donutRadius}
+                    fill="none"
+                    className="stroke-muted"
+                    strokeWidth="10"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r={donutRadius}
+                    fill="none"
+                    className="stroke-blue-600 transition-[stroke-dashoffset] duration-300"
+                    strokeWidth="10"
+                    strokeLinecap="round"
+                    strokeDasharray={donutCirc}
+                    strokeDashoffset={donutDashOffset}
+                  />
+                </svg>
+                <span className="absolute text-4xl font-bold tabular-nums text-blue-600 leading-none">
+                  {checkInPercent}%
+                </span>
+              </div>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {checkedInCount} / {totalAttendees}
+              </span>
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-center">
+              <span className="text-3xl font-bold tabular-nums text-orange-600 leading-none">
+                {pendingCount}
+              </span>
+              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                pending
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+        <div className="hidden min-h-0 min-w-0 flex-1 grid-cols-3 gap-4 md:grid">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Check-in Rate</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="text-5xl font-bold text-blue-600 leading-tight">
-              {attendees.length > 0
-                ? Math.round(
-                    (attendees.filter((a) => a.checkedIn).length /
-                      attendees.length) *
-                      100
-                  )
-                : 0}
-              %
+              {checkInPercent}%
             </div>
-            {attendees.length > 0 && (
-              <div className="w-full overflow-hidden rounded-full bg-muted h-2">
+            {totalAttendees > 0 && (
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-blue-600 transition-all duration-300"
                   style={{
-                    width: `${(attendees.filter((a) => a.checkedIn).length / attendees.length) * 100}%`,
+                    width: `${(checkedInCount / totalAttendees) * 100}%`,
                   }}
                 />
               </div>
             )}
-            {attendees.length > 0 && (
+            {totalAttendees > 0 && (
               <p className="text-xs text-muted-foreground">
-                {attendees.filter((a) => a.checkedIn).length} of {attendees.length} checked in
+                {checkedInCount} of {totalAttendees} checked in
               </p>
             )}
           </CardContent>
@@ -322,7 +385,7 @@ export function AdminDashboard({
           </CardHeader>
           <CardContent>
             <div className="text-5xl font-bold text-green-600 leading-tight">
-              {attendees.filter((a) => a.checkedIn).length}
+              {checkedInCount}
             </div>
           </CardContent>
         </Card>
@@ -333,15 +396,15 @@ export function AdminDashboard({
           </CardHeader>
           <CardContent>
             <div className="text-5xl font-bold text-orange-600 leading-tight">
-              {attendees.filter((a) => !a.checkedIn).length}
+              {pendingCount}
             </div>
           </CardContent>
         </Card>
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-col gap-4">
+      <Card className="min-w-0 max-w-full">
+        <CardHeader className="flex min-w-0 flex-col gap-4">
           <div>
             <CardTitle className="text-2xl font-semibold">Attendee List</CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
@@ -397,7 +460,7 @@ export function AdminDashboard({
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0">
           {sortedAttendees.length === 0 ? (
             <EmptyState
               onAddAttendee={() => {
@@ -408,7 +471,7 @@ export function AdminDashboard({
               addButtonRed={!eventId}
             />
           ) : (
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             {selectedIds.size > 0 && (
               <div className="flex items-center gap-2 py-2 px-3 rounded-md bg-muted">
                 <span className="text-sm font-medium">
@@ -454,7 +517,7 @@ export function AdminDashboard({
                 </Button>
               </div>
             )}
-          <div className="overflow-auto h-[400px] w-full min-w-0 relative">
+          <div className="relative h-[400px] max-w-full min-w-0 overflow-x-auto overflow-y-auto">
             <Table className="min-w-[700px] w-full">
               <TableHeader>
                 <TableRow className="sticky top-0 z-10 bg-card">

@@ -118,10 +118,13 @@ export function AdminPage({
           </div>
           <a
             href="/"
-            className="ml-auto inline-flex items-center gap-2 rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 md:hidden"
+            aria-label="Open check-in scanner"
+            className="flex w-full flex-row items-center justify-center gap-3 rounded-xl border-0 bg-red-600 px-4 py-3 font-medium text-white shadow-sm outline-none transition-colors hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background md:hidden"
           >
-            <ScanQrMark className="h-5 w-5 shrink-0" />
-            Scan
+            <span className="block size-12 shrink-0 overflow-hidden">
+              <ScanQrMark className="block h-full w-full" />
+            </span>
+            <span className="shrink-0 text-[1.3125rem] leading-none">Scan</span>
           </a>
         </div>
       )}
