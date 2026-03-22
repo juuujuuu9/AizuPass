@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import type { Attendee } from '@/types/attendee';
 import { apiService } from '@/services/api';
 import { AdminDashboard } from '@/components/AdminDashboard';
+import { ScanQrMark } from '@/components/ScanQrMark';
 import { EventCombobox } from '@/components/EventCombobox';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -117,24 +118,9 @@ export function AdminPage({
           </div>
           <a
             href="/"
-            className="ml-auto inline-flex items-center gap-2 rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+            className="ml-auto inline-flex items-center gap-2 rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 md:hidden"
           >
-            <svg
-              className="h-5 w-5 shrink-0"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="M13,11V7h4v4Zm4,6V15H15v2ZM7,13v4h4V13ZM7,7V9H9V7Z" />
-              <path d="M21,8V4a1,1,0,0,0-1-1H16" />
-              <path d="M16,21h4a1,1,0,0,0,1-1V16" />
-              <path d="M8,3H4A1,1,0,0,0,3,4V8" />
-              <path d="M3,16v4a1,1,0,0,0,1,1H8" />
-            </svg>
+            <ScanQrMark className="h-5 w-5 shrink-0" />
             Scan
           </a>
         </div>
@@ -161,6 +147,8 @@ export function AdminPage({
         <AdminDashboard
           attendees={attendees}
           eventId={eventId || undefined}
+          eventName={events.find((e) => e.id === eventId)?.name}
+          showScannerCta={events.length > 0}
           onRefresh={() => eventId && loadAttendees(eventId, { silent: true })}
         />
       )}

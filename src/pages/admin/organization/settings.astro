@@ -11,11 +11,12 @@ const organization = userId ? await getOrganizationByOwnerUserId(userId) : null;
   <div class="min-h-screen bg-background">
     <DashboardHeader
       homeHref="/admin"
-      homeLabel="Dashboard"
       showThemeToggle={true}
       showSignOut={true}
       isAdmin={Astro.locals.isAdmin}
       userEmail={Astro.locals.user?.email ?? ''}
+      userFirstName={Astro.locals.user?.firstName ?? ''}
+      userLastName={Astro.locals.user?.lastName ?? ''}
       userRole={Astro.locals.user?.role ?? ''}
       organization={organization ? { label: organization.name, href: '/admin/organization' } : undefined}
     />

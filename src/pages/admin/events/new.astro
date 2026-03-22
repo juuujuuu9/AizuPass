@@ -12,9 +12,10 @@ const existingEvent = organization ? await getEventForOrganization(organization.
   <div class="min-h-screen bg-background">
     <DashboardHeader
       homeHref="/admin"
-      homeLabel="Dashboard"
       showSignOut={true}
       userEmail={Astro.locals.user?.email ?? ''}
+      userFirstName={Astro.locals.user?.firstName ?? ''}
+      userLastName={Astro.locals.user?.lastName ?? ''}
       userRole={Astro.locals.user?.role ?? ''}
     />
 

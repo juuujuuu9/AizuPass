@@ -563,7 +563,7 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
           <Button variant="outline" size="lg" className="w-full" asChild>
             <a href="/admin">
               <LayoutDashboard className="h-4 w-4 mr-2" />
-              Dashboard
+              Event Workspace
             </a>
           </Button>
           <a

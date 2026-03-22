@@ -1,5 +1,6 @@
 ---
 import { ThemeToggle } from './ThemeToggle';
+import { MobileAccountMenu } from './MobileAccountMenu';
 import { SignOutButton } from '@clerk/astro/components';
 
 type HeaderLink = {
@@ -26,12 +27,14 @@ interface Props {
   showSignOut?: boolean;
   isAdmin?: boolean;
   userEmail?: string;
+  userFirstName?: string;
+  userLastName?: string;
   userRole?: string;
 }
 
 const {
   homeHref = '/admin',
-  homeLabel = 'Dashboard',
+  homeLabel = 'Event Workspace',
   organization,
   event,
   secondaryLinks = [],
@@ -39,10 +42,27 @@ const {
   showSignOut = false,
   isAdmin = false,
   userEmail = '',
+  userFirstName = '',
+  userLastName = '',
   userRole = '',
 } = Astro.props;
 
 const roleLabel = userRole === 'organizer' ? 'Organizer' : userRole === 'staff' ? 'Staff' : '';
+
+function initialsFromName(first: string, last: string): string {
+  const f = first.trim()[0];
+  const l = last.trim()[0];
+  if (f && l) return `${f}${l}`.toUpperCase();
+  if (f) return f.toUpperCase();
+  if (l) return l.toUpperCase();
+  return '?';
+}
+
+const userInitials = initialsFromName(userFirstName, userLastName);
+const accountLabel =
+  [userFirstName, userLastName].map((s) => s.trim()).filter(Boolean).join(' ') || userEmail || '';
+const hasPersonName = Boolean(userFirstName.trim() || userLastName.trim());
+const menuSubtitle = hasPersonName && userEmail.trim() ? userEmail.trim() : '';
 
 const badgeClasses = {
   default: 'bg-muted text-muted-foreground',
@@ -52,111 +72,137 @@ const badgeClasses = {
 };
 ---
 
-<header class="bg-card border-b border-border sticky top-0 z-50">
-  <div class="w-full px-4">
-    <div class="flex items-center justify-between h-16">
-      <!-- Breadcrumb Navigation -->
-      <nav class="flex items-center gap-2" aria-label="Breadcrumb">
-        <!-- Dashboard Home -->
-        <a href={homeHref} class="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
-          <div class="bg-primary p-1.5 rounded-md">
-            <svg class="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-          </div>
-          <span class="font-semibold text-sm">{homeLabel}</span>
-        </a>
-
-        <!-- Organization Segment -->
-        {organization && (
-          <>
-            <span class="text-muted-foreground">/</span>
-            <div class="flex items-center gap-2">
-              {organization.href ? (
-                <a href={organization.href} class="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors">
-                  {organization.label}
-                  {organization.badge && (
-                    <span class={`rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[organization.badgeColor || 'default']}`}>
-                      {organization.badge}
-                    </span>
-                  )}
-                </a>
-              ) : (
-                <div class="flex items-center gap-2 text-sm text-foreground">
-                  {organization.label}
-                  {organization.badge && (
-                    <span class={`rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[organization.badgeColor || 'default']}`}>
-                      {organization.badge}
-                    </span>
-                  )}
-                </div>
-              )}
+<header class="bg-card border-b border-border sticky top-0 z-50 overflow-x-hidden">
+  <div class="w-full min-w-0 px-4">
+    <div class="flex h-16 min-w-0 items-center justify-between gap-3">
+      <!-- Breadcrumb: single line; scroll horizontally when path is long (starts at left / Event Workspace first) -->
+      <nav
+        class="header-breadcrumb-scroll flex min-h-0 min-w-0 flex-1 items-center overflow-x-auto overflow-y-clip overscroll-x-contain [-webkit-overflow-scrolling:touch]"
+        aria-label="Breadcrumb"
+      >
+        <div class="flex w-max shrink-0 flex-nowrap items-center gap-2 whitespace-nowrap">
+          <!-- Event workspace home -->
+          <a
+            href={homeHref}
+            class="flex shrink-0 items-center gap-2 text-foreground hover:text-primary transition-colors"
+          >
+            <div class="bg-primary shrink-0 rounded-md p-1.5">
+              <svg class="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
             </div>
-          </>
-        )}
+            <span class="text-sm font-semibold whitespace-nowrap">{homeLabel}</span>
+          </a>
 
-        <!-- Event Segment -->
-        {event && (
-          <>
-            <span class="text-muted-foreground">/</span>
-            <div class="flex items-center gap-2">
-              {event.href ? (
-                <a href={event.href} class="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors">
-                  {event.label}
-                  {event.badge && (
-                    <span class={`rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[event.badgeColor || 'default']}`}>
-                      {event.badge}
-                    </span>
-                  )}
-                </a>
-              ) : (
-                <div class="flex items-center gap-2 text-sm text-foreground">
-                  {event.label}
-                  {event.badge && (
-                    <span class={`rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[event.badgeColor || 'default']}`}>
-                      {event.badge}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          </>
-        )}
+          <!-- Organization Segment -->
+          {organization && (
+            <>
+              <span class="shrink-0 text-muted-foreground">/</span>
+              <div class="flex shrink-0 items-center gap-2">
+                {organization.href ? (
+                  <a href={organization.href} class="flex items-center gap-2 text-sm whitespace-nowrap text-foreground hover:text-primary transition-colors">
+                    {organization.label}
+                    {organization.badge && (
+                      <span class={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[organization.badgeColor || 'default']}`}>
+                        {organization.badge}
+                      </span>
+                    )}
+                  </a>
+                ) : (
+                  <div class="flex items-center gap-2 text-sm whitespace-nowrap text-foreground">
+                    {organization.label}
+                    {organization.badge && (
+                      <span class={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[organization.badgeColor || 'default']}`}>
+                        {organization.badge}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
-        <!-- Legacy secondary links (for backward compatibility) -->
-        {secondaryLinks.map((link) => (
-          <>
-            <span class="text-muted-foreground">/</span>
-            <a href={link.href} class="text-sm text-muted-foreground hover:text-primary transition-colors">{link.label}</a>
-          </>
-        ))}
+          <!-- Event Segment -->
+          {event && (
+            <>
+              <span class="shrink-0 text-muted-foreground">/</span>
+              <div class="flex shrink-0 items-center gap-2">
+                {event.href ? (
+                  <a href={event.href} class="flex items-center gap-2 text-sm whitespace-nowrap text-foreground hover:text-primary transition-colors">
+                    {event.label}
+                    {event.badge && (
+                      <span class={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[event.badgeColor || 'default']}`}>
+                        {event.badge}
+                      </span>
+                    )}
+                  </a>
+                ) : (
+                  <div class="flex items-center gap-2 text-sm whitespace-nowrap text-foreground">
+                    {event.label}
+                    {event.badge && (
+                      <span class={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${badgeClasses[event.badgeColor || 'default']}`}>
+                        {event.badge}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          <!-- Legacy secondary links (for backward compatibility) -->
+          {secondaryLinks.map((link) => (
+            <>
+              <span class="shrink-0 text-muted-foreground">/</span>
+              <a href={link.href} class="shrink-0 text-sm whitespace-nowrap text-muted-foreground hover:text-primary transition-colors">{link.label}</a>
+            </>
+          ))}
+        </div>
       </nav>
       {(showThemeToggle || showSignOut || isAdmin || userEmail) && (
-        <div class="flex items-center gap-4">
+        <div class="flex shrink-0 items-center gap-4">
           {userEmail && (
-            <div class="flex items-center gap-2 text-sm">
+            <div class="hidden md:flex items-center gap-2 text-sm">
               <span class="text-muted-foreground">{userEmail}</span>
               {roleLabel && (
-                <span class="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                <span class="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                   {roleLabel}
                 </span>
               )}
             </div>
           )}
-          {showThemeToggle && <ThemeToggle client:load />}
+          {showThemeToggle && (
+            <span class="hidden md:inline-flex">
+              <ThemeToggle client:load />
+            </span>
+          )}
           {isAdmin && organization && (
             <button
               id="open-invite-staff-modal-header"
               type="button"
               class="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+              aria-label="Invite staff"
             >
-              Invite Staff
+              <span class="md:hidden">Invite</span>
+              <span class="hidden md:inline">Invite Staff</span>
             </button>
           )}
+          {showThemeToggle && (
+            <MobileAccountMenu
+              client:load
+              initials={userInitials}
+              displayName={accountLabel}
+              subtitle={menuSubtitle}
+              roleLabel={roleLabel}
+              showSignOut={showSignOut}
+            />
+          )}
           {showSignOut && (
-            <SignOutButton asChild redirectUrl="/">
-              <button type="button" class="text-sm text-muted-foreground hover:text-primary bg-transparent border-none cursor-pointer p-0 font-inherit">Sign out</button>
-            </SignOutButton>
+            <span class={showThemeToggle ? 'hidden md:inline-flex' : 'inline-flex'}>
+              <SignOutButton asChild redirectUrl="/">
+                <button type="button" class="text-sm text-muted-foreground hover:text-primary bg-transparent border-none cursor-pointer p-0 font-inherit">Sign out</button>
+              </SignOutButton>
+            </span>
           )}
         </div>
       )}

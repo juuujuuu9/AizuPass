@@ -1,3 +1,6 @@
+import { create as createFilePond } from 'filepond';
+import 'filepond/dist/filepond.min.css';
+
 interface ImportPageData {
   eventId: string | undefined;
   eventName: string;
@@ -32,8 +35,35 @@ export function initImportPage(): void {
   if (!form || !eventId) return;
 
   const fileInput = form.querySelector<HTMLInputElement>('input[name="file"]');
+  let csvPond: ReturnType<typeof createFilePond> | null = null;
+
+  function getSelectedPondFile() {
+    return csvPond?.getFiles()[0] ?? null;
+  }
+
+  function clearCsvFileUiState() {
+    errorEl?.classList.add('hidden');
+    successEl?.classList.add('hidden');
+    importNoteEl?.classList.add('hidden');
+    warningsEl?.classList.add('hidden');
+    if (errorRowsObjectUrl) {
+      URL.revokeObjectURL(errorRowsObjectUrl);
+      errorRowsObjectUrl = null;
+    }
+    if (errorRowsDownload) errorRowsDownload.classList.add('hidden');
+    csvHeaders = [];
+    selectedDelimiter = ',';
+    resetCustomMappingRows();
+    setSelectOptions(mappingSelects.email, [], '');
+    setSelectOptions(mappingSelects.first_name, [], '');
+    setSelectOptions(mappingSelects.last_name, [], '');
+    setSelectOptions(mappingSelects.full_name, [], '');
+    mappingPanel?.classList.add('hidden');
+    delimiterEl?.classList.add('hidden');
+  }
   const errorEl = document.getElementById('form-error');
   const successEl = document.getElementById('form-success');
+  const importNoteEl = document.getElementById('form-import-note');
   const warningsEl = document.getElementById('form-warnings');
   const errorRowsDownload = document.getElementById('error-rows-download') as HTMLAnchorElement | null;
   const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement | null;
@@ -326,23 +356,32 @@ export function initImportPage(): void {
   }
 
   if (fileInput) {
-    fileInput.addEventListener('change', async () => {
-      if (!errorEl || !successEl || !fileInput.files?.length) return;
-      errorEl.classList.add('hidden');
-      successEl.classList.add('hidden');
-      warningsEl?.classList.add('hidden');
-      if (errorRowsObjectUrl) {
-        URL.revokeObjectURL(errorRowsObjectUrl);
-        errorRowsObjectUrl = null;
-      }
-      if (errorRowsDownload) errorRowsDownload.classList.add('hidden');
+    csvPond = createFilePond(fileInput, {
+      credits: false,
+      allowMultiple: false,
+      maxFiles: 1,
+      instantUpload: false,
+      labelIdle:
+        'Drag & drop your CSV, or <span class="filepond--label-action">Browse</span>',
+      beforeAddFile: (item) => /\.csv$/i.test(item.file.name),
+      labelFileTypeNotAllowed: 'Use a .csv file',
+    });
+
+    csvPond.on('addfile', async (_err, fileItem) => {
+      if (!errorEl || !successEl || _err) return;
+      clearCsvFileUiState();
       try {
-        await parseHeadersFromFile(fileInput.files[0]);
+        await parseHeadersFromFile(fileItem.file);
       } catch (err) {
         errorEl.textContent = err instanceof Error ? err.message : 'Could not parse CSV headers.';
         errorEl.classList.remove('hidden');
         mappingPanel?.classList.add('hidden');
+        csvPond?.removeFile(fileItem);
       }
+    });
+
+    csvPond.on('removefile', () => {
+      clearCsvFileUiState();
     });
   }
 
@@ -354,9 +393,16 @@ export function initImportPage(): void {
       return;
     }
 
-    if (!errorEl || !successEl || !submitBtn || !fileInput?.files?.length) return;
+    if (!errorEl || !successEl || !submitBtn) return;
+    const pondFile = getSelectedPondFile();
+    if (!pondFile?.file) {
+      errorEl.textContent = 'Please choose a CSV file.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
     errorEl.classList.add('hidden');
     successEl.classList.add('hidden');
+    importNoteEl?.classList.add('hidden');
     warningsEl?.classList.add('hidden');
     if (errorRowsDownload) errorRowsDownload.classList.add('hidden');
 
@@ -424,7 +470,7 @@ export function initImportPage(): void {
     if (submitSpinner) submitSpinner.classList.remove('hidden');
     const formData = new FormData();
     formData.append('eventId', eventId);
-    formData.append('file', fileInput.files[0]);
+    formData.append('file', pondFile.file, pondFile.filename);
     formData.append('importMode', importMode);
     formData.append('confirmReplace', importMode === 'replace' && replaceConfirm?.checked ? 'true' : 'false');
     formData.append('mapping', JSON.stringify(mappingPayload));
@@ -450,8 +496,20 @@ export function initImportPage(): void {
       successEl.textContent = `${summaryBits.join(' · ')} attendee(s).`;
       successEl.classList.remove('hidden');
 
-      if (Array.isArray(data.warnings) && data.warnings.length > 0 && warningsEl) {
-        const warningLines = data.warnings
+      const allWarnings = Array.isArray(data.warnings) ? data.warnings : [];
+      const batchNotes = allWarnings.filter((w: { type?: string }) => w.type === 'size');
+      const realWarnings = allWarnings.filter((w: { type?: string }) => w.type !== 'size');
+
+      if (batchNotes.length > 0 && importNoteEl) {
+        const lines = batchNotes.map(
+          (w: { message?: string }) => w.message || 'Large imports use small server batches; this is normal.'
+        );
+        importNoteEl.innerHTML = `<p class="font-medium text-foreground">Import note</p><p class="mt-1.5">${lines.join(' ')}</p>`;
+        importNoteEl.classList.remove('hidden');
+      }
+
+      if (realWarnings.length > 0 && warningsEl) {
+        const warningLines = realWarnings
           .slice(0, 10)
           .map((warning: { message?: string }) => `• ${warning.message || 'Import warning'}`);
         warningsEl.innerHTML = `<strong>Warnings</strong><br>${warningLines.join('<br>')}`;

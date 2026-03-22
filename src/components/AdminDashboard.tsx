@@ -35,6 +35,7 @@ import {
   Users,
   Search,
   Download,
+  Mail,
   RotateCcw,
   Trash2,
 } from 'lucide-react';
@@ -44,6 +45,7 @@ import type { Attendee } from '@/types/attendee';
 import { apiService } from '@/services/api';
 import { generateQRCodeBase64 } from '@/lib/qr-client';
 import { QRDisplay } from './QRDisplay';
+import { ScanQrMark } from './ScanQrMark';
 
 function formatNameLastFirst(attendee: Attendee): string {
   return `${attendee.lastName}, ${attendee.firstName}`;
@@ -57,14 +59,20 @@ function getInitials(attendee: Attendee): string {
 
 interface AdminDashboardProps {
   attendees: Attendee[];
-  /** When set, show Import CSV (event-scoped). */
+  /** When set, show Import CSV (event-scoped) and bulk QR email actions. */
   eventId?: string;
+  /** Used in bulk QR email copy when resending. */
+  eventName?: string;
+  /** Desktop: show scanner CTA in the stats row (mobile uses header link in AdminPage). */
+  showScannerCta?: boolean;
   onRefresh: () => void;
 }
 
 export function AdminDashboard({
   attendees,
   eventId,
+  eventName,
+  showScannerCta = false,
   onRefresh,
 }: AdminDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -75,11 +83,13 @@ export function AdminDashboard({
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [sortDescending, setSortDescending] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
   const [density, setDensity] = useState<'comfortable' | 'compact'>(() => {
     if (typeof window === 'undefined') return 'comfortable';
     return (localStorage.getItem('table-density') as 'comfortable' | 'compact') || 'comfortable';
   });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkResendingQR, setBulkResendingQR] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const fuse = useRef(
@@ -169,6 +179,39 @@ export function AdminDashboard({
     toast.success(`Exported ${toExport.length} attendee(s)`);
   };
 
+  const handleBulkResendQR = async () => {
+    if (!eventId || selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    if (
+      !confirm(
+        `Resend QR code emails to ${ids.length} selected attendee(s)?`
+      )
+    ) {
+      return;
+    }
+    setBulkResendingQR(true);
+    try {
+      const result = await apiService.sendBulkQREmails({
+        attendeeIds: ids,
+        eventId,
+        eventName: eventName?.trim() || undefined,
+      });
+      if (result.failed === 0) {
+        toast.success(`Sent ${result.sent} QR email(s)`);
+      } else {
+        toast.warning(
+          `Sent ${result.sent}, failed ${result.failed}. Check server logs for details.`
+        );
+      }
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : 'Failed to resend QR emails'
+      );
+    } finally {
+      setBulkResendingQR(false);
+    }
+  };
+
   const filteredAttendees = searchTerm.trim()
     ? fuse.search(searchTerm).map((r) => r.item)
     : attendees;
@@ -199,16 +242,53 @@ export function AdminDashboard({
     setQrDataUrl(url);
   };
 
+  const handleSendQREmail = async (attendee: Attendee) => {
+    const name = formatNameLastFirst(attendee);
+    if (
+      !confirm(
+        `Send a QR code email to this guest?\n\n${name}\n${attendee.email}\n\nThis will email them immediately.`
+      )
+    ) {
+      return;
+    }
+    setSendingEmailId(attendee.id);
+    try {
+      const { qrPayload } = await apiService.getQRPayload(attendee.id);
+      const dataUrl = await generateQRCodeBase64(qrPayload);
+      await apiService.sendEmail(attendee.id, dataUrl);
+      toast.success(`QR code sent to ${attendee.email}`);
+    } catch {
+      toast.error('Failed to send email');
+    } finally {
+      setSendingEmailId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-stretch">
+        {showScannerCta && (
+          <a
+            href="/"
+            aria-label="Open check-in scanner"
+            className="hidden min-h-0 w-[12rem] shrink-0 rounded-xl border-0 bg-red-600 p-0 pb-4 text-sm font-medium text-white shadow-sm outline-none transition-colors hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background md:flex md:flex-col"
+          >
+            <span className="block min-h-0 w-full aspect-square flex-1 overflow-hidden">
+              <ScanQrMark className="block h-full w-full min-h-0" />
+            </span>
+            <span className="mt-1 flex w-full shrink-0 items-center justify-center leading-none">
+              Open Scanner
+            </span>
+          </a>
+        )}
+        <div className="grid min-h-0 min-w-0 flex-1 grid-cols-2 gap-4 md:grid-cols-3">
         <Card className="col-span-2 md:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Check-in Rate</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent className="space-y-2">
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-5xl font-bold text-blue-600 leading-tight">
               {attendees.length > 0
                 ? Math.round(
                     (attendees.filter((a) => a.checkedIn).length /
@@ -241,7 +321,7 @@ export function AdminDashboard({
             <CheckCircle2 className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-5xl font-bold text-green-600 leading-tight">
               {attendees.filter((a) => a.checkedIn).length}
             </div>
           </CardContent>
@@ -252,11 +332,12 @@ export function AdminDashboard({
             <Users className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
+            <div className="text-5xl font-bold text-orange-600 leading-tight">
               {attendees.filter((a) => !a.checkedIn).length}
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
 
       <Card>
@@ -341,6 +422,21 @@ export function AdminDashboard({
                   <Download className="h-4 w-4 mr-1" />
                   Export
                 </Button>
+                {eventId && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleBulkResendQR}
+                    disabled={bulkResendingQR}
+                  >
+                    {bulkResendingQR ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Mail className="h-4 w-4 mr-1" />
+                    )}
+                    Resend QR codes
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="destructive"
@@ -436,8 +532,22 @@ export function AdminDashboard({
                             await loadQRForAttendee(attendee);
                             setShowQR(true);
                           }}
+                          aria-label={`Show QR code for ${formatNameLastFirst(attendee)}`}
                         >
                           <QrCode className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleSendQREmail(attendee)}
+                          disabled={sendingEmailId === attendee.id}
+                          aria-label={`Email QR code to ${attendee.email}`}
+                        >
+                          {sendingEmailId === attendee.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Mail className="h-4 w-4" />
+                          )}
                         </Button>
                         <Button
                           size="sm"

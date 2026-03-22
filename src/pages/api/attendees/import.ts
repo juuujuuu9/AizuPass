@@ -531,7 +531,8 @@ export const POST: APIRoute = async (context) => {
     if (validRows.length >= 500) {
       warnings.push({
         type: 'size',
-        message: `Processed ${validRows.length} rows in server batches of ${IMPORT_BATCH_SIZE}.`,
+        message:
+          'Large imports are split into small batches on the server so the database stays stable. Your import completed normally.',
       });
     }
 

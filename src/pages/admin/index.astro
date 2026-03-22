@@ -92,7 +92,7 @@ function formatRelativeDate(dateString: string | undefined): string {
   return `${Math.floor(diffDays / 30)}mo ago`;
 }
 
-const pageTitle = showEventDashboard && event ? `${event.name} | Attendees` : 'Dashboard | Organizations';
+const pageTitle = showEventDashboard && event ? `${event.name} | Attendees` : 'Event Workspace | Organizations';
 ---
 
 <Layout title={pageTitle}>
@@ -100,11 +100,12 @@ const pageTitle = showEventDashboard && event ? `${event.name} | Attendees` : 'D
     <div class="min-h-screen bg-background">
       <DashboardHeader
         homeHref="/admin"
-        homeLabel="Dashboard"
         showThemeToggle={true}
         showSignOut={true}
         isAdmin={Astro.locals.isAdmin}
         userEmail={user?.email ?? ''}
+        userFirstName={user?.firstName ?? ''}
+        userLastName={user?.lastName ?? ''}
         userRole={user?.role ?? ''}
         organization={organization ? { label: organization.name, href: '/admin/organization' } : undefined}
         event={{ label: event.name, badge: 'Attendees' }}
@@ -183,11 +184,12 @@ const pageTitle = showEventDashboard && event ? `${event.name} | Attendees` : 'D
     <div class="min-h-screen bg-background">
       <DashboardHeader
         homeHref="/admin"
-        homeLabel="Dashboard"
         showThemeToggle={true}
         showSignOut={true}
         isAdmin={Astro.locals.isAdmin}
         userEmail={user?.email ?? ''}
+        userFirstName={user?.firstName ?? ''}
+        userLastName={user?.lastName ?? ''}
         userRole={user?.role ?? ''}
       />
 

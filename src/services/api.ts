@@ -125,6 +125,34 @@ class ApiService {
     });
   }
 
+  async sendBulkQREmails(params: {
+    attendeeIds: string[];
+    eventId: string;
+    fromName?: string;
+    eventName?: string;
+  }): Promise<{
+    success: boolean;
+    sent: number;
+    failed: number;
+    total: number;
+    errors?: { attendeeId: string; error: string }[];
+  }> {
+    const res = await this.fetchWithError('/api/attendees/send-bulk-qr', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+    return (res as {
+      ok: true;
+      data: {
+        success: boolean;
+        sent: number;
+        failed: number;
+        total: number;
+        errors?: { attendeeId: string; error: string }[];
+      };
+    }).data;
+  }
+
   async getQRPayload(attendeeId: string): Promise<{ qrPayload: string; expiresAt: string }> {
     const res = await this.fetchWithError('/api/attendees/refresh-qr', {
       method: 'POST',

@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-21 ([INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md) added; CSV-first + API / Zapier–Make parity documented)
+**Last updated:** 2026-03-22 ([TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md) added; paid ticketing schema/strategy reference)
 
 ---
 
@@ -60,6 +60,7 @@
 | No-shows report | Missing | Can be derived from CSV, but no explicit in-app no-shows view/export flow. |
 | Real-time check-in counter dashboard | Partial | 30s polling exists; near real-time organizer dashboard still limited. |
 | Add to Wallet / Group / Capacity / Analytics | Not implemented | Optional; prioritize later. |
+| Paid ticketing (Stripe, ticket types, inventory) | Not implemented | Fourth attendee path: Checkout → webhook → attendee + payment metadata; catalog vs fulfillment split. See [TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md). Billing placeholder: `/admin/organization/billing` (SaaS vs ticket charges — keep separate). |
 | Rate limiting on RSVP/webhook | **Done** | `lib/rate-limit.ts`; 20/min attendees, 60/min webhook; checkin unchanged (5/min). |
 | Scanner debounce (150ms→500ms) | **Done** | `config/qr.ts` debounceMs: 500; CheckInScanner uses it. |
 | QR error correction H | **Done** | `config/qr.ts`; webhook email uses QR_GENERATION. |
@@ -123,6 +124,7 @@ Follow this order; check off and date as you complete each item.
 - [ ] **Integrations — Zapier / Make (first-class):** Published connector(s) or maintained recipes with **parity** to the HTTP guestlist API for LC/NC users; same strategic weight as API improvements. Strategy: [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md).
 - [ ] Capacity widget and/or no-show analytics.
 - [ ] Add to Wallet, group check-in — if needed.
+- [ ] **Paid ticketing:** Stripe Checkout → webhook → attendee creation with ticket type + payment metadata; reuse QR email flow. Strategy and schema notes: [TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md).
 
 ### 11. Edge-case hardening (operational)
 
@@ -240,6 +242,7 @@ Deferred / lower priority:
 | [ui-modernization/](ui-modernization/) | UI Modernization: CURSOR-CHECKLIST, qr-ui-components, qr-ui-animations.css. Rule: `.cursor/rules/ui-modernization.mdc`. Radix Colors: `radix-colors-mapping.md`. |
 | [qr-edge-cases.md](qr-edge-cases.md) | API edge-case tests, CSV import validation, critical manual paths. `scripts/test-edge-cases.mjs`, `scripts/generate-test-csvs.mjs`. |
 | [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md) | Item 2 + 12: Clerk auth setup, org/membership-based authorization, onboarding/invites. |
+| [TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md) | Future: paid ticketing — ticket type catalog, Stripe alignment, fulfillment vs SaaS billing, idempotency, build sequencing. |
 
 ---
 

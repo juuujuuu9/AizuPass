@@ -6,6 +6,9 @@ interface User {
   id: string;
   email: string | null;
   role: StaffRole;
+  /** From `users` row; set in middleware after profile sync. */
+  firstName: string | null;
+  lastName: string | null;
 }
 
 declare namespace App {

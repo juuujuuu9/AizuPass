@@ -1,5 +1,5 @@
 import { clerkMiddleware, createRouteMatcher, clerkClient } from '@clerk/astro/server';
-import { ensureUserRow, getUserAccessSummary, isUserProfileComplete } from './lib/db';
+import { ensureUserRow, getUserAccessSummary, getUserById } from './lib/db';
 
 // Routes that never require authentication.
 // Everything else requires sign-in; org/event scope is enforced per page/API.
@@ -45,6 +45,8 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
         id: userId,
         email: email ?? null,
         role: summary.hasOrganizerRole ? 'organizer' : summary.hasMembership ? 'staff' : 'none',
+        firstName: null,
+        lastName: null,
       }
     : null;
   locals.isStaff = summary.hasMembership;
@@ -63,6 +65,8 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
       id: 'test-user',
       email: 'test@example.com',
       role: 'organizer',
+      firstName: 'Test',
+      lastName: 'User',
     };
     locals.isStaff = true;
     locals.isAdmin = true;
@@ -72,17 +76,31 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
   }
 
   let profileComplete = true;
+  let profileFirstName: string | null = null;
+  let profileLastName: string | null = null;
   const uidForProfile = testBypass ? '' : userId ?? '';
   const emailForProfile = testBypass ? null : (email ?? null);
   if (uidForProfile && !testBypass) {
     try {
       await ensureUserRow(uidForProfile, emailForProfile);
-      profileComplete = await isUserProfileComplete(uidForProfile);
+      const u = await getUserById(uidForProfile);
+      const fn = String(u?.firstName ?? '').trim();
+      const ln = String(u?.lastName ?? '').trim();
+      profileFirstName = fn || null;
+      profileLastName = ln || null;
+      profileComplete = Boolean(fn && ln);
     } catch (err) {
       // e.g. `users` table missing — fail open until migration is applied
       console.error('[middleware] user profile sync', err);
       profileComplete = true;
     }
+  }
+  if (locals.user && uidForProfile && !testBypass) {
+    locals.user = {
+      ...locals.user,
+      firstName: profileFirstName,
+      lastName: profileLastName,
+    };
   }
   locals.profileComplete = testBypass ? true : profileComplete;
 

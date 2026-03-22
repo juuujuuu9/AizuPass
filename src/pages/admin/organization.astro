@@ -15,11 +15,12 @@ const events = organization ? await getEventsForOrganization(organization.id) : 
   <div class="min-h-screen bg-background">
     <DashboardHeader
       homeHref="/admin"
-      homeLabel="Dashboard"
       showThemeToggle={true}
       showSignOut={true}
       isAdmin={Astro.locals.isAdmin}
       userEmail={Astro.locals.user?.email ?? ''}
+      userFirstName={Astro.locals.user?.firstName ?? ''}
+      userLastName={Astro.locals.user?.lastName ?? ''}
       userRole={Astro.locals.user?.role ?? ''}
       organization={organization ? { label: organization.name, href: '/admin/organization' } : undefined}
     />
@@ -138,7 +139,16 @@ const events = organization ? await getEventsForOrganization(organization.id) : 
                   ) : (
                     events.map((event) => (
                       <tr class="hover:bg-muted/50">
-                        <td class="px-6 py-4 text-sm font-medium text-foreground">{event.name}</td>
+                        <td class="px-0 py-0">
+                          <a
+                            href={`/admin?event=${event.id}`}
+                            class="block px-6 py-4 text-sm font-medium text-foreground hover:text-primary hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset rounded-sm"
+                            title="View attendees"
+                            aria-label={`View attendees for ${event.name}`}
+                          >
+                            {event.name}
+                          </a>
+                        </td>
                         <td class="px-6 py-4 text-sm text-muted-foreground">{event.slug}</td>
                         <td class="px-6 py-4 flex items-center gap-3 flex-wrap">
                           <a

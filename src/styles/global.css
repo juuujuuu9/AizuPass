@@ -42,6 +42,25 @@ body {
   color: var(--text-primary);
 }
 
+/* Admin header breadcrumb: scroll without visible scrollbar or reserved gutter */
+.header-breadcrumb-scroll {
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
+  -ms-overflow-style: none;
+}
+.header-breadcrumb-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+/* Horizontal bar can still reserve a row in Chromium; collapse it */
+.header-breadcrumb-scroll::-webkit-scrollbar:horizontal {
+  height: 0;
+}
+.header-breadcrumb-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
 /* ==========================================================================
    QR Check-In — Animation & Effects Styles
    ========================================================================== */
