@@ -7,6 +7,7 @@ export type CheckInOutcome =
   | 'rate_limited'
   | 'replay_attempt'
   | 'invalid_or_expired'
+  | 'wrong_scanner_event'
   | 'error'
   | 'demo_success'
   | 'demo_already'

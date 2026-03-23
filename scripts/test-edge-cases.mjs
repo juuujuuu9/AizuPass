@@ -14,6 +14,10 @@ const TEST_HEADERS = process.env.BYPASS_AUTH_FOR_TESTS === 'true'
   : {};
 const RESULTS = [];
 
+/** Required on every staff check-in; must match QR payload event or attendee's event. */
+const DUMMY_SCANNER_EVENT = '00000000-0000-4000-8000-000000000000';
+const FAKE_QR_EVENT = '00000000-0000-0000-0000-000000000001';
+
 function log(type, message) {
   const icon = type === 'PASS' ? '✓' : type === 'FAIL' ? '✗' : type === 'WARN' ? '⚠' : 'ℹ';
   console.log(`${icon} ${message}`);
@@ -78,7 +82,10 @@ async function runTests() {
 
   // 1. Invalid QR Payload
   await test('Checkin: Invalid QR format', async () => {
-    const { status, data } = await post('/api/checkin', { qrData: 'not-a-valid-qr' });
+    const { status, data } = await post('/api/checkin', {
+      qrData: 'not-a-valid-qr',
+      scannerEventId: DUMMY_SCANNER_EVENT,
+    });
     if (status !== 400 && status !== 404 && status !== 429) {
       throw new Error(`Expected 400, 404, or 429, got ${status}: ${JSON.stringify(data)}`);
     }
@@ -252,7 +259,10 @@ async function runTests() {
 
   // 18. Checkin: Malformed UUID in QR
   await test('Checkin: Malformed UUID in QR', async () => {
-    const { status } = await post('/api/checkin', { qrData: 'not-a-uuid:also-not:token' });
+    const { status } = await post('/api/checkin', {
+      qrData: 'not-a-uuid:also-not:token',
+      scannerEventId: DUMMY_SCANNER_EVENT,
+    });
     if (status !== 400 && status !== 404 && status !== 429) {
       throw new Error(`Expected 400, 404, or 429, got ${status}`);
     }
@@ -260,8 +270,11 @@ async function runTests() {
 
   // 19. Checkin: Valid format but wrong token (valid UUIDs, invalid token)
   await test('Checkin: Valid format but wrong token', async () => {
-    const fakePayload = '00000000-0000-0000-0000-000000000001:00000000-0000-0000-0000-000000000002:invalid-token-12345';
-    const { status } = await post('/api/checkin', { qrData: fakePayload });
+    const fakePayload = `${FAKE_QR_EVENT}:00000000-0000-0000-0000-000000000002:invalid-token-12345`;
+    const { status } = await post('/api/checkin', {
+      qrData: fakePayload,
+      scannerEventId: FAKE_QR_EVENT,
+    });
     if (status !== 400 && status !== 401 && status !== 404 && status !== 429) {
       throw new Error(`Expected 400, 401, 404, or 429, got ${status}`);
     }
@@ -280,9 +293,21 @@ async function runTests() {
     }
 
     const raceHeaders = { 'X-Forwarded-For': '10.10.10.10' };
+    const attendeeEventId = attendeeCreate.data.eventId;
+    if (!attendeeEventId) {
+      throw new Error('Test attendee missing eventId');
+    }
     const [a, b] = await Promise.all([
-      post('/api/checkin', { attendeeId: attendeeCreate.data.id }, raceHeaders),
-      post('/api/checkin', { attendeeId: attendeeCreate.data.id }, raceHeaders),
+      post(
+        '/api/checkin',
+        { attendeeId: attendeeCreate.data.id, scannerEventId: attendeeEventId },
+        raceHeaders
+      ),
+      post(
+        '/api/checkin',
+        { attendeeId: attendeeCreate.data.id, scannerEventId: attendeeEventId },
+        raceHeaders
+      ),
     ]);
 
     const statuses = [a.status, b.status].sort((x, y) => x - y);

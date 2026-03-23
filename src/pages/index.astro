@@ -2,12 +2,26 @@
 import ScannerLayout from '../layouts/ScannerLayout.astro';
 import { CheckInScanner } from '../components/CheckInScanner';
 import { Toaster } from '../components/ui/sonner';
+import { getEventByIdForUser } from '../lib/db';
+
+const userId = Astro.locals.user?.id ?? '';
+const eventIdFromUrl = Astro.url.searchParams.get('event')?.trim() || undefined;
+let scannerEventName: string | undefined;
+if (eventIdFromUrl && userId) {
+  const ev = await getEventByIdForUser(eventIdFromUrl, userId);
+  scannerEventName = ev?.name ?? undefined;
+}
 ---
 
 <ScannerLayout>
   <div class="min-h-screen bg-background relative">
     <main class="min-h-screen">
-      <CheckInScanner client:load standalone={true} />
+      <CheckInScanner
+        client:load
+        standalone={true}
+        eventId={eventIdFromUrl}
+        eventName={scannerEventName}
+      />
     </main>
     <Toaster client:load position="top-center" richColors />
   </div>

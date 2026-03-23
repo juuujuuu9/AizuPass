@@ -66,12 +66,15 @@ export const rsvpFormSchema = z.object({
 // Check-in validation schema
 export const checkInSchema = z.object({
   qrData: z.string().min(1, 'QR data is required').max(500, 'QR data is too long'),
+  /** Must match the event encoded in the QR (or the attendee's event for manual check-in). */
+  scannerEventId: uuidSchema,
   scannerDeviceId: z.string().max(255).optional().nullable(),
 });
 
 // Manual check-in by ID schema
 export const manualCheckInSchema = z.object({
   attendeeId: uuidSchema,
+  scannerEventId: uuidSchema,
   scannerDeviceId: z.string().max(255).optional().nullable(),
 });
 

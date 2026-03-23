@@ -110,12 +110,15 @@ class ApiService {
     throw new Error(data.error || `HTTP ${res.status}`);
   }
 
-  async checkInAttendeeById(attendeeId: string): Promise<CheckInResult> {
-    return this.postCheckIn({ attendeeId });
+  async checkInAttendeeById(
+    attendeeId: string,
+    scannerEventId: string
+  ): Promise<CheckInResult> {
+    return this.postCheckIn({ attendeeId, scannerEventId });
   }
 
-  async checkInAttendee(qrData: string): Promise<CheckInResult> {
-    return this.postCheckIn({ qrData });
+  async checkInAttendee(qrData: string, scannerEventId: string): Promise<CheckInResult> {
+    return this.postCheckIn({ qrData, scannerEventId });
   }
 
   async sendEmail(attendeeId: string, qrCodeBase64: string): Promise<void> {

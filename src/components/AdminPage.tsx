@@ -117,7 +117,7 @@ export function AdminPage({
             />
           </div>
           <a
-            href="/"
+            href={eventId ? `/?event=${encodeURIComponent(eventId)}` : '/'}
             aria-label="Open check-in scanner"
             className="flex w-full flex-row items-center justify-center gap-3 rounded-xl border-0 bg-red-600 px-4 py-3 font-medium text-white shadow-sm outline-none transition-colors hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background md:hidden"
           >

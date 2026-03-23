@@ -289,9 +289,13 @@ export function AdminDashboard({
 
   const handleManualCheckIn = async (attendee: Attendee) => {
     if (attendee.checkedIn) return;
+    if (!eventId) {
+      toast.error('No event selected');
+      return;
+    }
     setCheckingInId(attendee.id);
     try {
-      const result = await apiService.checkInAttendeeById(attendee.id);
+      const result = await apiService.checkInAttendeeById(attendee.id, eventId);
       if (result.success) {
         toast.success(
           result.message || `${formatNameLastFirst(attendee)} checked in`
@@ -337,7 +341,7 @@ export function AdminDashboard({
       <div className="flex flex-col gap-4 md:flex-row md:items-stretch">
         {showScannerCta && (
           <a
-            href="/"
+            href={eventId ? `/?event=${encodeURIComponent(eventId)}` : '/'}
             aria-label="Open check-in scanner"
             className="hidden min-h-0 w-[12rem] shrink-0 rounded-xl border-0 bg-red-600 p-0 pb-4 text-sm font-medium text-white shadow-sm outline-none transition-colors hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background md:flex md:flex-col"
           >

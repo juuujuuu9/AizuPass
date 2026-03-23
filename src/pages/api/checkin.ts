@@ -39,11 +39,24 @@ export const POST: APIRoute = async (context) => {
         return json({ error: 'Validation failed', details: validation.errors }, 400);
       }
 
-      const { attendeeId } = validation.data;
+      const { attendeeId, scannerEventId } = validation.data;
       const attendee = await getAttendeeById(attendeeId);
       if (!attendee) {
         logCheckInAttempt({ ip, outcome: 'not_found', attendeeId });
         return errorResponse('Attendee not found', 404);
+      }
+      if (!attendee.eventId) {
+        logCheckInAttempt({ ip, outcome: 'invalid_format', attendeeId });
+        return errorResponse('Attendee is not linked to an event', 400);
+      }
+      if (String(attendee.eventId) !== scannerEventId) {
+        logCheckInAttempt({
+          ip,
+          outcome: 'wrong_scanner_event',
+          attendeeId,
+          eventId: attendee.eventId,
+        });
+        return json({ error: 'This guest is registered for a different event.' }, 403);
       }
       if (attendee.checkedIn) {
         if (attendee.eventId) {
@@ -109,7 +122,7 @@ export const POST: APIRoute = async (context) => {
       return json({ error: 'Validation failed', details: validation.errors }, 400);
     }
 
-    const { qrData, scannerDeviceId } = validation.data;
+    const { qrData, scannerEventId, scannerDeviceId } = validation.data;
 
     // Demo codes: canned responses for staff testing (never touch DB).
     // Disabled in production by default to prevent forged check-ins.
@@ -160,6 +173,11 @@ export const POST: APIRoute = async (context) => {
     } catch {
       logCheckInAttempt({ ip, outcome: 'invalid_format' });
       return errorResponse('Invalid QR code format');
+    }
+
+    if (eventId !== scannerEventId) {
+      logCheckInAttempt({ ip, outcome: 'wrong_scanner_event', eventId, entryId });
+      return json({ error: 'This QR code is for a different event.' }, 403);
     }
 
     const event = await getEventById(eventId);

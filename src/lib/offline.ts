@@ -26,6 +26,7 @@ export type QueuedCheckIn = {
   id: string;
   qrData?: string;
   attendeeId?: string;
+  scannerEventId: string;
   queuedAt: string;
 };
 
@@ -207,9 +208,14 @@ async function migrateFromLegacyIfNeeded(): Promise<void> {
   markOfflineMigrationDone();
 }
 
-function queueSignature(item: { qrData?: string; attendeeId?: string }): string {
-  if (item.attendeeId) return `attendee:${item.attendeeId}`;
-  if (item.qrData) return `qr:${item.qrData.trim()}`;
+function queueSignature(item: {
+  qrData?: string;
+  attendeeId?: string;
+  scannerEventId?: string;
+}): string {
+  const scope = item.scannerEventId ?? '';
+  if (item.attendeeId) return `attendee:${item.attendeeId}:${scope}`;
+  if (item.qrData) return `qr:${item.qrData.trim()}:${scope}`;
   return 'unknown';
 }
 
@@ -322,7 +328,10 @@ export type OfflineCheckInResult =
  * Validate QR and perform check-in locally when offline.
  * Returns result shape matching CheckInResult for consistent UI.
  */
-export async function checkInOffline(qrData: string): Promise<OfflineCheckInResult> {
+export async function checkInOffline(
+  qrData: string,
+  scannerEventId: string
+): Promise<OfflineCheckInResult> {
   const cache = await getCachedData();
   if (!cache) {
     return { success: false, message: 'Guest list not cached. Connect to sync, then try again.' };
@@ -331,6 +340,10 @@ export async function checkInOffline(qrData: string): Promise<OfflineCheckInResu
   const parsed = parseQR(qrData, cache.defaultEventId);
   if (!parsed || !isValidUUID(parsed.eventId) || !isValidUUID(parsed.entryId)) {
     return { success: false, message: 'Invalid QR code format' };
+  }
+
+  if (parsed.eventId !== scannerEventId) {
+    return { success: false, message: 'This QR code is for a different event.' };
   }
 
   const attendee = cache.attendees.find(
@@ -364,7 +377,7 @@ export async function checkInOffline(qrData: string): Promise<OfflineCheckInResu
     return { success: false, message: 'Invalid or expired QR code' };
   }
 
-  await addToQueue({ qrData });
+  await addToQueue({ qrData, scannerEventId });
   await updateLocalCheckedIn(attendee.id);
 
   const event = cache.events.find((e) => e.id === attendee.eventId);
@@ -377,7 +390,10 @@ export async function checkInOffline(qrData: string): Promise<OfflineCheckInResu
 }
 
 /** Check-in by attendee ID (manual override) when offline. */
-export async function checkInAttendeeOffline(attendeeId: string): Promise<OfflineCheckInResult> {
+export async function checkInAttendeeOffline(
+  attendeeId: string,
+  scannerEventId: string
+): Promise<OfflineCheckInResult> {
   const cache = await getCachedData();
   if (!cache) {
     return { success: false, message: 'Guest list not cached. Connect to sync, then try again.' };
@@ -386,6 +402,9 @@ export async function checkInAttendeeOffline(attendeeId: string): Promise<Offlin
   const attendee = cache.attendees.find((a) => a.id === attendeeId);
   if (!attendee) {
     return { success: false, message: 'Attendee not found' };
+  }
+  if (attendee.eventId !== scannerEventId) {
+    return { success: false, message: 'This guest is registered for a different event.' };
   }
   if (attendee.checkedIn) {
     const event = cache.events.find((e) => e.id === attendee.eventId);
@@ -398,7 +417,7 @@ export async function checkInAttendeeOffline(attendeeId: string): Promise<Offlin
     };
   }
 
-  await addToQueue({ attendeeId });
+  await addToQueue({ attendeeId, scannerEventId });
   await updateLocalCheckedIn(attendee.id);
 
   const event = cache.events.find((e) => e.id === attendee.eventId);
@@ -416,7 +435,11 @@ export function isOnline(): boolean {
 
 /** Sync queued check-ins to server. Treat 409 as success. */
 export async function syncQueue(
-  post: (body: { qrData?: string; attendeeId?: string }) => Promise<Response>
+  post: (body: {
+    qrData?: string;
+    attendeeId?: string;
+    scannerEventId: string;
+  }) => Promise<Response>
 ): Promise<{ synced: number; failed: number }> {
   const queue = await getPendingQueue();
   let synced = 0;
@@ -427,7 +450,14 @@ export async function syncQueue(
 
   for (const item of queue) {
     try {
-      const body = item.qrData ? { qrData: item.qrData } : { attendeeId: item.attendeeId };
+      const scannerEventId = item.scannerEventId;
+      if (!scannerEventId) {
+        failed++;
+        continue;
+      }
+      const body = item.qrData
+        ? { qrData: item.qrData, scannerEventId }
+        : { attendeeId: item.attendeeId, scannerEventId };
       let success = false;
       for (let i = 0; i < backoffMs.length; i++) {
         const res = await post(body!);

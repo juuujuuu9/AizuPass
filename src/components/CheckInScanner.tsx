@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Card,
   CardContent,
@@ -8,7 +8,9 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Camera, X, RotateCcw, CheckCircle2, QrCode, Copy, AlertCircle, LayoutDashboard, Search, Loader2, Flashlight } from 'lucide-react';
+import { Camera, X, RotateCcw, CheckCircle2, QrCode, Copy, AlertCircle, LayoutDashboard, Search, Loader2, Flashlight, CalendarDays } from 'lucide-react';
+import { EventCombobox } from '@/components/EventCombobox';
+import type { EventOption } from '@/components/AdminPage';
 import { toast } from 'sonner';
 import type { CheckInResult } from '@/types/attendee';
 import { apiService } from '@/services/api';
@@ -54,8 +56,10 @@ function toCheckInResult(
 interface CheckInScannerProps {
   onCheckIn?: () => void;
   standalone?: boolean;
-  /** Scope manual search to this event. When omitted, searches all events. */
+  /** Event this scanner accepts (QR + manual). Sent to the API as scannerEventId. */
   eventId?: string;
+  /** Label for UI when opening with `/?event=` (optional client fetch if missing). */
+  eventName?: string;
 }
 
 type SearchAttendee = { id: string; firstName: string; lastName: string; email: string; checkedIn: boolean; eventName?: string };
@@ -66,7 +70,12 @@ function feedbackTypeFromResult(result: CheckInResult): FeedbackType {
   return 'error';
 }
 
-export function CheckInScanner({ onCheckIn, standalone = false, eventId }: CheckInScannerProps) {
+export function CheckInScanner({
+  onCheckIn,
+  standalone = false,
+  eventId,
+  eventName,
+}: CheckInScannerProps) {
   const [scanning, setScanning] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [scanResult, setScanResult] = useState<CheckInResult | null>(null);
@@ -84,6 +93,72 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
   const processingRef = useRef(false);
   const scannerRef = useRef<HTMLDivElement>(null);
   const html5QrCodeRef = useRef<{ stop: () => Promise<void> } | null>(null);
+
+  const [pickerEvents, setPickerEvents] = useState<EventOption[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickedEventId, setPickedEventId] = useState<string | null>(null);
+  const [pickedEventName, setPickedEventName] = useState<string | null>(null);
+  const [fetchedEventName, setFetchedEventName] = useState<string | null>(null);
+
+  const activeEventId = (pickedEventId ?? eventId)?.trim() || null;
+  const activeEventName = pickedEventName ?? eventName ?? fetchedEventName ?? null;
+
+  const commitScannerEvent = useCallback((id: string, name: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('event', id);
+    window.history.replaceState({}, '', url.toString());
+    setPickedEventId(id);
+    setPickedEventName(name);
+  }, []);
+
+  useEffect(() => {
+    if (!standalone) return;
+    if (eventId?.trim()) return;
+
+    let cancelled = false;
+    setPickerLoading(true);
+    apiService
+      .getEvents()
+      .then((list) => {
+        if (cancelled) return;
+        setPickerEvents(list);
+        if (list.length === 1) {
+          commitScannerEvent(list[0].id, list[0].name);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPickerEvents([]);
+      })
+      .finally(() => {
+        if (!cancelled) setPickerLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [standalone, eventId, commitScannerEvent]);
+
+  useEffect(() => {
+    if (!activeEventId) {
+      setFetchedEventName(null);
+      return;
+    }
+    if (pickedEventName || eventName?.trim()) {
+      setFetchedEventName(null);
+      return;
+    }
+    let cancelled = false;
+    apiService
+      .getEvent(activeEventId)
+      .then((ev) => {
+        if (!cancelled && ev?.name) setFetchedEventName(ev.name);
+      })
+      .catch(() => {
+        if (!cancelled) setFetchedEventName(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeEventId, pickedEventName, eventName]);
 
   useEffect(() => {
     preloadScannerSounds();
@@ -111,9 +186,9 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
       }
     };
     const refreshCache = async () => {
-      if (!isOnline()) return;
+      if (!isOnline() || !activeEventId) return;
       try {
-        const data = await apiService.getOfflineCache(eventId);
+        const data = await apiService.getOfflineCache(activeEventId);
         await setCachedData(data);
       } catch {
         // Ignore—cache will be stale or empty
@@ -146,7 +221,7 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
       window.removeEventListener('online', onOnline);
       window.clearInterval(queueInterval);
     };
-  }, [eventId, onCheckIn]);
+  }, [activeEventId, onCheckIn]);
 
   useEffect(() => {
     if (!announcement) return;
@@ -155,6 +230,10 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
   }, [announcement]);
 
   const startScanning = async () => {
+    if (!activeEventId) {
+      toast.error('Select an event before scanning');
+      return;
+    }
     try {
       setScanning(true);
       setCameraError(null);
@@ -185,10 +264,10 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
               let result: CheckInResult;
               try {
                 setProcessing(true);
-                result = await apiService.checkInAttendee(decodedText);
+                result = await apiService.checkInAttendee(decodedText, activeEventId);
               } catch (err) {
                 if (isNetworkError(err) && !isOnline()) {
-                  const offlineResult = await checkInOffline(decodedText);
+                  const offlineResult = await checkInOffline(decodedText, activeEventId);
                   result = toCheckInResult(offlineResult);
                   setPendingQueueCount(await getPendingQueueCount());
                 } else {
@@ -273,6 +352,10 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
       setManualResults([]);
       return;
     }
+    if (!activeEventId) {
+      setManualResults([]);
+      return;
+    }
     setManualSearching(true);
     try {
       if (!isOnline()) {
@@ -285,34 +368,21 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
               a.lastName.toLowerCase().includes(lower) ||
               a.email.toLowerCase().includes(lower)
           );
-          if (eventId) {
-            const filteredEvent = filtered.filter((a) => a.eventId === eventId);
-            setManualResults(
-              filteredEvent.map((a) => ({
-                id: a.id,
-                firstName: a.firstName,
-                lastName: a.lastName,
-                email: a.email,
-                checkedIn: a.checkedIn,
-                eventName: a.eventName,
-              }))
-            );
-          } else {
-            setManualResults(
-              filtered.map((a) => ({
-                id: a.id,
-                firstName: a.firstName,
-                lastName: a.lastName,
-                email: a.email,
-                checkedIn: a.checkedIn,
-                eventName: a.eventName,
-              }))
-            );
-          }
+          const scoped = filtered.filter((a) => a.eventId === activeEventId);
+          setManualResults(
+            scoped.map((a) => ({
+              id: a.id,
+              firstName: a.firstName,
+              lastName: a.lastName,
+              email: a.email,
+              checkedIn: a.checkedIn,
+              eventName: a.eventName,
+            }))
+          );
           return;
         }
       }
-      const attendees = await apiService.searchAttendees(eventId, q);
+      const attendees = await apiService.searchAttendees(activeEventId, q);
       setManualResults(attendees);
     } catch (err) {
       if (isNetworkError(err) && !isOnline()) {
@@ -325,8 +395,9 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
               a.lastName.toLowerCase().includes(lower) ||
               a.email.toLowerCase().includes(lower)
           );
+          const scoped = filtered.filter((a) => a.eventId === activeEventId);
           setManualResults(
-            filtered.map((a) => ({
+            scoped.map((a) => ({
               id: a.id,
               firstName: a.firstName,
               lastName: a.lastName,
@@ -364,18 +435,19 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
     return () => {
       if (manualSearchDebounceRef.current) clearTimeout(manualSearchDebounceRef.current);
     };
-  }, [manualQuery, eventId]);
+  }, [manualQuery, activeEventId]);
 
   const handleManualCheckIn = async (attendee: SearchAttendee) => {
+    if (!activeEventId) return;
     setManualCheckingIn(attendee.id);
     try {
       let result: CheckInResult;
       try {
         setProcessing(true);
-        result = await apiService.checkInAttendeeById(attendee.id);
+        result = await apiService.checkInAttendeeById(attendee.id, activeEventId);
       } catch (err) {
         if (isNetworkError(err) && !isOnline()) {
-          const offlineResult = await checkInAttendeeOffline(attendee.id);
+          const offlineResult = await checkInAttendeeOffline(attendee.id, activeEventId);
           result = toCheckInResult(offlineResult);
           setPendingQueueCount(await getPendingQueueCount());
         } else {
@@ -414,6 +486,50 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
     setScanResult(null);
     processingRef.current = false;
   };
+
+  const eventContextBanner =
+    activeEventId ? (
+      <div
+        className="flex items-start gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2.5 text-sm"
+        role="status"
+      >
+        <CalendarDays className="h-5 w-5 shrink-0 text-muted-foreground mt-0.5" aria-hidden />
+        <div className="min-w-0">
+          <p className="font-medium text-foreground">Scanning for</p>
+          <p className="text-muted-foreground truncate">
+            {activeEventName?.trim() || 'This event'}
+          </p>
+        </div>
+      </div>
+    ) : null;
+
+  const standalonePickerEl =
+    standalone && !activeEventId && pickerLoading ? (
+      <div className="flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading events…
+      </div>
+    ) : standalone && !activeEventId && !pickerLoading && pickerEvents.length > 1 ? (
+      <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3">
+        <p className="text-sm font-medium text-foreground">Which event are you checking in?</p>
+        <EventCombobox
+          events={pickerEvents}
+          value={pickedEventId ?? ''}
+          onSelect={(id) => {
+            const ev = pickerEvents.find((e) => e.id === id);
+            if (ev) commitScannerEvent(ev.id, ev.name);
+          }}
+          className="md:w-full"
+        />
+      </div>
+    ) : standalone && !activeEventId && !pickerLoading && pickerEvents.length === 0 ? (
+      <div className="rounded-lg border border-border bg-muted/40 p-3 text-center text-sm text-muted-foreground">
+        <p>No events assigned to your account.</p>
+        <a href="/admin" className="mt-2 inline-block font-medium text-primary underline">
+          Open Event Workspace
+        </a>
+      </div>
+    ) : null;
 
   const readerEl = (
     <div className="space-y-2">
@@ -520,6 +636,7 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
             onClick={startScanning}
             className="flex-1"
             size={standalone ? 'lg' : 'default'}
+            disabled={!activeEventId}
           >
             <Camera className="h-4 w-4 mr-2" />
             {standalone ? 'Start Scanner' : 'Start Scanning'}
@@ -561,7 +678,13 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
       {standalone && (
         <>
           <Button variant="outline" size="lg" className="w-full" asChild>
-            <a href="/admin">
+            <a
+              href={
+                activeEventId
+                  ? `/admin?event=${encodeURIComponent(activeEventId)}`
+                  : '/admin'
+              }
+            >
               <LayoutDashboard className="h-4 w-4 mr-2" />
               Event Workspace
             </a>
@@ -595,7 +718,7 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
           value={manualQuery}
           onChange={(e) => setManualQuery(e.target.value)}
           className="pl-9"
-          disabled={manualSearching}
+          disabled={!activeEventId || manualSearching}
           aria-label="Search attendees by name or email"
         />
       </div>
@@ -693,6 +816,8 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         {ariaLiveEl}
         <div className="w-full max-w-md space-y-4 px-4">
+          {standalonePickerEl}
+          {eventContextBanner}
           {readerEl}
           {buttons}
           {manualCheckInEl}
@@ -715,6 +840,7 @@ export function CheckInScanner({ onCheckIn, standalone = false, eventId }: Check
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            {eventContextBanner}
             {readerEl}
             {buttons}
             {manualCheckInEl}

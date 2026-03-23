@@ -1,18 +1,22 @@
 import { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { EventOption } from '@/components/AdminPage';
 
 interface EventComboboxProps {
   events: EventOption[];
   value: string;
   onSelect: (eventId: string) => void;
+  /** Merges onto the root container (e.g. `md:w-full` for full-width layouts). */
+  className?: string;
 }
 
 export function EventCombobox({
   events,
   value,
   onSelect,
+  className,
 }: EventComboboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -39,7 +43,7 @@ export function EventCombobox({
   }, []);
 
   return (
-    <div ref={containerRef} className="relative w-full md:w-[220px]">
+    <div ref={containerRef} className={cn('relative w-full md:w-[220px]', className)}>
       <div className="relative">
         <Input
           value={open ? query : selectedEvent?.name ?? ''}
@@ -49,7 +53,7 @@ export function EventCombobox({
           }}
           onFocus={() => setOpen(true)}
           placeholder={selectedEvent ? 'Search events...' : 'Select event...'}
-          className={`pr-9 w-full md:w-[220px] text-[1.25rem] ${
+          className={`pr-9 w-full text-[1.25rem] ${
             !open && selectedEvent ? 'font-bold' : ''
           }`}
         />
@@ -57,7 +61,7 @@ export function EventCombobox({
       </div>
       {open && (
         <ul
-          className="absolute z-50 mt-1 max-h-48 w-full md:w-[220px] overflow-auto rounded-md border bg-popover py-1 shadow-md"
+          className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-md border bg-popover py-1 shadow-md"
           role="listbox"
         >
           {filtered.length === 0 ? (
