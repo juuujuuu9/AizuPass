@@ -1,9 +1,15 @@
 interface StatusBadgeProps {
   status: 'pending' | 'checked-in' | 'error';
   className?: string;
+  /** Overrides the default "Pending" label (e.g. "Not Yet" for check-in lists). */
+  pendingLabel?: string;
 }
 
-export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
+export function StatusBadge({
+  status,
+  className = '',
+  pendingLabel,
+}: StatusBadgeProps) {
   const styles = {
     pending: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
     'checked-in': 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800',
@@ -11,7 +17,7 @@ export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
   };
 
   const labels = {
-    pending: 'Pending',
+    pending: pendingLabel ?? 'Pending',
     'checked-in': 'Checked In',
     error: 'Error',
   };

@@ -19,6 +19,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import {
   Table,
   TableBody,
   TableCell,
@@ -92,6 +99,8 @@ export function AdminDashboard({
   });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkResendingQR, setBulkResendingQR] = useState(false);
+  /** Mobile: attendee id for bottom-sheet details (null = closed). */
+  const [mobileDetailId, setMobileDetailId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const fuse = useRef(
@@ -224,6 +233,19 @@ export function AdminDashboard({
     return sortDescending ? -cmp : cmp;
   });
 
+  const mobileDetailAttendee =
+    mobileDetailId === null
+      ? null
+      : sortedAttendees.find((a) => a.id === mobileDetailId) ??
+        attendees.find((a) => a.id === mobileDetailId) ??
+        null;
+
+  useEffect(() => {
+    if (mobileDetailId !== null && !mobileDetailAttendee) {
+      setMobileDetailId(null);
+    }
+  }, [mobileDetailId, mobileDetailAttendee]);
+
   const totalAttendees = attendees.length;
   const checkedInCount = attendees.filter((a) => a.checkedIn).length;
   const pendingCount = totalAttendees - checkedInCount;
@@ -236,15 +258,17 @@ export function AdminDashboard({
   const donutDashOffset =
     donutCirc - (checkInPercent / 100) * donutCirc;
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this attendee?')) return;
+  const handleDelete = async (id: string): Promise<boolean> => {
+    if (!confirm('Are you sure you want to delete this attendee?')) return false;
     setDeletingId(id);
     try {
       await apiService.deleteAttendee(id);
       toast.success('Attendee deleted');
       onRefresh();
+      return true;
     } catch {
       toast.error('Failed to delete attendee');
+      return false;
     } finally {
       setDeletingId(null);
     }
@@ -254,6 +278,13 @@ export function AdminDashboard({
     const { qrPayload } = await apiService.getQRPayload(attendee.id);
     const url = await generateQRCodeBase64(qrPayload);
     setQrDataUrl(url);
+  };
+
+  const openQrForAttendee = async (attendee: Attendee) => {
+    setMobileDetailId(null);
+    setSelectedAttendee(attendee);
+    await loadQRForAttendee(attendee);
+    setShowQR(true);
   };
 
   const handleManualCheckIn = async (attendee: Attendee) => {
@@ -542,7 +573,97 @@ export function AdminDashboard({
                 </Button>
               </div>
             )}
-          <div className="relative h-[400px] max-w-full min-w-0 overflow-x-auto overflow-y-auto">
+          <div className="md:hidden max-w-full min-w-0 space-y-2">
+            <div className="flex items-center justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 -mr-2 text-muted-foreground"
+                onClick={() => setSortDescending((d) => !d)}
+              >
+                Name
+                {sortDescending ? (
+                  <ArrowDown className="ml-1 h-4 w-4" />
+                ) : (
+                  <ArrowUp className="ml-1 h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            <div className="max-h-[min(400px,55dvh)] space-y-2 overflow-y-auto pr-0.5">
+              {sortedAttendees.map((attendee) => (
+                <div
+                  key={attendee.id}
+                  className="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm"
+                >
+                  <div className="flex gap-2 p-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(attendee.id)}
+                      onChange={() => toggleSelect(attendee.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-2.5 shrink-0 rounded border-input"
+                      aria-label={`Select ${formatNameLastFirst(attendee)}`}
+                    />
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 rounded-md text-left outline-offset-2 focus-visible:ring-2 focus-visible:ring-ring"
+                      onClick={() => setMobileDetailId(attendee.id)}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div
+                          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-medium text-white"
+                          aria-hidden
+                        >
+                          {getInitials(attendee)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-medium text-foreground">
+                              {formatNameLastFirst(attendee)}
+                            </span>
+                            <StatusBadge
+                              status={attendee.checkedIn ? 'checked-in' : 'pending'}
+                              pendingLabel="Not Yet"
+                              className="shrink-0"
+                            />
+                          </div>
+                          <p className="truncate text-sm text-muted-foreground">
+                            {attendee.email}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                  <div className="border-t border-border px-3 py-2.5">
+                    <Button
+                      className={
+                        attendee.checkedIn ? 'w-full text-muted-foreground' : 'w-full'
+                      }
+                      variant="outline"
+                      size="default"
+                      onClick={() => handleManualCheckIn(attendee)}
+                      disabled={attendee.checkedIn || checkingInId === attendee.id}
+                    >
+                      {checkingInId === attendee.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Checking in…
+                        </>
+                      ) : attendee.checkedIn ? (
+                        'Checked in'
+                      ) : (
+                        <>
+                          <UserCheck className="mr-2 h-4 w-4" />
+                          Check in
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="relative hidden h-[400px] max-w-full min-w-0 overflow-x-auto overflow-y-auto md:block">
             <Table className="min-w-[700px] w-full">
               <TableHeader>
                 <TableRow className="sticky top-0 z-10 bg-card">
@@ -603,7 +724,10 @@ export function AdminDashboard({
                     <TableCell className={`py-1 ${density === 'comfortable' ? 'sm:py-3' : ''}`}>{attendee.email}</TableCell>
                     <TableCell className={`py-1 ${density === 'comfortable' ? 'sm:py-3' : ''}`}>{attendee.company || '-'}</TableCell>
                     <TableCell className={`py-1 ${density === 'comfortable' ? 'sm:py-3' : ''}`}>
-                      <StatusBadge status={attendee.checkedIn ? 'checked-in' : 'pending'} />
+                      <StatusBadge
+                        status={attendee.checkedIn ? 'checked-in' : 'pending'}
+                        pendingLabel="Not Yet"
+                      />
                     </TableCell>
                     <TableCell className={`text-sm text-slate-500 dark:text-slate-400 py-1 ${density === 'comfortable' ? 'sm:py-3' : ''}`}>
                       {attendee.checkedIn && attendee.checkedInAt
@@ -616,9 +740,7 @@ export function AdminDashboard({
                           size="sm"
                           variant="ghost"
                           className={
-                            attendee.checkedIn
-                              ? 'text-muted-foreground'
-                              : 'bg-green-600 text-white hover:bg-green-700 hover:text-white'
+                            attendee.checkedIn ? 'text-muted-foreground' : undefined
                           }
                           onClick={() => handleManualCheckIn(attendee)}
                           disabled={
@@ -644,11 +766,7 @@ export function AdminDashboard({
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={async () => {
-                            setSelectedAttendee(attendee);
-                            await loadQRForAttendee(attendee);
-                            setShowQR(true);
-                          }}
+                          onClick={() => openQrForAttendee(attendee)}
                           aria-label={`Show QR code for ${formatNameLastFirst(attendee)}`}
                         >
                           <QrCode className="h-4 w-4" />
@@ -689,6 +807,169 @@ export function AdminDashboard({
           )}
         </CardContent>
       </Card>
+
+      <Sheet
+        open={mobileDetailId !== null}
+        onOpenChange={(open) => {
+          if (!open) setMobileDetailId(null);
+        }}
+      >
+        <SheetContent>
+          {mobileDetailAttendee && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-3 pr-2 text-left">
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-medium text-white">
+                    {getInitials(mobileDetailAttendee)}
+                  </div>
+                  <span className="min-w-0 leading-tight">
+                    {formatNameLastFirst(mobileDetailAttendee)}
+                  </span>
+                </SheetTitle>
+                <SheetDescription className="sr-only">
+                  Contact and check-in details for{' '}
+                  {formatNameLastFirst(mobileDetailAttendee)}.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="space-y-3 text-left text-foreground">
+                <StatusBadge
+                  status={
+                    mobileDetailAttendee.checkedIn ? 'checked-in' : 'pending'
+                  }
+                  pendingLabel="Not Yet"
+                  className="w-fit"
+                />
+                <dl className="space-y-2 text-sm">
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Email
+                    </dt>
+                    <dd className="break-all">{mobileDetailAttendee.email}</dd>
+                  </div>
+                  {mobileDetailAttendee.phone ? (
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Phone
+                      </dt>
+                      <dd>{mobileDetailAttendee.phone}</dd>
+                    </div>
+                  ) : null}
+                  {mobileDetailAttendee.company ? (
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Company
+                      </dt>
+                      <dd>{mobileDetailAttendee.company}</dd>
+                    </div>
+                  ) : null}
+                  {mobileDetailAttendee.dietaryRestrictions ? (
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Dietary
+                      </dt>
+                      <dd>{mobileDetailAttendee.dietaryRestrictions}</dd>
+                    </div>
+                  ) : null}
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Registered
+                    </dt>
+                    <dd>
+                      {new Date(mobileDetailAttendee.rsvpAt).toLocaleString()}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Check-in
+                    </dt>
+                    <dd className="text-muted-foreground">
+                      {mobileDetailAttendee.checkedIn &&
+                      mobileDetailAttendee.checkedInAt
+                        ? formatRelativeTime(mobileDetailAttendee.checkedInAt)
+                        : '—'}
+                    </dd>
+                  </div>
+                </dl>
+                <p className="text-xs text-muted-foreground">
+                  ID: {mobileDetailAttendee.id}
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 border-t border-border pt-4">
+                <Button
+                  className={
+                    mobileDetailAttendee.checkedIn
+                      ? 'w-full text-muted-foreground'
+                      : 'w-full'
+                  }
+                  variant="outline"
+                  size="lg"
+                  onClick={() => handleManualCheckIn(mobileDetailAttendee)}
+                  disabled={
+                    mobileDetailAttendee.checkedIn ||
+                    checkingInId === mobileDetailAttendee.id
+                  }
+                >
+                  {checkingInId === mobileDetailAttendee.id ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Checking in…
+                    </>
+                  ) : mobileDetailAttendee.checkedIn ? (
+                    'Checked in'
+                  ) : (
+                    <>
+                      <UserCheck className="mr-2 h-5 w-5" />
+                      Check in
+                    </>
+                  )}
+                </Button>
+                <div className="flex items-center justify-center gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-11 shrink-0"
+                    onClick={() => openQrForAttendee(mobileDetailAttendee)}
+                    aria-label={`Show QR code for ${formatNameLastFirst(mobileDetailAttendee)}`}
+                  >
+                    <QrCode className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-11 shrink-0"
+                    onClick={() => handleSendQREmail(mobileDetailAttendee)}
+                    disabled={sendingEmailId === mobileDetailAttendee.id}
+                    aria-label={`Email QR code to ${mobileDetailAttendee.email}`}
+                  >
+                    {sendingEmailId === mobileDetailAttendee.id ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Mail className="h-5 w-5" />
+                    )}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-11 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={async () => {
+                      const ok = await handleDelete(mobileDetailAttendee.id);
+                      if (ok) setMobileDetailId(null);
+                    }}
+                    disabled={deletingId === mobileDetailAttendee.id}
+                    aria-label={`Delete ${formatNameLastFirst(mobileDetailAttendee)}`}
+                  >
+                    {deletingId === mobileDetailAttendee.id ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-5 w-5" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={showQR} onOpenChange={setShowQR}>
         <DialogContent className="max-w-lg">

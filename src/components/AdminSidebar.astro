@@ -27,9 +27,7 @@ const mobileTabIdle =
     class="sticky top-0 z-40 min-w-0 border-b border-border bg-card md:hidden"
     aria-label="Admin sections"
   >
-    <div
-      class="flex min-w-0 flex-nowrap gap-6 overflow-x-auto overscroll-x-contain px-4 [-webkit-overflow-scrolling:touch]"
-    >
+    <div class="flex flex-wrap items-center gap-6 px-4">
       {variant === 'organization' && (
         <>
           <a href="/admin/organization" class={active === 'overview' ? mobileTabActive : mobileTabIdle}>Overview</a>
