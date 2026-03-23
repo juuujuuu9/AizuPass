@@ -319,17 +319,17 @@ export function AdminDashboard({
           </a>
         )}
         <Card className="min-w-0 flex-1 md:hidden">
-          <CardContent className="flex items-stretch justify-between gap-2 px-3 py-4">
+          <CardContent className="flex items-stretch justify-between gap-2 px-3">
             <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-center">
               <span className="text-3xl font-bold tabular-nums text-green-600 leading-none">
                 {checkedInCount}
               </span>
-              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 checked in
               </span>
             </div>
             <div className="flex shrink-0 flex-col items-center justify-center gap-1 px-1">
-              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Check-in rate
               </span>
               <div className="relative flex size-44 items-center justify-center">
@@ -362,7 +362,7 @@ export function AdminDashboard({
                   {checkInPercent}%
                 </span>
               </div>
-              <span className="text-xs tabular-nums text-muted-foreground">
+              <span className="text-sm tabular-nums text-muted-foreground">
                 {checkedInCount} / {totalAttendees}
               </span>
             </div>
@@ -370,7 +370,7 @@ export function AdminDashboard({
               <span className="text-3xl font-bold tabular-nums text-orange-600 leading-none">
                 {pendingCount}
               </span>
-              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 pending
               </span>
             </div>
