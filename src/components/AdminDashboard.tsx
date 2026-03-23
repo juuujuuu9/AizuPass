@@ -586,7 +586,7 @@ export function AdminDashboard({
                         : '—'}
                     </TableCell>
                     <TableCell className={`py-1 ${density === 'comfortable' ? 'sm:py-3' : ''}`}>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                      <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="ghost"

@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { errorResponse, json } from '../../../lib/api-response';
 import { getAttendeeById, getEventById } from '../../../lib/db';
 import { sendQRCodeEmail } from '../../../lib/email';
 import { generateQRCodeBase64 } from '../../../lib/qr-client';
@@ -17,25 +18,16 @@ export const POST: APIRoute = async (context) => {
     const { attendeeIds, eventId, fromName, eventName } = body;
 
     if (!attendeeIds || !Array.isArray(attendeeIds) || attendeeIds.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'attendeeIds array is required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('attendeeIds array is required');
     }
 
     if (!eventId) {
-      return new Response(
-        JSON.stringify({ error: 'eventId is required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('eventId is required');
     }
 
     const event = await getEventById(eventId);
     if (!event) {
-      return new Response(
-        JSON.stringify({ error: 'Event not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Event not found', 404);
     }
     const manage = await requireEventManage(context, eventId);
     if (manage instanceof Response) return manage;
@@ -93,23 +85,15 @@ export const POST: APIRoute = async (context) => {
       await new Promise((r) => setTimeout(r, RESEND_DELAY_MS));
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        sent: results.sent,
-        failed: results.failed,
-        total: attendeeIds.length,
-        errors: results.errors.slice(0, 5), // Limit errors returned
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    return json({
+      success: true,
+      sent: results.sent,
+      failed: results.failed,
+      total: attendeeIds.length,
+      errors: results.errors.slice(0, 5),
+    });
   } catch (err) {
     console.error('[send-bulk-qr]', err);
-    return new Response(
-      JSON.stringify({
-        error: err instanceof Error ? err.message : 'Bulk send failed',
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return errorResponse(err instanceof Error ? err.message : 'Bulk send failed', 500);
   }
 };

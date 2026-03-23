@@ -1,6 +1,7 @@
 ---
 import { ThemeToggle } from './ThemeToggle';
 import { MobileAccountMenu } from './MobileAccountMenu';
+import InviteStaffModal from './InviteStaffModal.astro';
 import { SignOutButton } from '@clerk/astro/components';
 
 type HeaderLink = {
@@ -228,3 +229,5 @@ const showHeaderActions = showThemeToggle || showSignOut || isAdmin || Boolean(u
     </div>
   </div>
 </header>
+
+{isAdmin && organization && <InviteStaffModal />}

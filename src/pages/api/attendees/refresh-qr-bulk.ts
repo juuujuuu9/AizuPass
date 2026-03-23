@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { errorResponse, json } from '../../../lib/api-response';
 import { getAllAttendeesForUser } from '../../../lib/db';
 import { getOrCreateQRPayload } from '../../../lib/qr-token';
 import { requireEventManage, requireUserId } from '../../../lib/access';
@@ -19,19 +20,17 @@ export const POST: APIRoute = async (context) => {
     };
 
     if (!confirm) {
-      return new Response(
-        JSON.stringify({
+      return json(
+        {
           error: 'Confirmation required',
-          message: 'This will invalidate all existing QR codes for the event. Attendees with screenshots or saved images will need new codes. Set confirm: true to proceed.',
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+          message:
+            'This will invalidate all existing QR codes for the event. Attendees with screenshots or saved images will need new codes. Set confirm: true to proceed.',
+        },
+        400
       );
     }
     if (!eventId) {
-      return new Response(
-        JSON.stringify({ error: 'eventId is required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('eventId is required');
     }
     const manage = await requireEventManage(context, eventId);
     if (manage instanceof Response) return manage;
@@ -40,10 +39,7 @@ export const POST: APIRoute = async (context) => {
     const attendees = await getAllAttendeesForUser(userId, eventId);
 
     if (attendees.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'No attendees found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('No attendees found', 404);
     }
 
     // Refresh QRs in batches
@@ -72,23 +68,15 @@ export const POST: APIRoute = async (context) => {
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        refreshed: results.refreshed,
-        failed: results.failed,
-        total: attendees.length,
-        errors: results.errors.slice(0, 10),
-      }),
-      { headers: { 'Content-Type': 'application/json' } }
-    );
+    return json({
+      success: true,
+      refreshed: results.refreshed,
+      failed: results.failed,
+      total: attendees.length,
+      errors: results.errors.slice(0, 10),
+    });
   } catch (err) {
     console.error('[refresh-qr-bulk]', err);
-    return new Response(
-      JSON.stringify({
-        error: err instanceof Error ? err.message : 'Bulk refresh failed',
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return errorResponse(err instanceof Error ? err.message : 'Bulk refresh failed', 500);
   }
 };

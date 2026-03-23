@@ -9,6 +9,55 @@ This supersedes the original sequential summary (`bloat_audit_summary.docx`). In
 
 ---
 
+## Status vs codebase
+
+**Last checked:** 2026-03-22 — refresh this section when you burn down items below.
+
+### Phase 1 — pure deletions / deps
+
+| Audit item | Status |
+|------------|--------|
+| Delete `rate-limit-edge.ts` | **Done** — file absent |
+| Remove unused webhook Zod exports from `validation.ts` | **Done** — no webhook schema exports in that file |
+| Remove `tslib` from `dependencies` | **Done** |
+| Move `dotenv` to `devDependencies` | **Done** |
+| Delete `AppShell.tsx`, `scroll-area.tsx`, `auth.d.ts` | **Done** — files absent |
+
+### Phase 2 — dedup / small refactors
+
+| Audit item | Status |
+|------------|--------|
+| `postCheckIn()` in `src/services/api.ts` | **Done** |
+| QR via `src/lib/qr-client.ts` | **Done** — RSVP, admin, webhook, bulk paths |
+| `src/lib/env.ts` | **Done** |
+| `rowToOffline` + `OfflineCacheAttendee` single source | **Done** — `db.ts`; type imported in `offline.ts` |
+| UUID validation consolidated | **Done** — `src/lib/uuid.ts` |
+| Gate demo check-in in production | **Done** — `src/pages/api/checkin.ts` |
+
+### Phase 3 — structural
+
+| Audit item | Status |
+|------------|--------|
+| `json()` / `errorResponse()` / `csvResponse()` in `src/lib/api-response.ts` | **Done** for the former stragglers (`export` → `csvResponse`, `send-bulk-qr`, `health` GET, `refresh-qr`, `refresh-qr-bulk`). `health` HEAD still uses `new Response(null)` (no body). |
+| Extract `import.astro` inline script | **Done** — `scripts/import-page` + thin boot in `import.astro` |
+| Migration boilerplate helper | **Done** — `scripts/lib/migration-helpers.mjs` |
+| Split `src/lib/db.ts` | **Partial (2026-03-22)** — `src/lib/db/{client,event-row,organizations}.ts`; core `db.ts` ~617 lines + re-exports (~424 lines moved out). See [DB-MODULE-LAYOUT.md](DB-MODULE-LAYOUT.md). |
+| Remove dead `db.ts` functions | **Open** — verify callers before deleting (org-scoping regressions are costly) |
+| Invite staff modal dedup | **Done** — `InviteStaffModal.astro` + `scripts/invite-staff-modal.ts`; rendered from `DashboardHeader` when `isAdmin && organization` (fixes header Invite on all those pages) |
+| Collapse middleware auth gates | **Open** — not re-audited in this pass |
+
+### Medium / Opus micro (treat as backlog until reverified)
+
+RSVP/Zod type overlap, Resend helper merge, `checkin.ts` duplicated “already checked in” response shape, `CheckInScanner` offline search dedup, `AdminDashboard` repeated `filter` counts → `useMemo`, etc.
+
+### Recommended next steps (bloat reduction)
+
+1. ~~**Finish `api-response` migration**~~ — done for the routes listed above (2026-03-22).
+2. ~~**Shared Invite Staff UI**~~ — done: `InviteStaffModal.astro` + `invite-staff-modal.ts` (2026-03-22).
+3. **Incremental `db.ts` split** — first slice (organizations/invitations) done; next: e.g. attendees or check-in when those files are in scope. [DB-MODULE-LAYOUT.md](DB-MODULE-LAYOUT.md).
+
+---
+
 ## How to read confidence tiers
 
 | Tier | Basis | ~Lines | Action |

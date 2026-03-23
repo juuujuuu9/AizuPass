@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { errorResponse } from '../../../lib/api-response';
+import { csvResponse, errorResponse } from '../../../lib/api-response';
 import { getAllAttendeesForUser } from '../../../lib/db';
 import { requireEventAccess, requireUserId } from '../../../lib/access';
 
@@ -52,10 +52,5 @@ export const GET: APIRoute = async (context) => {
   const csv = [headers.map(escapeCsvField).join(','), ...rows].join('\n');
   const filename = `event-attendees-${new Date().toISOString().split('T')[0]}.csv`;
 
-  return new Response(csv, {
-    headers: {
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-    },
-  });
+  return csvResponse(csv, filename);
 };

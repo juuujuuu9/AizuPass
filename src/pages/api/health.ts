@@ -1,22 +1,18 @@
 import type { APIRoute } from 'astro';
+import { json } from '../../lib/api-response';
 
 export const GET: APIRoute = async () => {
   const timestamp = new Date().toISOString();
 
-  return new Response(
-    JSON.stringify({
+  return json(
+    {
       status: 'ok',
       timestamp,
       version: process.env.npm_package_version || '0.0.1',
       environment: process.env.NODE_ENV || 'production',
-    }),
-    {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, max-age=0',
-      },
-    }
+    },
+    200,
+    { 'Cache-Control': 'no-store, max-age=0' }
   );
 };
 

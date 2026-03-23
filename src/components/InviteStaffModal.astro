@@ -1,0 +1,56 @@
+---
+/**
+ * Invite-by-email modal for organizers. Paired with DashboardHeader "Invite Staff" and
+ * optional `[data-open-invite-staff-modal]` buttons. Logic: `scripts/invite-staff-modal.ts`.
+ */
+---
+
+<div
+  id="invite-staff-modal"
+  class="fixed inset-0 z-70 hidden items-center justify-center bg-black/60 px-4"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="invite-staff-modal-title"
+>
+  <div class="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-2xl">
+    <h2 id="invite-staff-modal-title" class="text-2xl font-bold text-foreground">Invite user</h2>
+    <p class="mt-1 text-sm text-muted-foreground">Invite a staff member to your organization by email.</p>
+
+    <form id="invite-staff-form" class="mt-5 space-y-4">
+      <div>
+        <label for="invite-staff-email" class="mb-1 block text-sm font-medium text-foreground">Email</label>
+        <input
+          id="invite-staff-email"
+          type="email"
+          required
+          placeholder="staff@example.com"
+          class="w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+      </div>
+
+      <p id="invite-staff-status" class="min-h-5 text-sm text-muted-foreground"></p>
+
+      <div class="mt-2 flex gap-3">
+        <button
+          id="cancel-invite-staff-modal"
+          type="button"
+          class="flex-1 rounded-md border border-border bg-muted px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted/80"
+        >
+          Cancel
+        </button>
+        <button
+          id="submit-invite-staff"
+          type="submit"
+          class="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+        >
+          Invite
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  import { initInviteStaffModal } from '../scripts/invite-staff-modal';
+  initInviteStaffModal();
+</script>

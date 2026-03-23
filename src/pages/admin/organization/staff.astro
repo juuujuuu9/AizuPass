@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import DashboardHeader from '../../../components/DashboardHeader.astro';
+import AdminSidebar from '../../../components/AdminSidebar.astro';
 import { getOrganizationByOwnerUserId, getOrganizationStaffMembers } from '../../../lib/db';
 
 const userId = Astro.locals.user?.id ?? '';
@@ -26,50 +27,7 @@ const pendingInvites = staffMembers.filter(m => m.status === 'pending');
       organization={organization ? { label: organization.name, href: '/admin/organization' } : undefined}
     />
     <div class="flex min-h-[calc(100vh-4rem)]">
-      {/* Sidebar Navigation */}
-      {organization && (
-        <aside class="w-64 border-r border-border bg-card hidden md:block">
-          <nav class="p-4 space-y-1">
-            <a
-              href="/admin/organization"
-              class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            >
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-              Overview
-            </a>
-            <a
-              href="/admin/organization/staff"
-              class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md bg-primary/10 text-primary"
-            >
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-              Staff
-            </a>
-            <a
-              href="/admin/organization/billing"
-              class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            >
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
-              Billing
-            </a>
-            <a
-              href="/admin/organization/settings"
-              class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            >
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              Settings
-            </a>
-          </nav>
-        </aside>
-      )}
+      {organization && <AdminSidebar variant="organization" active="staff" />}
 
       <main class="flex-1 px-4 py-10 space-y-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
@@ -213,152 +171,8 @@ const pendingInvites = staffMembers.filter(m => m.status === 'pending');
     </div>
   </div>
 
-  {organization && Astro.locals.isAdmin && (
-    <div
-      id="invite-staff-modal"
-      class="fixed inset-0 z-70 hidden items-center justify-center bg-black/60 px-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="invite-staff-modal-title"
-    >
-      <div class="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-2xl">
-        <h2 id="invite-staff-modal-title" class="text-2xl font-bold text-foreground">Invite user</h2>
-        <p class="mt-1 text-sm text-muted-foreground">Invite a staff member to your organization by email.</p>
-
-        <form id="invite-staff-form" class="mt-5 space-y-4">
-          <div>
-            <label for="invite-staff-email" class="mb-1 block text-sm font-medium text-foreground">Email</label>
-            <input
-              id="invite-staff-email"
-              type="email"
-              required
-              placeholder="staff@example.com"
-              class="w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          <p id="invite-staff-status" class="min-h-5 text-sm text-muted-foreground"></p>
-
-          <div class="mt-2 flex gap-3">
-            <button
-              id="cancel-invite-staff-modal"
-              type="button"
-              class="flex-1 rounded-md border border-border bg-muted px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted/80"
-            >
-              Cancel
-            </button>
-            <button
-              id="submit-invite-staff"
-              type="submit"
-              class="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-            >
-              Invite
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )}
-
   <script>
-    const modal = document.getElementById('invite-staff-modal');
-    const openButtons = [
-      document.getElementById('open-invite-staff-modal-header'),
-      ...document.querySelectorAll('[data-open-invite-staff-modal]'),
-    ];
-    const cancelButton = document.getElementById('cancel-invite-staff-modal');
-    const form = document.getElementById('invite-staff-form');
-    const emailInput = document.getElementById('invite-staff-email');
-    const status = document.getElementById('invite-staff-status');
     const pageStatus = document.getElementById('organization-page-status');
-    const submitButton = document.getElementById('submit-invite-staff');
-
-    const openModal = () => {
-      if (!(modal instanceof HTMLElement)) return;
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-      if (emailInput instanceof HTMLInputElement) emailInput.focus();
-      if (status instanceof HTMLElement) {
-        status.textContent = '';
-        status.className = 'min-h-5 text-sm text-muted-foreground';
-      }
-    };
-
-    const closeModal = () => {
-      if (!(modal instanceof HTMLElement)) return;
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-      if (form instanceof HTMLFormElement) form.reset();
-      if (status instanceof HTMLElement) {
-        status.textContent = '';
-        status.className = 'min-h-5 text-sm text-muted-foreground';
-      }
-    };
-
-    openButtons.forEach((button) => {
-      button?.addEventListener('click', openModal);
-    });
-    cancelButton?.addEventListener('click', closeModal);
-
-    modal?.addEventListener('click', (event) => {
-      if (event.target === modal) closeModal();
-    });
-
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && modal instanceof HTMLElement && !modal.classList.contains('hidden')) {
-        closeModal();
-      }
-    });
-
-    form?.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const email = emailInput instanceof HTMLInputElement ? emailInput.value.trim() : '';
-      if (!email) return;
-      if (submitButton instanceof HTMLButtonElement) submitButton.disabled = true;
-      if (status instanceof HTMLElement) {
-        status.textContent = 'Sending invite...';
-        status.className = 'min-h-5 text-sm text-muted-foreground';
-      }
-      try {
-        const res = await fetch('/api/organizations/invitations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
-        });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          if (status instanceof HTMLElement) {
-            status.textContent = body.error || `Error ${res.status}`;
-            status.className = 'min-h-5 text-sm text-[var(--red-11)]';
-          }
-          return;
-        }
-        if (status instanceof HTMLElement) {
-          if (body?.communication?.sent) {
-            status.textContent = 'Invite email sent.';
-            status.className = 'min-h-5 text-sm text-[var(--green-11)]';
-          } else {
-            const reason = body?.communication?.error || 'Email service is not configured';
-            status.textContent = `Invite created, but email was not sent: ${reason}`;
-            status.className = 'min-h-5 text-sm text-[var(--amber-11)]';
-          }
-        }
-        if (pageStatus instanceof HTMLElement) {
-          pageStatus.textContent = 'Invite sent. Refreshing list...';
-          pageStatus.className = 'min-h-5 text-sm text-[var(--green-11)]';
-        }
-        window.setTimeout(() => {
-          window.location.reload();
-        }, 500);
-      } catch {
-        if (status instanceof HTMLElement) {
-          status.textContent = 'Could not send invite';
-          status.className = 'min-h-5 text-sm text-[var(--red-11)]';
-        }
-      } finally {
-        if (submitButton instanceof HTMLButtonElement) submitButton.disabled = false;
-      }
-    });
 
     // Handle revoke invitation buttons
     document.querySelectorAll('[data-revoke-invitation]').forEach((btn) => {
