@@ -364,7 +364,6 @@ export function initImportPage(): void {
       labelIdle:
         'Drag & drop your CSV, or <span class="filepond--label-action">Browse</span>',
       beforeAddFile: (item) => /\.csv$/i.test(item.file.name),
-      labelFileTypeNotAllowed: 'Use a .csv file',
     });
 
     csvPond.on('addfile', async (_err, fileItem) => {

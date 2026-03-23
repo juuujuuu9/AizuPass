@@ -12,7 +12,11 @@ function getThemeSnapshot(): 'dark' | 'light' {
 }
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const theme = useSyncExternalStore(subscribeTheme, getThemeSnapshot, () => 'light');
+  const theme = useSyncExternalStore(
+    subscribeTheme,
+    getThemeSnapshot,
+    (): 'dark' | 'light' => 'light'
+  );
 
   return (
     <Sonner
