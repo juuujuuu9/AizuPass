@@ -1,6 +1,6 @@
-# QR Code Check-In
+# AizuPass
 
-Multi-event QR check-in for live venues: **organizations and staff** manage guestlists and scan at the door; **attendees** use camera-scanned codes with **no PII in the QR payload** (token-based v2 format). One **Astro** app hosts UI and API routes, deployed to **Vercel**, backed by **PostgreSQL** (e.g. Neon).
+**AizuPass** is multi-event QR check-in for live venues: **organizations and staff** manage guestlists and scan at the door; **attendees** use camera-scanned codes with **no PII in the QR payload** (token-based v2 format). One **Astro** app hosts UI and API routes, deployed to **Vercel**, backed by **PostgreSQL** (e.g. Neon).
 
 ---
 

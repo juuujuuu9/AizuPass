@@ -6,10 +6,14 @@ import type { OfflineCacheAttendee } from './db';
 import { isValidUUID } from './uuid';
 export type { OfflineCacheAttendee };
 
-const DB_NAME = 'qr-check-in-offline';
+/** Pre–AizuPass rebrand; migrated once into `DB_NAME`, then deleted. */
+const LEGACY_DB_NAME = 'qr-check-in-offline';
+const DB_NAME = 'aizupass-offline';
 const DB_VERSION = 1;
 const STORE_CACHE = 'cache';
 const STORE_QUEUE = 'queue';
+
+const MIGRATION_LS_KEY = 'aizupass-offline-migrated';
 
 export type OfflineCacheData = {
   cachedAt: string;
@@ -25,15 +29,26 @@ export type QueuedCheckIn = {
   queuedAt: string;
 };
 
-function queueSignature(item: { qrData?: string; attendeeId?: string }): string {
-  if (item.attendeeId) return `attendee:${item.attendeeId}`;
-  if (item.qrData) return `qr:${item.qrData.trim()}`;
-  return 'unknown';
+function mergeQueues(a: QueuedCheckIn[], b: QueuedCheckIn[]): QueuedCheckIn[] {
+  const byId = new Map<string, QueuedCheckIn>();
+  for (const q of a) byId.set(q.id, q);
+  for (const q of b) {
+    if (!byId.has(q.id)) byId.set(q.id, q);
+  }
+  return [...byId.values()];
 }
 
-function openDB(): Promise<IDBDatabase> {
+function deleteDatabaseByName(name: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    const req = indexedDB.deleteDatabase(name);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function openNamedDatabase(dbName: string): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(dbName, DB_VERSION);
     req.onerror = () => reject(req.error);
     req.onsuccess = () => resolve(req.result);
     req.onupgradeneeded = () => {
@@ -46,6 +61,161 @@ function openDB(): Promise<IDBDatabase> {
       }
     };
   });
+}
+
+async function readCacheAndQueue(db: IDBDatabase): Promise<{
+  cache: OfflineCacheData | null;
+  queue: QueuedCheckIn[];
+}> {
+  const cache = await new Promise<OfflineCacheData | null>((resolve, reject) => {
+    if (!db.objectStoreNames.contains(STORE_CACHE)) {
+      resolve(null);
+      return;
+    }
+    const tx = db.transaction(STORE_CACHE, 'readonly');
+    const req = tx.objectStore(STORE_CACHE).get('guest-list');
+    req.onsuccess = () => resolve(req.result?.data ?? null);
+    req.onerror = () => reject(req.error);
+  });
+
+  const queue = await new Promise<QueuedCheckIn[]>((resolve, reject) => {
+    if (!db.objectStoreNames.contains(STORE_QUEUE)) {
+      resolve([]);
+      return;
+    }
+    const tx = db.transaction(STORE_QUEUE, 'readonly');
+    const req = tx.objectStore(STORE_QUEUE).getAll();
+    req.onsuccess = () => resolve(req.result ?? []);
+    req.onerror = () => reject(req.error);
+  });
+
+  return { cache, queue };
+}
+
+async function writeCacheAndQueue(
+  db: IDBDatabase,
+  cache: OfflineCacheData | null,
+  queue: QueuedCheckIn[]
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([STORE_CACHE, STORE_QUEUE], 'readwrite');
+    tx.onerror = () => reject(tx.error);
+    tx.oncomplete = () => resolve();
+
+    const cacheStore = tx.objectStore(STORE_CACHE);
+    if (cache) {
+      cacheStore.put({ key: 'guest-list', data: cache });
+    } else {
+      cacheStore.delete('guest-list');
+    }
+
+    const queueStore = tx.objectStore(STORE_QUEUE);
+    queueStore.clear();
+    for (const item of queue) {
+      queueStore.put(item);
+    }
+  });
+}
+
+function markOfflineMigrationDone(): void {
+  try {
+    localStorage.setItem(MIGRATION_LS_KEY, '1');
+  } catch {
+    /* private mode / quota */
+  }
+}
+
+function isOfflineMigrationMarkedDone(): boolean {
+  try {
+    return localStorage.getItem(MIGRATION_LS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+async function legacyIndexedDbListed(): Promise<boolean | null> {
+  if (typeof indexedDB?.databases !== 'function') return null;
+  try {
+    const list = await indexedDB.databases();
+    return list.some((d) => d.name === LEGACY_DB_NAME);
+  } catch {
+    return null;
+  }
+}
+
+/** Remove legacy DB if the browser still lists it (e.g. localStorage was cleared). */
+async function deleteLegacyIfStillPresent(): Promise<void> {
+  const listed = await legacyIndexedDbListed();
+  if (listed === false) return;
+  if (listed === true) {
+    await deleteDatabaseByName(LEGACY_DB_NAME);
+    return;
+  }
+  // `databases()` unavailable: try delete (no-op if missing on some engines)
+  try {
+    await deleteDatabaseByName(LEGACY_DB_NAME);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * One-time: copy guest-list cache + pending queue from `LEGACY_DB_NAME` into `DB_NAME`, then delete legacy.
+ * Idempotent and safe if the new DB already has data (queues merged by id; cache prefers existing new data).
+ */
+async function migrateFromLegacyIfNeeded(): Promise<void> {
+  if (typeof indexedDB === 'undefined') return;
+
+  if (isOfflineMigrationMarkedDone()) {
+    await deleteLegacyIfStillPresent();
+    return;
+  }
+
+  try {
+    const listed = await legacyIndexedDbListed();
+    if (listed === false) {
+      markOfflineMigrationDone();
+      return;
+    }
+
+    const legacyDb = await openNamedDatabase(LEGACY_DB_NAME);
+    const legacy = await readCacheAndQueue(legacyDb);
+    legacyDb.close();
+
+    const legacyEmpty = legacy.cache == null && legacy.queue.length === 0;
+    if (legacyEmpty) {
+      await deleteDatabaseByName(LEGACY_DB_NAME);
+      markOfflineMigrationDone();
+      return;
+    }
+
+    const newDb = await openNamedDatabase(DB_NAME);
+    const existing = await readCacheAndQueue(newDb);
+
+    const mergedCache = existing.cache ?? legacy.cache;
+    const mergedQueue = mergeQueues(existing.queue, legacy.queue);
+
+    await writeCacheAndQueue(newDb, mergedCache, mergedQueue);
+    newDb.close();
+
+    await deleteDatabaseByName(LEGACY_DB_NAME);
+  } catch (e) {
+    console.warn('[AizuPass] Offline IndexedDB migration skipped:', e);
+    return;
+  }
+
+  markOfflineMigrationDone();
+}
+
+function queueSignature(item: { qrData?: string; attendeeId?: string }): string {
+  if (item.attendeeId) return `attendee:${item.attendeeId}`;
+  if (item.qrData) return `qr:${item.qrData.trim()}`;
+  return 'unknown';
+}
+
+async function openDB(): Promise<IDBDatabase> {
+  await migrateFromLegacyIfNeeded();
+  return openNamedDatabase(DB_NAME);
 }
 
 export async function getCachedData(): Promise<OfflineCacheData | null> {

@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-22 (`db` modularization: org/invitations → `src/lib/db/`; [DB-MODULE-LAYOUT.md](DB-MODULE-LAYOUT.md))
+**Last updated:** 2026-03-23 (SaaS product name: **AizuPass**; see README / [PRODUCT-STRATEGY.md](PRODUCT-STRATEGY.md))
 
 ---
 

@@ -1,10 +1,12 @@
-# QR Check-In: Product Strategy
+# AizuPass — Product Strategy
 
-> Compiled: 2026-03-21
+> Compiled: 2026-03-21 · **ICP & culture positioning added:** 2026-03-23 · **Product name:** AizuPass (2026-03-23)
 
 ## Summary
 
-Product strategy and competitive positioning for the QR Check-In app — covering market gaps, pricing tiers, customization philosophy, AI integration, and credibility-building tactics. Targets the underserved SME segment between spreadsheet hacks and enterprise overkill.
+Product strategy and competitive positioning for **AizuPass** — covering market gaps, pricing tiers, customization philosophy, AI integration, and credibility-building tactics. Targets the underserved SME segment between spreadsheet hacks and enterprise overkill.
+
+**Primary GTM focus (future reference):** independent music collectives and regional shows (50–250 guests), plus agencies running private invite-only activations (150–500 attendees), with emphasis on aesthetic-forward culture audiences (music, fashion, creative, CPG launches). See [Target ICPs & culture positioning](#target-icps--culture-positioning).
 
 ## Competitive Positioning
 
@@ -23,6 +25,57 @@ Product strategy and competitive positioning for the QR Check-In app — coverin
 | Zero-friction setup | CSV upload vs. complex registration flows |
 | Transparent pricing | No "contact sales" — clear tiers |
 | Multi-device simplicity | Seamless sync without IT setup |
+
+### vs. large ticketing (e.g. AXS)
+
+AXS wins on **venue scale, exclusive inventory, and promoter contracts**. We do not compete on arena distribution. We win on **taste, speed, transparency, owned audience, and door experience** for events below that tier — especially where the product must feel like part of the creative output, not a box office.
+
+---
+
+## Target ICPs & culture positioning
+
+*Captured for future strategy and messaging reference.*
+
+### Segment A — Independent collectives & small promoters
+
+- **Scale:** Local and regional shows; roughly **50–250** guests.
+- **Care about:** Credibility without corporate ticketing UX; fast setup; simple money flow; door flow that preserves mood; **repeat community** (same crowd, DMs, group chats).
+- **Language to use:** Doors, tiers, early access, releases, room — not only “tickets.”
+
+### Segment B — Agencies (private / invite-only)
+
+- **Scale:** Promotional events and activations; roughly **150–500** attendees.
+- **Care about:** **Control** (who gets in, plus-ones, tiers); **client branding** (white-label feel — their name, not ours); **ops** (multiple door staff, headcount, no accidental public listing); **post-event proof** (check-in stats and times for recap decks).
+- **Language to use:** RSVP, guest list, activation, capacity, approval/deny — alongside ticketing where payment applies.
+
+### Shared “vibe” audience
+
+Target buyers and guests skew **hip, aesthetic-forward, culture-heavy**: creative industries, fashion, music, consumer goods launches. Implications:
+
+| Theme | Product / brand implication |
+|--------|-----------------------------|
+| Visual identity | Strong typography, minimal presets, dark themes; strict brand kit for agency clients (logo, colors, fonts where feasible). |
+| Copy | Avoid generic “conference” tone; match invite/flyer energy. |
+| Exclusivity | Hidden links, codes, tiers, waitlists; optional named / non-transferable entries for high-control events. |
+| Social share | Assets that read as **flyers or invites**, not receipts. |
+| Door | Fast QR, multiple scanners, clear VIP / GA / staff — lines and fumbling read as brand failure at fashion and client events. |
+
+### Go-to-market notes
+
+- **Channels:** Experiential and PR agencies, boutique promoters, venues doing one-offs, culture retail, scene newsletters — not only “event ticketing” SEO.
+- **Proof:** Case studies with **event photography** and invite creative; ops metrics agencies respect (wait time, check-in completion, private link discipline).
+- **Pricing posture:** Predictable tiers; **per-event** or **per-org monthly** so collectives are not punished for occasional shows; invoice-friendly options for agencies.
+
+### Positioning one-liners (draft)
+
+- **Collectives:** “Door flow and RSVPs that look like your release — not a box office.”
+- **Agencies:** “Invite-only RSVPs, tiers, and check-in for brand activations — your client on every surface.”
+
+### Risks to design for
+
+- **Leakage:** Unguessable URLs, optional auth, rate limits; unlisted / non-discoverable events by default for private flows.
+- **Ops trust:** Overcommit and flake management (caps, waitlists, clear comms to client).
+- **Payments:** Chargebacks and fraud matter once ticket prices and alcohol-adjacent events scale — plan before high-ticket sales.
 
 ---
 
