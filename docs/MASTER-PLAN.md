@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-23 (SaaS product name: **AizuPass**; see README / [PRODUCT-STRATEGY.md](PRODUCT-STRATEGY.md))
+**Last updated:** 2026-03-23 — **AizuPass** naming in UI (layout titles, login/signup, scanner tab), README, [PRODUCT-STRATEGY.md](PRODUCT-STRATEGY.md), npm package `aizupass`. Offline IndexedDB renamed to `aizupass-offline` with one-time migration from `qr-check-in-offline` (`src/lib/offline.ts`).
 
 ---
 
@@ -51,7 +51,8 @@
 | Health check endpoint | **Done** | Created /api/health for monitoring. |
 | CI/CD pipeline | **Done** | GitHub Actions workflow for build and test. |
 | Production deployment docs | **Done** | VERCEL-DEPLOYMENT.md with step-by-step guide. |
-| Offline capability | **Done** | IndexedDB cache, offline queue, sync on reconnect; 409 = success. `src/lib/offline.ts`, `api/attendees/offline-cache`. |
+| SaaS product naming | **Done** | **AizuPass** — browser titles via `Layout.astro` / `ScannerLayout.astro`, auth page headings, README, product strategy; npm package name `aizupass`. |
+| Offline capability | **Done** | IndexedDB `aizupass-offline` (was `qr-check-in-offline`); one-time copy + merge + legacy delete on first open (`localStorage` marker `aizupass-offline-migrated`). Cache, offline queue, sync on reconnect; 409 = success. `src/lib/offline.ts`, `api/attendees/offline-cache`. |
 | Offline sync resilience (backoff/idempotency/queue visibility) | **Done** | Added queue dedupe, retry-with-backoff sync, and scanner-visible queue count. |
 | Multi-event / central hub | **Done** | Events table, event-scoped attendees; guestlist ingestion: **CSV primary** for most users; `POST /api/webhooks/entry` for automation; Zapier/Make first-class TBD — see [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md). |
 | Event-scoped scanner/manual override hardening | Partial | Event scoping exists broadly; scanner entry path/manual UX still needs stricter guardrails. |
@@ -117,6 +118,7 @@ Follow this order; check off and date as you complete each item.
 ### 9. Offline capability
 
 - [x] **Done.** IndexedDB cache via GET /api/attendees/offline-cache (staff-only, includes qr_token); offline check-in queue; sync when online; 409 treated as success. Manual search uses cache when offline. `src/lib/offline.ts`, CheckInScanner.
+- [x] **Done (2026-03-23).** IndexedDB database name aligned with AizuPass: `aizupass-offline`, with one-time migration from legacy `qr-check-in-offline` (guest-list + queue merge by id, then legacy DB deleted; retries if migration throws before the marker is set).
 
 ### 10. Optional (later)
 
