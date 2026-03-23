@@ -33,6 +33,14 @@
   --color-warning: var(--amber-9);
 }
 
+/* During theme toggle, skip color transitions so the whole UI flips at once (mobile feels laggy otherwise). */
+html.theme-flash,
+html.theme-flash *,
+html.theme-flash *::before,
+html.theme-flash *::after {
+  transition-property: none !important;
+}
+
 * {
   border-color: var(--border-subtle);
 }

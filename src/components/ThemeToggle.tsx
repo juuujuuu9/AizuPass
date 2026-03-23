@@ -1,19 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { applyTheme, readThemeIsDark, THEME_CHANGE_EVENT } from '@/lib/theme';
 
 export function ThemeToggle() {
   const [dark, setDark] = useState(false);
 
-  useEffect(() => {
-    setDark(document.documentElement.classList.contains('dark'));
+  const syncFromDom = useCallback(() => {
+    setDark(readThemeIsDark());
   }, []);
 
+  useLayoutEffect(() => {
+    syncFromDom();
+  }, [syncFromDom]);
+
+  useEffect(() => {
+    window.addEventListener(THEME_CHANGE_EVENT, syncFromDom);
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, syncFromDom);
+  }, [syncFromDom]);
+
   const toggle = () => {
-    const next = !document.documentElement.classList.contains('dark');
-    document.documentElement.classList.toggle('dark', next);
-    localStorage.setItem('theme', next ? 'dark' : 'light');
-    setDark(next);
+    applyTheme(!readThemeIsDark());
   };
 
   return (
