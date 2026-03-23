@@ -94,6 +94,37 @@ async function main() {
   } catch (e) {
     if (!(e?.code === '42710' || String(e?.message ?? '').includes('already exists'))) throw e;
   }
+
+  // App invariant: one event per organization. Legacy backfill can put many events on one org.
+  const duplicateOrgs = await sql`
+    SELECT organization_id
+    FROM events
+    WHERE organization_id IS NOT NULL
+    GROUP BY organization_id
+    HAVING COUNT(*) > 1
+  `;
+  for (const row of duplicateOrgs) {
+    const organizationId = row.organization_id;
+    const eventsForOrg = await sql`
+      SELECT id, name FROM events
+      WHERE organization_id = ${organizationId}
+      ORDER BY created_at ASC NULLS LAST, name ASC
+    `;
+    for (let i = 1; i < eventsForOrg.length; i++) {
+      const ev = eventsForOrg[i];
+      const newOrgId = crypto.randomUUID();
+      const orgName = `${ev.name || 'Event'} — organization`;
+      await sql`
+        INSERT INTO organizations (id, name, owner_user_id, created_at)
+        VALUES (${newOrgId}, ${orgName}, NULL, NOW())
+      `;
+      await sql`UPDATE events SET organization_id = ${newOrgId} WHERE id = ${ev.id}`;
+      console.log(
+        `Split event ${ev.id} into new organization ${newOrgId} (removed duplicate of ${organizationId})`
+      );
+    }
+  }
+
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_events_one_per_org ON events(organization_id)`;
   console.log('event ownership constraints ready');
 

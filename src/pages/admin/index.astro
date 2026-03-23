@@ -112,13 +112,8 @@ const pageTitle = showEventDashboard && event ? `${event.name} | Attendees` : 'E
         event={{ label: event.name, badge: 'Attendees' }}
       />
 
-      <div class="flex min-h-[calc(100vh-4rem)]">
-        <AdminSidebar
-          variant="event"
-          eventId={event.id}
-          active="attendees"
-          showBackToOrganization={!!organization}
-        />
+      <div class="flex min-h-[calc(100vh-4rem)] min-w-0 flex-col md:flex-row">
+        <AdminSidebar variant="event" eventId={event.id} active="attendees" />
 
         <main class="min-w-0 flex-1 px-4 py-8">
           <AdminPage

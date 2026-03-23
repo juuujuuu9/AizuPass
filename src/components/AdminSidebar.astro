@@ -8,17 +8,49 @@ export interface Props {
   variant: 'organization' | 'event';
   active: 'overview' | 'staff' | 'billing' | 'settings' | 'attendees' | 'import' | 'export';
   eventId?: string;
-  showBackToOrganization?: boolean;
 }
 
-const { variant, active, eventId = '', showBackToOrganization = false } = Astro.props;
+const { variant, active, eventId = '' } = Astro.props;
 
 const linkActive = 'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md bg-primary/10 text-primary';
 const linkIdle =
   'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors';
+
+const mobileTabActive =
+  'shrink-0 whitespace-nowrap border-b-4 border-foreground py-3 px-1 -mb-px text-sm font-medium text-foreground';
+const mobileTabIdle =
+  'shrink-0 whitespace-nowrap border-b-4 border-transparent py-3 px-1 -mb-px text-sm font-medium text-muted-foreground hover:text-foreground transition-colors';
 ---
 
-<aside class="w-64 border-r border-border bg-card hidden md:block">
+{(variant === 'organization' || (variant === 'event' && eventId)) && (
+  <nav
+    class="md:hidden min-w-0 border-b border-border bg-card"
+    aria-label="Admin sections"
+  >
+    <div
+      class="flex min-w-0 flex-nowrap gap-6 overflow-x-auto overscroll-x-contain px-4 [-webkit-overflow-scrolling:touch]"
+    >
+      {variant === 'organization' && (
+        <>
+          <a href="/admin/organization" class={active === 'overview' ? mobileTabActive : mobileTabIdle}>Overview</a>
+          <a href="/admin/organization/staff" class={active === 'staff' ? mobileTabActive : mobileTabIdle}>Staff</a>
+          <a href="/admin/organization/billing" class={active === 'billing' ? mobileTabActive : mobileTabIdle}>Billing</a>
+          <a href="/admin/organization/settings" class={active === 'settings' ? mobileTabActive : mobileTabIdle}>Settings</a>
+        </>
+      )}
+      {variant === 'event' && eventId && (
+        <>
+          <a href={`/admin?event=${eventId}`} class={active === 'attendees' ? mobileTabActive : mobileTabIdle}>Attendees</a>
+          <a href={`/admin/events/import?event=${eventId}`} class={active === 'import' ? mobileTabActive : mobileTabIdle}>Import</a>
+          <a href={`/api/attendees/export?eventId=${eventId}`} class={active === 'export' ? mobileTabActive : mobileTabIdle}>Export</a>
+          <a href={`/admin/events/edit?event=${eventId}`} class={active === 'settings' ? mobileTabActive : mobileTabIdle}>Settings</a>
+        </>
+      )}
+    </div>
+  </nav>
+)}
+
+<aside class="hidden w-64 border-r border-border bg-card md:block">
   <nav class="p-4 space-y-1">
     {variant === 'organization' && (
       <>
@@ -77,16 +109,6 @@ const linkIdle =
           </svg>
           Settings
         </a>
-        {showBackToOrganization && (
-          <div class="pt-4 mt-4 border-t border-border">
-            <a href="/admin/organization" class={linkIdle}>
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Back to Organization
-            </a>
-          </div>
-        )}
       </>
     )}
   </nav>

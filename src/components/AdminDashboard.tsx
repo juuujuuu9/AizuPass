@@ -38,6 +38,7 @@ import {
   Mail,
   RotateCcw,
   Trash2,
+  UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Fuse from 'fuse.js';
@@ -84,6 +85,7 @@ export function AdminDashboard({
   const [sortDescending, setSortDescending] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
+  const [checkingInId, setCheckingInId] = useState<string | null>(null);
   const [density, setDensity] = useState<'comfortable' | 'compact'>(() => {
     if (typeof window === 'undefined') return 'comfortable';
     return (localStorage.getItem('table-density') as 'comfortable' | 'compact') || 'comfortable';
@@ -252,6 +254,29 @@ export function AdminDashboard({
     const { qrPayload } = await apiService.getQRPayload(attendee.id);
     const url = await generateQRCodeBase64(qrPayload);
     setQrDataUrl(url);
+  };
+
+  const handleManualCheckIn = async (attendee: Attendee) => {
+    if (attendee.checkedIn) return;
+    setCheckingInId(attendee.id);
+    try {
+      const result = await apiService.checkInAttendeeById(attendee.id);
+      if (result.success) {
+        toast.success(
+          result.message || `${formatNameLastFirst(attendee)} checked in`
+        );
+        onRefresh();
+      } else if (result.alreadyCheckedIn) {
+        toast.info(result.message || 'Already checked in');
+        onRefresh();
+      } else {
+        toast.error(result.message || 'Check-in failed');
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Check-in failed');
+    } finally {
+      setCheckingInId(null);
+    }
   };
 
   const handleSendQREmail = async (attendee: Attendee) => {
@@ -587,6 +612,35 @@ export function AdminDashboard({
                     </TableCell>
                     <TableCell className={`py-1 ${density === 'comfortable' ? 'sm:py-3' : ''}`}>
                       <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className={
+                            attendee.checkedIn
+                              ? 'text-muted-foreground'
+                              : 'bg-green-600 text-white hover:bg-green-700 hover:text-white'
+                          }
+                          onClick={() => handleManualCheckIn(attendee)}
+                          disabled={
+                            attendee.checkedIn || checkingInId === attendee.id
+                          }
+                          title={
+                            attendee.checkedIn
+                              ? 'Already checked in'
+                              : 'Check in without scanning QR'
+                          }
+                          aria-label={
+                            attendee.checkedIn
+                              ? `${formatNameLastFirst(attendee)} is already checked in`
+                              : `Check in ${formatNameLastFirst(attendee)}`
+                          }
+                        >
+                          {checkingInId === attendee.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <UserCheck className="h-4 w-4" />
+                          )}
+                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"

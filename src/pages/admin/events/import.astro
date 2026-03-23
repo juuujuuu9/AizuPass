@@ -32,14 +32,9 @@ const fromEmail = getEnv('FROM_EMAIL') || 'onboarding@resend.dev';
       userRole={Astro.locals.user?.role ?? ''}
     />
 
-    <div class="flex min-h-[calc(100vh-4rem)]">
+    <div class="flex min-h-[calc(100vh-4rem)] min-w-0 flex-col md:flex-row">
       {event && (
-        <AdminSidebar
-          variant="event"
-          eventId={event.id}
-          active="import"
-          showBackToOrganization={!!organization}
-        />
+        <AdminSidebar variant="event" eventId={event.id} active="import" />
       )}
 
       <main class="flex-1 px-4 py-8">

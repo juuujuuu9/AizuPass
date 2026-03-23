@@ -25,7 +25,7 @@ const events = organization ? await getEventsForOrganization(organization.id) : 
       userRole={Astro.locals.user?.role ?? ''}
       organization={organization ? { label: organization.name, href: '/admin/organization' } : undefined}
     />
-    <div class="flex min-h-[calc(100vh-4rem)]">
+    <div class="flex min-h-[calc(100vh-4rem)] min-w-0 flex-col md:flex-row">
       {organization && <AdminSidebar variant="organization" active="overview" />}
 
       <main class="flex-1 px-4 py-10 space-y-6">
