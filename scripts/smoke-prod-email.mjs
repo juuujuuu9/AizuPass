@@ -45,7 +45,7 @@ const { data, error } = await resend.emails.send({
   subject: '[AizuPass smoke] Production sender + attachment test',
   html: `
     <!DOCTYPE html>
-    <html><body style="font-family: system-ui, sans-serif; max-width: 560px; margin: 24px;">
+    <html><body style="font-family: system-ui, sans-serif; max-width: 700px; margin: 24px auto;">
       <p>This is a <strong>smoke test</strong> from <code>scripts/smoke-prod-email.mjs</code>.</p>
       <p>If the sender shows as <strong>${fromName}</strong> &lt;${fromEmail}&gt; and the PNG attaches, Resend + domain are wired correctly.</p>
       <p style="color:#6b7280;font-size:14px;">Replace this flow with Admin → bulk QR send when validating the full app on Vercel.</p>

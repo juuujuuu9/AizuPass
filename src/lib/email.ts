@@ -11,6 +11,9 @@ function getResend() {
 
 const QR_CID = 'qrcode';
 
+/** Outer content width for all transactional HTML emails (body). */
+const EMAIL_BODY_MAX_WIDTH = '700px';
+
 function getConfiguredEmailSender() {
   const apiKey = getEnv('RESEND_API_KEY');
   const fromEmail = getEnv('FROM_EMAIL') || 'onboarding@resend.dev';
@@ -72,7 +75,7 @@ export async function sendOrganizerWelcomeEmail(data: {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #374151; max-width: 600px; margin: 0 auto; padding: 20px; }
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #374151; max-width: ${EMAIL_BODY_MAX_WIDTH}; margin: 0 auto; padding: 20px; }
           .header { background: #374151; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
           .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
           .card { background: #fff; border-radius: 8px; border: 1px solid #e5e7eb; padding: 16px; margin-top: 16px; }
@@ -159,7 +162,7 @@ export async function sendQRCodeEmail(
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #374151; max-width: 600px; margin: 0 auto; padding: 20px; }
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #374151; max-width: ${EMAIL_BODY_MAX_WIDTH}; margin: 0 auto; padding: 20px; }
           .header { background: #374151; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
           .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
           .qr-container { text-align: center; margin: 20px 0; }
@@ -248,7 +251,7 @@ export async function sendOrganizationInviteEmail(data: {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #374151; max-width: 600px; margin: 0 auto; padding: 20px; }
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #374151; max-width: ${EMAIL_BODY_MAX_WIDTH}; margin: 0 auto; padding: 20px; }
           .header { background: #374151; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
           .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
           .card { background: #fff; border-radius: 8px; border: 1px solid #e5e7eb; padding: 16px; margin-top: 16px; }
