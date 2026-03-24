@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-23 — Clerk welcome webhook URL is **`/api/clerk/welcome`** (not `/api/webhooks/clerk`); microsite ingest is **`/api/ingest/entry`** — Vercel returns 404 for `/api/webhooks/*` on this stack. Point Clerk + integrators at the new paths after deploy.
+**Last updated:** 2026-03-23 — §11.A P1: offline queue dedupe (atomic IndexedDB `addToQueue`), serialized `syncQueue`, sync-on-load when online, auth-aware sync + session banner (`GET /api/me/profile`, visibility probe), door fallback copy (torch + name search). §13 go-live sender: `npm run smoke:email`. Event-day stress: [EVENT-DAY-STRESS-HARDENING.md](EVENT-DAY-STRESS-HARDENING.md). Clerk welcome **`/api/clerk/welcome`**; ingest **`/api/ingest/entry`**.
 
 ---
 
@@ -22,7 +22,7 @@
 | RSVP in DB | Done | `scripts/setup-tables.mjs`, `src/lib/db.ts` |
 | Unique identifier | **Done** | UUID + short-lived token; see STEP-1. |
 | QR gen + email | Done | `src/lib/email.ts`, RSVPForm |
-| Production sender domain (`FROM_EMAIL`) | Partial | Resend: `aizupass.com` verified, Pro. App/deploy: set `FROM_EMAIL` (e.g. `noreply@aizupass.com`) in production env, confirm bulk-email preview, run smoke send. |
+| Production sender domain (`FROM_EMAIL`) | **Done** | Resend: `aizupass.com` verified, Pro. Production `FROM_EMAIL`/`FROM_NAME` set on deploy; bulk-email modal reads server `FROM_EMAIL` (`import.astro`). Smoke: `npm run smoke:email` (2026-03-23). |
 | QR download (single + bulk ZIP) | Missing | CSV export exists; no QR PNG download/ZIP flow yet. |
 | Print-ready QR badges (name below code) | Missing | No print stylesheet or badge layout currently. |
 | QR minimum size thresholds | Partial | QR width is set in config, but no explicit print-size enforcement/tests. |
@@ -33,7 +33,7 @@
 | PII in QR | **Done** | QR is `id:qr_token` only; no email in payload. |
 | Staff login (Clerk) | **Done** | Clerk authentication + app-managed org membership authorization (`organizations`, `organization_memberships`, `organization_invitations`). |
 | Scanner role vs admin ACL | **Done** | Access is org/event scoped: organizer manages org/event; staff scans and works inside assigned org events only. |
-| Session timeout + fast re-entry | Partial | Clerk session is in place; scanner-focused re-entry UX is minimal. |
+| Session timeout + fast re-entry | Partial | Clerk session; scanner: 401/403 handling, `/api/me/profile` ping on focus, sign-in / onboarding links (`CheckInScanner`). |
 | Manual override (search by name) | **Done** | CheckInScanner "Check in by name" search; GET /api/attendees?q=; POST /api/checkin { attendeeId }. |
 | Manual check-in race safety | **Done** | Manual attendee path now uses conditional atomic update and returns 409 on duplicate check-in. |
 | Traffic light UI (Green/Yellow/Red) | Done | Green/amber/red; 409 = yellow (already checked in). CheckInScanner + api/checkin. |
@@ -54,6 +54,7 @@
 | SaaS product naming | **Done** | **AizuPass** — browser titles via `Layout.astro` / `ScannerLayout.astro`, auth page headings, README, product strategy; npm package name `aizupass`. |
 | Offline capability | **Done** | IndexedDB `aizupass-offline` (was `qr-check-in-offline`); one-time copy + merge + legacy delete on first open (`localStorage` marker `aizupass-offline-migrated`). Cache, offline queue, sync on reconnect; 409 = success. `src/lib/offline.ts`, `api/attendees/offline-cache`. |
 | Offline sync resilience (backoff/idempotency/queue visibility) | **Done** | Added queue dedupe, retry-with-backoff sync, and scanner-visible queue count. |
+| Event-day scale / cache warm-up / load verification | Reference | Stress lens + prioritized hardening (verify-first): [EVENT-DAY-STRESS-HARDENING.md](EVENT-DAY-STRESS-HARDENING.md). |
 | Multi-event / central hub | **Done** | Events table, event-scoped attendees; guestlist ingestion: **CSV primary** for most users; `POST /api/ingest/entry` for automation; Zapier/Make first-class TBD — see [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md). |
 | Event-scoped scanner/manual override hardening | Partial | Event scoping exists broadly; scanner entry path/manual UX still needs stricter guardrails. |
 | Persistent event selection | **Done** | staff_preferences table; last_selected_event_id survives logout/login, works across devices. |
@@ -139,16 +140,16 @@ Follow this order; check off and date as you complete each item.
   - Explicit print vs screen QR profiles in config.
   - Minimum physical size threshold with documented pass/fail test matrix.
 - [ ] **Door-operations resilience**
-  - Low-light/damaged-code fallback UX improvements.
+  - Low-light/damaged-code fallback UX improvements. **Partial (2026-03-23):** while scanning, explicit fallback to torch + check-in by name (`CheckInScanner.tsx`).
   - Sub-second perceived feedback target with measurable latency budget.
   - Clear re-scan copy and differentiated already-checked-in cues. **Done (2026-03-18):** explicit ID-check guidance + distinct warning-state feedback in scanner (`src/components/CheckInScanner.tsx`, `src/lib/feedback.ts`).
 - [ ] **Offline + multi-station correctness**
   - Sync retry/backoff and queue visibility for operators. **Done (2026-03-18):** retry-with-backoff + live queued count (`src/lib/offline.ts`, `src/components/CheckInScanner.tsx`).
   - Manual check-in path made atomic/idempotent (409 on duplicate). **Done (2026-03-18):** conditional DB update + 409 replay behavior (`src/lib/db.ts`, `src/pages/api/checkin.ts`).
-  - Duplicate submission protection for offline replay.
+  - Duplicate submission protection for offline replay. **Done (2026-03-23):** single-transaction dedupe in `addToQueue`; `syncQueue` runs serialized; initial online mount drains queue; 401/403 stops sync without dropping rows (`src/lib/offline.ts`, `CheckInScanner.tsx`).
 - [ ] **Roles + session ergonomics**
   - Enforce scanner vs admin route/API boundaries in middleware. **Done (2026-03-18):** middleware/API boundaries enforced, now org/membership scoped.
-  - Tighten scanner-device re-auth/session-expiry flow.
+  - Tighten scanner-device re-auth/session-expiry flow. **Partial (2026-03-23):** `GET /api/me/profile` session probe, tab visibility refresh, inline banner + toasts on 401/403 for scan, manual check-in, cache fetch, and queue sync (`src/pages/api/me/profile.ts`, `CheckInScanner.tsx`).
 - [ ] **Post-event reporting**
   - Dedicated no-shows report/filter + export.
   - Enhanced live counter (`checked-in / total`) with tighter update cadence.
@@ -197,9 +198,12 @@ Follow this order; check off and date as you complete each item.
 
 - [x] Verify Resend sending domain for production website domain.  
   **Done (2026-03-23):** `aizupass.com` in Resend; Pro plan.
-- [ ] Set `FROM_EMAIL` to `noreply@aizupass.com` (or another address on the verified domain) in production environment.
-- [ ] Confirm sender preview in admin bulk email modal shows `... <noreply@aizupass.com>` (or your chosen `FROM_EMAIL`).
-- [ ] Run one end-to-end bulk-email smoke test in production-like env after domain verification.
+- [x] Set `FROM_EMAIL` to `noreply@aizupass.com` (or another address on the verified domain) in production environment.  
+  **Done (2026-03-23):** production env updated to verified-domain sender.
+- [x] Confirm sender preview in admin bulk email modal shows `... <noreply@aizupass.com>` (or your chosen `FROM_EMAIL`).  
+  **Done (2026-03-23):** bulk-email dialog on `/admin/events/import` embeds server `FROM_EMAIL` in the sender preview; display name is org name or custom via `import-page.ts` (aligns with `send-bulk-qr` overrides).
+- [x] Run one end-to-end bulk-email smoke test in production-like env after domain verification.  
+  **Done (2026-03-23):** `npm run smoke:email -- <recipient>` — Resend send with `AizuPass <noreply@aizupass.com>` + PNG attachment (`scripts/smoke-prod-email.mjs`). Optional follow-up: send one QR email from live Admin to fully exercise `/api/send-email` or bulk path on Vercel.
 
 ### UI/UX polish (done)
 

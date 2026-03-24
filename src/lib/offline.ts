@@ -264,21 +264,41 @@ export async function getPendingQueueCount(): Promise<number> {
   return queue.length;
 }
 
+/**
+ * Add a queued check-in, or return the existing queue row id if the same logical check-in
+ * is already pending (same attendee/QR + event). Uses one IndexedDB transaction so concurrent
+ * callers cannot insert duplicates between read and write.
+ */
 export async function addToQueue(item: Omit<QueuedCheckIn, 'id' | 'queuedAt'>): Promise<string> {
-  const existing = await getPendingQueue();
   const signature = queueSignature(item);
-  const duplicate = existing.find((queued) => queueSignature(queued) === signature);
-  if (duplicate) return duplicate.id;
-
-  const id = crypto.randomUUID();
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_QUEUE, 'readwrite');
-    const record: QueuedCheckIn = { ...item, id, queuedAt: new Date().toISOString() };
-    tx.objectStore(STORE_QUEUE).add(record);
-    tx.oncomplete = () => {
-      db.close();
-      resolve(id);
+    const store = tx.objectStore(STORE_QUEUE);
+    const listReq = store.getAll();
+    listReq.onerror = () => reject(listReq.error);
+    listReq.onsuccess = () => {
+      const existing = (listReq.result ?? []) as QueuedCheckIn[];
+      const duplicate = existing.find((queued) => queueSignature(queued) === signature);
+      if (duplicate) {
+        tx.oncomplete = () => {
+          db.close();
+          resolve(duplicate.id);
+        };
+        return;
+      }
+      const id = crypto.randomUUID();
+      const record: QueuedCheckIn = {
+        ...item,
+        id,
+        queuedAt: new Date().toISOString(),
+      };
+      const addReq = store.add(record);
+      addReq.onerror = () => reject(addReq.error);
+      tx.oncomplete = () => {
+        db.close();
+        resolve(id);
+      };
     };
     tx.onerror = () => reject(tx.error);
   });
@@ -433,6 +453,25 @@ export function isOnline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine;
 }
 
+export type SyncQueueResult = {
+  synced: number;
+  failed: number;
+  /** At least one item hit 401/403 — session or policy; queue rows kept for retry after sign-in */
+  authRejected?: boolean;
+};
+
+/** Serialize sync so overlapping runs (e.g. `online` + rapid focus) cannot POST the same row twice. */
+let syncChain: Promise<void> = Promise.resolve();
+
+function enqueueSync<T>(fn: () => Promise<T>): Promise<T> {
+  const run = syncChain.then(fn);
+  syncChain = run.then(
+    () => {},
+    () => {}
+  );
+  return run;
+}
+
 /** Sync queued check-ins to server. Treat 409 as success. */
 export async function syncQueue(
   post: (body: {
@@ -440,10 +479,21 @@ export async function syncQueue(
     attendeeId?: string;
     scannerEventId: string;
   }) => Promise<Response>
-): Promise<{ synced: number; failed: number }> {
+): Promise<SyncQueueResult> {
+  return enqueueSync(() => syncQueueUnlocked(post));
+}
+
+async function syncQueueUnlocked(
+  post: (body: {
+    qrData?: string;
+    attendeeId?: string;
+    scannerEventId: string;
+  }) => Promise<Response>
+): Promise<SyncQueueResult> {
   const queue = await getPendingQueue();
   let synced = 0;
   let failed = 0;
+  let authRejected = false;
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const backoffMs = [250, 800, 2000] as const;
@@ -467,6 +517,10 @@ export async function syncQueue(
           success = true;
           break;
         }
+        if (res.status === 401 || res.status === 403) {
+          authRejected = true;
+          break;
+        }
         if (res.status >= 500 && i < backoffMs.length - 1) {
           await sleep(backoffMs[i]);
           continue;
@@ -478,5 +532,5 @@ export async function syncQueue(
       failed++;
     }
   }
-  return { synced, failed };
+  return { synced, failed, authRejected: authRejected || undefined };
 }

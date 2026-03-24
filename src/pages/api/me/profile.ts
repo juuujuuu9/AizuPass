@@ -3,6 +3,12 @@ import { requireUserId } from '../../../lib/access';
 import { updateUserProfile } from '../../../lib/db';
 import { json, errorResponse } from '../../../lib/api-response';
 
+export const GET: APIRoute = async (context) => {
+  const userId = requireUserId(context);
+  if (userId instanceof Response) return userId;
+  return json({ ok: true });
+};
+
 export const POST: APIRoute = async (context) => {
   const userId = requireUserId(context);
   if (userId instanceof Response) return userId;

@@ -107,7 +107,9 @@ class ApiService {
         message: data.message || data.error || 'Already checked in',
       };
     }
-    throw new Error(data.error || `HTTP ${res.status}`);
+    const err = new Error(data.error || `HTTP ${res.status}`) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
   }
 
   async checkInAttendeeById(
@@ -205,6 +207,12 @@ class ApiService {
       : '/api/attendees/offline-cache';
     const res = await this.fetchWithError(url);
     return (res as { ok: true; data: OfflineCacheData }).data;
+  }
+
+  /** Lightweight session check for staff (401/403 when signed out or not allowed). */
+  async pingSession(): Promise<{ ok: boolean; status: number }> {
+    const res = await fetch('/api/me/profile');
+    return { ok: res.ok, status: res.status };
   }
 
   async getEmailStatus(): Promise<{ configured: boolean; link: string }> {

@@ -19,7 +19,8 @@
     "wipe-events": "node scripts/wipe-events.mjs",
     "test:edge-cases": "node scripts/test-edge-cases.mjs",
     "test:edge-cases:ci": "node scripts/ci-test-edge-cases.mjs",
-    "test:generate-csvs": "node scripts/generate-test-csvs.mjs"
+    "test:generate-csvs": "node scripts/generate-test-csvs.mjs",
+    "smoke:email": "node scripts/smoke-prod-email.mjs"
   },
   "dependencies": {
     "@astrojs/react": "^4.4.2",

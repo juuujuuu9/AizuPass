@@ -36,6 +36,14 @@ function isNetworkError(err: unknown): boolean {
   return false;
 }
 
+function httpStatus(err: unknown): number | undefined {
+  if (typeof err === 'object' && err !== null && 'status' in err) {
+    const s = (err as { status: unknown }).status;
+    return typeof s === 'number' ? s : undefined;
+  }
+  return undefined;
+}
+
 /** Map OfflineCheckInResult to CheckInResult for UI consistency */
 function toCheckInResult(
   r:
@@ -90,6 +98,8 @@ export function CheckInScanner({
   const [announcement, setAnnouncement] = useState('');
   const [offlineMode, setOfflineMode] = useState(false);
   const [pendingQueueCount, setPendingQueueCount] = useState(0);
+  /** 401 → sign in again; 403 → profile/onboarding (middleware) */
+  const [sessionBlock, setSessionBlock] = useState<null | 'signin' | 'profile'>(null);
   const processingRef = useRef(false);
   const scannerRef = useRef<HTMLDivElement>(null);
   const html5QrCodeRef = useRef<{ stop: () => Promise<void> } | null>(null);
@@ -102,6 +112,47 @@ export function CheckInScanner({
 
   const activeEventId = (pickedEventId ?? eventId)?.trim() || null;
   const activeEventName = pickedEventName ?? eventName ?? fetchedEventName ?? null;
+
+  const returnToParam =
+    typeof window !== 'undefined'
+      ? encodeURIComponent(`${window.location.pathname}${window.location.search}`)
+      : '';
+
+  const sessionBannerEl =
+    sessionBlock != null ? (
+      <div
+        className="rounded-lg border border-[var(--amber-6)] bg-[var(--amber-2)] px-3 py-2.5 text-sm"
+        role="alert"
+      >
+        {sessionBlock === 'signin' ? (
+          <>
+            <p className="font-medium text-foreground">Your session may have expired.</p>
+            <p className="text-muted-foreground mt-1">
+              Sign in again to check in and sync queued scans.{' '}
+              <a
+                href={`/login?returnTo=${returnToParam}`}
+                className="font-medium text-primary underline"
+              >
+                Sign in
+              </a>
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="font-medium text-foreground">Account setup required</p>
+            <p className="text-muted-foreground mt-1">
+              Complete your profile to use the scanner.{' '}
+              <a
+                href={`/onboarding/profile?returnTo=${returnToParam}`}
+                className="font-medium text-primary underline"
+              >
+                Continue setup
+              </a>
+            </p>
+          </>
+        )}
+      </div>
+    ) : null;
 
   const commitScannerEvent = useCallback((id: string, name: string) => {
     const url = new URL(window.location.href);
@@ -176,6 +227,29 @@ export function CheckInScanner({
     };
   }, []);
 
+  useEffect(() => {
+    const probeSession = async () => {
+      if (!isOnline()) return;
+      try {
+        const r = await apiService.pingSession();
+        if (r.ok) {
+          setSessionBlock(null);
+          return;
+        }
+        if (r.status === 401) setSessionBlock('signin');
+        else if (r.status === 403) setSessionBlock('profile');
+      } catch {
+        /* ignore */
+      }
+    };
+    probeSession();
+    const onVis = () => {
+      if (document.visibilityState === 'visible') probeSession();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
+
   // Cache guest list when online; sync queue when coming back online
   useEffect(() => {
     const refreshPendingCount = async () => {
@@ -190,28 +264,39 @@ export function CheckInScanner({
       try {
         const data = await apiService.getOfflineCache(activeEventId);
         await setCachedData(data);
-      } catch {
-        // Ignore—cache will be stale or empty
+      } catch (err) {
+        const st = httpStatus(err);
+        if (st === 401) setSessionBlock('signin');
+        else if (st === 403) setSessionBlock('profile');
       }
     };
     const doSync = async () => {
       if (!isOnline()) return;
-      const { synced, failed } = await syncQueue((body) =>
+      const { synced, failed, authRejected } = await syncQueue((body) =>
         fetch('/api/checkin', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         })
       );
+      if (authRejected) {
+        setSessionBlock('signin');
+        toast.error('Sign in again to sync queued check-ins.', {
+          duration: 8000,
+        });
+      }
       if (synced > 0) {
         toast.success(`Synced ${synced} check-in${synced > 1 ? 's' : ''}`);
         onCheckIn?.();
       }
-      if (failed > 0) toast.error(`${failed} check-in${failed > 1 ? 's' : ''} failed to sync`);
+      if (failed > 0 && !authRejected) {
+        toast.error(`${failed} check-in${failed > 1 ? 's' : ''} failed to sync`);
+      }
       await refreshPendingCount();
     };
     refreshPendingCount();
     refreshCache();
+    if (isOnline()) void doSync();
     const onOnline = () => {
       doSync().then(refreshCache);
     };
@@ -271,7 +356,22 @@ export function CheckInScanner({
                   result = toCheckInResult(offlineResult);
                   setPendingQueueCount(await getPendingQueueCount());
                 } else {
-                  throw err;
+                  const st = httpStatus(err);
+                  if (st === 401) {
+                    setSessionBlock('signin');
+                    result = {
+                      success: false,
+                      message: 'Sign-in expired. Sign in again, then scan.',
+                    };
+                  } else if (st === 403) {
+                    setSessionBlock('profile');
+                    result = {
+                      success: false,
+                      message: 'Finish account setup before checking in.',
+                    };
+                  } else {
+                    throw err;
+                  }
                 }
               }
               setScanResult(result);
@@ -451,7 +551,22 @@ export function CheckInScanner({
           result = toCheckInResult(offlineResult);
           setPendingQueueCount(await getPendingQueueCount());
         } else {
-          throw err;
+          const st = httpStatus(err);
+          if (st === 401) {
+            setSessionBlock('signin');
+            result = {
+              success: false,
+              message: 'Sign-in expired. Sign in again, then check in.',
+            };
+          } else if (st === 403) {
+            setSessionBlock('profile');
+            result = {
+              success: false,
+              message: 'Finish account setup before checking in.',
+            };
+          } else {
+            throw err;
+          }
         }
       }
       setScanResult(result);
@@ -559,6 +674,11 @@ export function CheckInScanner({
               <li>• Ask attendee to max their brightness</li>
               <li>• Avoid glare — tilt either phone if you see reflections</li>
             </ul>
+            <p className="text-xs text-muted-foreground mt-2 max-w-xs mx-auto">
+              QR still won&apos;t read? Use <strong className="text-foreground">torch</strong> above or{' '}
+              <strong className="text-foreground">check in by name</strong>
+              {!standalone && ' (below)'}.
+            </p>
           </div>
           {offlineMode && (
             <span className="text-xs px-2 py-1 rounded-md bg-amber-500/20 text-amber-11 border border-amber-6">
@@ -816,6 +936,7 @@ export function CheckInScanner({
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         {ariaLiveEl}
         <div className="w-full max-w-md space-y-4 px-4">
+          {sessionBannerEl}
           {standalonePickerEl}
           {eventContextBanner}
           {readerEl}
@@ -840,6 +961,7 @@ export function CheckInScanner({
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            {sessionBannerEl}
             {eventContextBanner}
             {readerEl}
             {buttons}
