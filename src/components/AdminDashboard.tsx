@@ -927,20 +927,18 @@ export function AdminDashboard({
                     </>
                   )}
                 </Button>
-                <div className="flex items-center justify-center gap-1">
+                <div className="flex w-full gap-1">
                   <Button
-                    size="icon"
                     variant="ghost"
-                    className="size-11 shrink-0"
+                    className="h-11 min-w-0 flex-1 basis-0 px-0"
                     onClick={() => openQrForAttendee(mobileDetailAttendee)}
                     aria-label={`Show QR code for ${formatNameLastFirst(mobileDetailAttendee)}`}
                   >
                     <QrCode className="h-5 w-5" />
                   </Button>
                   <Button
-                    size="icon"
                     variant="ghost"
-                    className="size-11 shrink-0"
+                    className="h-11 min-w-0 flex-1 basis-0 px-0"
                     onClick={() => handleSendQREmail(mobileDetailAttendee)}
                     disabled={sendingEmailId === mobileDetailAttendee.id}
                     aria-label={`Email QR code to ${mobileDetailAttendee.email}`}
@@ -952,9 +950,8 @@ export function AdminDashboard({
                     )}
                   </Button>
                   <Button
-                    size="icon"
                     variant="ghost"
-                    className="size-11 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    className="h-11 min-w-0 flex-1 basis-0 px-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={async () => {
                       const ok = await handleDelete(mobileDetailAttendee.id);
                       if (ok) setMobileDetailId(null);
