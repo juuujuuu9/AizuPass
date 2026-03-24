@@ -9,6 +9,7 @@ const safeReturnTo =
     : '/admin';
 
 const signInUrl = `/login${returnToRaw ? `?returnTo=${encodeURIComponent(safeReturnTo)}` : ''}`;
+const afterSignUpUrl = `/onboarding/verify-email?returnTo=${encodeURIComponent(safeReturnTo)}`;
 
 const { userId } = Astro.locals.auth();
 if (userId) {
@@ -24,7 +25,8 @@ if (userId) {
 
       <SignUp
         routing="hash"
-        fallbackRedirectUrl={safeReturnTo}
+        forceRedirectUrl={afterSignUpUrl}
+        fallbackRedirectUrl={afterSignUpUrl}
         signInUrl={signInUrl}
         appearance={{
           elements: {

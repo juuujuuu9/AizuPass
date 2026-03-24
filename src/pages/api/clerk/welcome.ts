@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { Webhook } from 'svix';
 import { ensureUserRow, wasOrganizerWelcomeEmailSent, recordOrganizerWelcomeEmailSent } from '../../../lib/db';
 import { sendOrganizerWelcomeEmail } from '../../../lib/email';
-import { getAppBaseUrl, getEnv } from '../../../lib/env';
+import { getAppBaseUrlFromRequest, getEnv } from '../../../lib/env';
 import { json, errorResponse } from '../../../lib/api-response';
 
 /** Server-only; avoids any static routing edge cases on hosts that shadow `/api/webhooks/*`. */
@@ -20,22 +20,6 @@ function pickPrimaryEmail(data: Record<string, unknown>): string | null {
   }
   const first = addresses[0]?.email_address?.trim();
   return first ? first.toLowerCase() : null;
-}
-
-/** Prefer env, but use incoming request host so welcome links work if APP_URL / VERCEL_URL are unset. */
-function baseUrlForWebhookEmail(request: Request): string {
-  let fromRequest: string | undefined;
-  try {
-    const url = new URL(request.url);
-    const host = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || url.host;
-    const proto =
-      request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() ||
-      (url.protocol === 'https:' ? 'https' : 'http');
-    if (host) fromRequest = `${proto}://${host}`;
-  } catch {
-    /* ignore */
-  }
-  return getAppBaseUrl(fromRequest).replace(/\/$/, '');
 }
 
 export const GET: APIRoute = () => {
@@ -109,7 +93,7 @@ export const POST: APIRoute = async ({ request }) => {
       return json({ ok: true, skipped: 'already_sent' });
     }
 
-    const base = baseUrlForWebhookEmail(request);
+    const base = getAppBaseUrlFromRequest(request);
     if (!base) {
       console.error(
         '[clerk-welcome] Empty base URL for welcome email; set APP_URL or deploy with a valid Host header'

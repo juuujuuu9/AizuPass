@@ -31,3 +31,22 @@ export function getAppBaseUrl(requestOrigin?: string): string {
     ''
   );
 }
+
+/**
+ * Base URL for links in outbound email: env first, then Host / forwarded headers from the request.
+ * Trailing slash stripped.
+ */
+export function getAppBaseUrlFromRequest(request: Request): string {
+  let fromRequest: string | undefined;
+  try {
+    const url = new URL(request.url);
+    const host = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || url.host;
+    const proto =
+      request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() ||
+      (url.protocol === 'https:' ? 'https' : 'http');
+    if (host) fromRequest = `${proto}://${host}`;
+  } catch {
+    /* ignore */
+  }
+  return getAppBaseUrl(fromRequest).replace(/\/$/, '');
+}

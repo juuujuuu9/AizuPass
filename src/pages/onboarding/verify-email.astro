@@ -1,0 +1,86 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import {
+  isPrimaryEmailVerifiedByClerk,
+  type ClerkCallContext,
+} from '../../lib/clerk-primary-email-verified';
+import { EMAIL_ONBOARDING_PENDING_COOKIE } from '../../lib/onboarding-email-cookie';
+
+const returnToRaw = Astro.url.searchParams.get('returnTo');
+const safeReturnTo =
+  returnToRaw && returnToRaw.startsWith('/') && !returnToRaw.startsWith('//')
+    ? returnToRaw
+    : '/admin';
+
+if (!Astro.locals.auth().userId) {
+  Astro.cookies.set(EMAIL_ONBOARDING_PENDING_COOKIE, '1', {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: import.meta.env.PROD,
+    maxAge: 60 * 60 * 24 * 7,
+  } as never);
+}
+
+const { userId } = Astro.locals.auth();
+const profileComplete = Astro.locals.profileComplete ?? true;
+const userEmail = Astro.locals.user?.email ?? '';
+const pendingCookie = Boolean(Astro.cookies.get(EMAIL_ONBOARDING_PENDING_COOKIE)?.value);
+
+if (userId) {
+  const emailVerified = await isPrimaryEmailVerifiedByClerk(Astro as unknown as ClerkCallContext, userId);
+
+  if (profileComplete) {
+    Astro.cookies.delete(EMAIL_ONBOARDING_PENDING_COOKIE, { path: '/' } as never);
+    let dest = safeReturnTo;
+    if (dest.split('?')[0] === '/') {
+      dest = '/admin';
+    }
+    return Astro.redirect(dest);
+  }
+
+  if (!pendingCookie && emailVerified) {
+    return Astro.redirect(`/onboarding/profile?returnTo=${encodeURIComponent(safeReturnTo)}`);
+  }
+}
+
+const loginHref = `/login?returnTo=${encodeURIComponent(safeReturnTo)}`;
+const signUpHref = `/signup?returnTo=${encodeURIComponent(safeReturnTo)}`;
+const continueHref = `/onboarding/continue-onboarding?returnTo=${encodeURIComponent(safeReturnTo)}`;
+const signedInAwaitingVerification = Boolean(userId);
+const showContinueAfterEmail = Boolean(userId && pendingCookie);
+---
+
+<Layout title="Check your email">
+  <div class="min-h-screen flex items-center justify-center bg-background px-8">
+    <div class="max-w-md w-full bg-card p-8 rounded-lg shadow-md border border-border">
+      <h1 class="text-2xl font-bold mb-2 text-center text-foreground">Check your email</h1>
+      {signedInAwaitingVerification && userEmail && (
+        <p class="text-sm text-center text-foreground mb-4">
+          Signed in as <span class="font-medium">{userEmail}</span>
+          {pendingCookie ? '.' : ". Your email isn't verified yet."}
+        </p>
+      )}
+      <p class="text-muted-foreground text-center mb-6">
+        We sent a link to your inbox. Open it on this device to verify your address, then continue below.
+      </p>
+      {showContinueAfterEmail && (
+        <a
+          href={continueHref}
+          class="mb-6 inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          I verified my email — continue
+        </a>
+      )}
+      <p class="text-sm text-muted-foreground text-center mb-6">
+        If something looks stuck, try{' '}
+        <a href={loginHref} class="text-primary hover:text-primary/80 font-medium">sign in</a>
+        .
+      </p>
+      <p class="text-center text-sm text-muted-foreground">
+        Wrong email or need to start over?{' '}
+        <a href={signUpHref} class="text-primary hover:text-primary/80 font-medium">Sign up again</a>
+      </p>
+    </div>
+  </div>
+</Layout>

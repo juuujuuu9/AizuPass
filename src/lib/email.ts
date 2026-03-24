@@ -86,6 +86,7 @@ export async function sendOrganizerWelcomeEmail(data: {
         <div class="header"><h1>Welcome to AizuPass</h1></div>
         <div class="content">
           <p>Hi ${greetingName},</p>
+          <p>Thanks for signing up — we're glad you're here.</p>
           <p>Your account is ready. To get started, <strong>create your organization</strong> — then you can add events, import guests, and run check-in.</p>
           <div class="card">
             <a class="cta" href="${safeUrl}">Continue onboarding</a>

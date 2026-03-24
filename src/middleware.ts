@@ -1,11 +1,15 @@
 import { clerkMiddleware, createRouteMatcher, clerkClient } from '@clerk/astro/server';
+import { isPrimaryEmailVerifiedByClerk } from './lib/clerk-primary-email-verified';
+import { hasEmailOnboardingPendingCookie } from './lib/onboarding-email-cookie';
 import { ensureUserRow, getUserAccessSummary, getUserById } from './lib/db';
+import { scheduleWelcomeEmailIfPending } from './lib/welcome-email-followup';
 
 // Routes that never require authentication.
 // Everything else requires sign-in; org/event scope is enforced per page/API.
 const isPublicRoute = createRouteMatcher([
   '/login',
   '/signup',
+  '/onboarding/verify-email',
   '/invite/accept',
   '/api/clerk/welcome',
   '/api/ingest/entry',
@@ -90,6 +94,20 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
       profileFirstName = fn || null;
       profileLastName = ln || null;
       profileComplete = Boolean(fn && ln);
+
+      if (
+        u &&
+        !u.organizerWelcomeSentAt &&
+        emailForProfile &&
+        String(emailForProfile).trim()
+      ) {
+        scheduleWelcomeEmailIfPending(
+          uidForProfile,
+          String(emailForProfile).trim(),
+          profileFirstName,
+          request
+        );
+      }
     } catch (err) {
       // e.g. `users` table missing — fail open until migration is applied
       console.error('[middleware] user profile sync', err);
@@ -109,6 +127,12 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
   if (isPublicRoute(context.request)) {
     if (uidForProfile && !testBypass && !profileComplete && pathname.startsWith('/invite/accept')) {
       const returnTo = encodeURIComponent(pathname + url.search);
+      const emailOk = await isPrimaryEmailVerifiedByClerk(context, uidForProfile);
+      const pendingCookie = hasEmailOnboardingPendingCookie(request);
+      const needVerifyEmailStep = !emailOk || pendingCookie;
+      if (needVerifyEmailStep) {
+        return redirect(`/onboarding/verify-email?returnTo=${returnTo}`);
+      }
       return redirect(`/onboarding/profile?returnTo=${returnTo}`);
     }
     return next();
@@ -128,17 +152,24 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
   }
 
   if (!testBypass && userId && !profileComplete) {
+    const emailOk = await isPrimaryEmailVerifiedByClerk(context, userId);
+    const pendingCookie = hasEmailOnboardingPendingCookie(request);
+    const needVerifyEmailStep = !emailOk || pendingCookie;
     const allowedIncomplete =
-      pathname === '/onboarding/profile' || pathname.startsWith('/api/me/profile');
+      pathname === '/onboarding/continue-onboarding' ||
+      ((pathname === '/onboarding/profile' || pathname.startsWith('/api/me/profile')) && !needVerifyEmailStep);
     if (!allowedIncomplete) {
       if (pathname.startsWith('/api/')) {
-        return new Response(
-          JSON.stringify({ error: 'Complete your profile first', code: 'profile_incomplete' }),
-          { status: 403, headers: { 'Content-Type': 'application/json' } }
-        );
+        const body = needVerifyEmailStep
+          ? { error: 'Check your email to continue', code: 'email_onboarding_pending' }
+          : { error: 'Complete your profile first', code: 'profile_incomplete' };
+        return new Response(JSON.stringify(body), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        });
       }
       const returnTo = encodeURIComponent(pathname + url.search);
-      return redirect(`/onboarding/profile?returnTo=${returnTo}`);
+      return redirect(`/onboarding/verify-email?returnTo=${returnTo}`);
     }
   }
 

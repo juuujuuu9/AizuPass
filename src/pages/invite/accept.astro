@@ -50,6 +50,7 @@ if (!token) {
 
 const acceptUrl = `/invite/accept?token=${encodeURIComponent(token)}`;
 const signInUrl = `/login?returnTo=${encodeURIComponent(acceptUrl)}`;
+const afterSignUpUrl = `/onboarding/verify-email?returnTo=${encodeURIComponent(acceptUrl)}`;
 ---
 
 <Layout title="Accept Invitation">
@@ -139,7 +140,8 @@ const signInUrl = `/login?returnTo=${encodeURIComponent(acceptUrl)}`;
 
           <SignUp
             routing="hash"
-            fallbackRedirectUrl={acceptUrl}
+            forceRedirectUrl={afterSignUpUrl}
+            fallbackRedirectUrl={afterSignUpUrl}
             signInUrl={signInUrl}
             initialValues={{ emailAddress: state.inviteEmail }}
             appearance={{

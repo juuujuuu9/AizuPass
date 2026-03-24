@@ -15,10 +15,15 @@ let safeReturnTo =
   returnToRaw && returnToRaw.startsWith('/') && !returnToRaw.startsWith('//')
     ? returnToRaw
     : '/admin';
-// `/` is the check-in scanner; after first account + name, staff should land in admin.
+// `/` is the check-in scanner; after first account + name, continue org onboarding (not admin yet).
 if (safeReturnTo.split('?')[0] === '/') {
   safeReturnTo = '/admin';
 }
+
+const afterProfileHref =
+  safeReturnTo === '/admin'
+    ? '/onboarding/organization'
+    : `/onboarding/organization?returnTo=${encodeURIComponent(safeReturnTo)}`;
 
 if (await isUserProfileComplete(userId)) {
   return Astro.redirect(safeReturnTo);
@@ -84,7 +89,7 @@ if (await isUserProfileComplete(userId)) {
     </main>
   </div>
 
-  <script define:vars={{ safeReturnTo }}>
+  <script define:vars={{ afterProfileHref }}>
     const form = document.getElementById('profile-form');
     const errorEl = document.getElementById('error');
     form?.addEventListener('submit', async (event) => {
@@ -111,7 +116,7 @@ if (await isUserProfileComplete(userId)) {
           }
           return;
         }
-        window.location.href = safeReturnTo;
+        window.location.href = afterProfileHref;
       } catch {
         if (errorEl) {
           errorEl.textContent = 'Failed to save profile';
