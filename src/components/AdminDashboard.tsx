@@ -300,6 +300,7 @@ export function AdminDashboard({
         toast.success(
           result.message || `${formatNameLastFirst(attendee)} checked in`
         );
+        if (mobileDetailId === attendee.id) setMobileDetailId(null);
         onRefresh();
       } else if (result.alreadyCheckedIn) {
         toast.info(result.message || 'Already checked in');
