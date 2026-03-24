@@ -52,7 +52,7 @@ Use these as headline/sub-head raw material; refine with ICP (conference, gym, c
 | "Is this the right person?" / duplicate entry | Traffic-light UI; **409** = already checked in; distinct audio/haptic; manual search by name/email |
 | Wi‑Fi dead zones | IndexedDB cache, offline check-in queue, dedupe, retry/backoff, queue count visible to staff |
 | Guestlist in Excel/Sheets | CSV import with delimiter detect, UTF-8 guidance, merge/replace modes, row warnings + skipped-row export |
-| Another system collects signups | `POST /api/webhooks/entry` with shared secret, idempotency key, optional QR email refresh |
+| Another system collects signups | `POST /api/ingest/entry` with shared secret, idempotency key, optional QR email refresh |
 | Staff need simple tools | Dedicated `/scanner` vs `/admin`; Clerk auth; org memberships + invitations |
 
 ---

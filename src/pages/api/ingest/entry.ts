@@ -13,6 +13,8 @@ import { updateAttendeeQRToken } from '../../../lib/db';
 import { getEnv } from '../../../lib/env';
 import { json, errorResponse } from '../../../lib/api-response';
 
+export const prerender = false;
+
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24h default for webhook-created QRs
 
 function getWebhookKey(): string {
@@ -34,7 +36,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const ip = getClientIp(request);
-  const rate = checkRateLimit(`webhook:${ip}`, { maxAttempts: 60 });
+  const rate = checkRateLimit(`ingest:${ip}`, { maxAttempts: 60 });
   if (!rate.allowed) {
     return json(
       { error: 'Too many requests. Please try again later.' },
@@ -139,7 +141,7 @@ export const POST: APIRoute = async ({ request }) => {
       qrUrl: qrPayload && baseUrl ? `${baseUrl.replace(/\/$/, '')}/qr/${encodeURIComponent(qrPayload)}` : null,
     });
   } catch (err) {
-    console.error('POST /api/webhooks/entry', err);
+    console.error('POST /api/ingest/entry', err);
     return errorResponse('Failed to process webhook', 500);
   }
 };

@@ -170,7 +170,7 @@ async function runTests() {
 
   // 10. Webhook: Missing auth
   await test('Webhook: Missing authorization', async () => {
-    const { status, data } = await post('/api/webhooks/entry', { eventSlug: 'test' });
+    const { status, data } = await post('/api/ingest/entry', { eventSlug: 'test' });
     if (status !== 401) {
       throw new Error(`Expected 401, got ${status}: ${JSON.stringify(data)}`);
     }
@@ -179,7 +179,7 @@ async function runTests() {
   // 11. Webhook: Wrong auth
   await test('Webhook: Wrong authorization', async () => {
     const { status, data } = await post(
-      '/api/webhooks/entry',
+      '/api/ingest/entry',
       { eventSlug: 'test' },
       { Authorization: 'Bearer wrong-key' }
     );

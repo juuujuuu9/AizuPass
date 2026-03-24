@@ -19,7 +19,7 @@ Landing Page (Microsite)  ----webhook---->  Central Hub (this project)  <----  S
 
 - **Events** are first-class; each attendee belongs to one event.
 - **QR payload (v2):** `eventId:entryId:token` — no PII; event-scoped check-in.
-- **Webhook:** Microsites POST to `POST /api/webhooks/entry` with `eventSlug`, `micrositeEntryId`, `name`, `email`, etc.; hub creates attendee and optionally generates QR and sends email.
+- **Webhook:** Microsites POST to `POST /api/ingest/entry` with `eventSlug`, `micrositeEntryId`, `name`, `email`, etc.; hub creates attendee and optionally generates QR and sends email.
 - **Default event:** In-app RSVP and legacy (v1) QRs use the event identified by `DEFAULT_EVENT_SLUG` (e.g. `default`). No `DEFAULT_EVENT_ID` to avoid circular config.
 
 ---
@@ -35,7 +35,7 @@ Landing Page (Microsite)  ----webhook---->  Central Hub (this project)  <----  S
 
 ## Webhook
 
-- **Route:** `POST /api/webhooks/entry`. Not protected by session; handler validates `Authorization: Bearer <key>`.
+- **Route:** `POST /api/ingest/entry`. Not protected by session; handler validates `Authorization: Bearer <key>`.
 - **Option A (Phase 1):** Single key. Env: `MICROSITE_WEBHOOK_KEY`. Body includes `eventSlug`; hub looks up event by slug.
 - **Option B (Phase 2):** Per-event keys. Either env `MICROSITE_KEYS` (slug → key) or `events.settings.webhook_secret`. Handler tries global key first, then event’s `settings.webhook_secret`; event is determined by key (ignore or verify `eventSlug` in body). Prevents one microsite from writing to another’s event.
 
@@ -61,7 +61,7 @@ The **primary** way to get attendee data from external sites (microsites, landin
 
 **Table:** No change required. Existing `attendees` columns already support CSV-imported rows. Use `microsite_entry_id` only when you have a stable external id (e.g. from a webhook); for CSV, leave it null.
 
-**Optional webhook:** Real-time push is still available via `POST /api/webhooks/entry` and `MICROSITE_WEBHOOK_KEY`. Use only if you need live sync.
+**Optional webhook:** Real-time push is still available via `POST /api/ingest/entry` and `MICROSITE_WEBHOOK_KEY`. Use only if you need live sync.
 
 ---
 
@@ -85,7 +85,7 @@ When the microsite owns the registration flow and wants to **send the QR email i
 
 1. **On registration:** From the microsite backend (never from the browser, to keep the key secret), call the hub:
    ```http
-   POST https://<hub-domain>/api/webhooks/entry
+   POST https://<hub-domain>/api/ingest/entry
    Authorization: Bearer <MICROSITE_WEBHOOK_KEY>
    Content-Type: application/json
 

@@ -21,6 +21,8 @@ export interface UserRow {
   lastName: string | null;
   createdAt?: string;
   updatedAt?: string;
+  /** Set when organizer welcome email (Clerk user.created → POST /api/clerk/welcome) was sent successfully. */
+  organizerWelcomeSentAt?: string | null;
 }
 
 function rowToUser(row: Record<string, unknown>): UserRow {
@@ -31,6 +33,7 @@ function rowToUser(row: Record<string, unknown>): UserRow {
     lastName: (row.last_name as string | null) ?? null,
     createdAt: row.created_at as string | undefined,
     updatedAt: row.updated_at as string | undefined,
+    organizerWelcomeSentAt: (row.organizer_welcome_sent_at as string | null) ?? null,
   };
 }
 
@@ -53,6 +56,30 @@ export async function getUserById(userId: string): Promise<UserRow | null> {
   const db = getDb();
   const rows = await db`SELECT * FROM users WHERE id = ${userId} LIMIT 1`;
   return rows.length ? rowToUser(rows[0] as Record<string, unknown>) : null;
+}
+
+export async function wasOrganizerWelcomeEmailSent(userId: string): Promise<boolean> {
+  if (!userId) return false;
+  const db = getDb();
+  const rows = await db`
+    SELECT organizer_welcome_sent_at
+    FROM users
+    WHERE id = ${userId}
+    LIMIT 1
+  `;
+  if (!rows.length) return false;
+  const row = rows[0] as Record<string, unknown>;
+  return row.organizer_welcome_sent_at != null;
+}
+
+export async function recordOrganizerWelcomeEmailSent(userId: string): Promise<void> {
+  if (!userId) return;
+  const db = getDb();
+  await db`
+    UPDATE users
+    SET organizer_welcome_sent_at = NOW(), updated_at = NOW()
+    WHERE id = ${userId}
+  `;
 }
 
 export async function isUserProfileComplete(userId: string): Promise<boolean> {

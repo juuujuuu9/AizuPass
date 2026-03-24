@@ -44,8 +44,8 @@ npm run test:generate-csvs
 | 7 | Bulk send: Empty attendee list | POST /api/attendees/send-bulk-qr | 400 |
 | 8 | Bulk send: Missing eventId | POST /api/attendees/send-bulk-qr | 400 |
 | 9 | Bulk send: Non-existent event | POST /api/attendees/send-bulk-qr | 404 |
-| 10 | Webhook: Missing auth | POST /api/webhooks/entry | 401 |
-| 11 | Webhook: Wrong auth | POST /api/webhooks/entry | 401 |
+| 10 | Webhook: Missing auth | POST /api/ingest/entry | 401 |
+| 11 | Webhook: Wrong auth | POST /api/ingest/entry | 401 |
 | 12 | Refresh QR: Missing ID | POST /api/attendees/refresh-qr | 400 |
 | 13 | Refresh QR: Non-existent attendee | POST /api/attendees/refresh-qr | 404 |
 | 14 | Bulk refresh: Missing confirmation | POST /api/attendees/refresh-qr-bulk | 400 |

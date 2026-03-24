@@ -32,7 +32,7 @@ Use a single name consistently (e.g. `HUB_WEBHOOK_KEY`); the hub expects the key
 
 ## Webhook: create/update attendee and get QR
 
-**Endpoint:** `POST {HUB_URL}/api/webhooks/entry`  
+**Endpoint:** `POST {HUB_URL}/api/ingest/entry`  
 **Auth:** `Authorization: Bearer <HUB_WEBHOOK_KEY>`
 
 **Request body (JSON):**

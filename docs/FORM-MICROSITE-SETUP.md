@@ -46,7 +46,7 @@ After that, Cursor will apply the hub-integration rule in that project (env vars
    - `HUB_URL` = hub base URL (e.g. `https://checkin.example.com`)
    - `HUB_WEBHOOK_KEY` = same value as hub’s `MICROSITE_WEBHOOK_KEY`
    - `HUB_EVENT_SLUG` = event slug from step 1
-4. **Microsite:** On form submit (server-side), `POST` to `{HUB_URL}/api/webhooks/entry` with `Authorization: Bearer {HUB_WEBHOOK_KEY}` and JSON body (see `hub-integration.mdc` or [STEP-2-CENTRAL-HUB.md](STEP-2-CENTRAL-HUB.md)).
+4. **Microsite:** On form submit (server-side), `POST` to `{HUB_URL}/api/ingest/entry` with `Authorization: Bearer {HUB_WEBHOOK_KEY}` and JSON body (see `hub-integration.mdc` or [STEP-2-CENTRAL-HUB.md](STEP-2-CENTRAL-HUB.md)).
 5. If the microsite sends the QR email itself: use `generateQR: true`, `sendEmail: false`, then encode the returned `qrPayload` as QR and send your own email.
 
 ### Option B: CSV import (no webhook)

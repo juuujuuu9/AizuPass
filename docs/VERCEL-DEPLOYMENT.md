@@ -46,6 +46,7 @@ In your Vercel project dashboard, go to **Settings > Environment Variables** and
 | `RESEND_API_KEY` | `re_...` | Resend dashboard → API Keys |
 | `FROM_EMAIL` | `events@yourdomain.com` | Resend verified domain |
 | `FROM_NAME` | `Your Event Name` | Your choice |
+| `CLERK_WEBHOOK_SIGNING_SECRET` | `whsec_...` | Clerk → Webhooks → your endpoint → **Signing Secret** (`user.created` → organizer welcome email) |
 
 #### Recommended Variables
 
@@ -54,7 +55,7 @@ In your Vercel project dashboard, go to **Settings > Environment Variables** and
 | `MICROSITE_WEBHOOK_KEY` | `openssl rand -hex 32` | Webhook security key |
 | `QR_TOKEN_TTL_DAYS` | `30` | QR validity (days) |
 | `DEFAULT_EVENT_SLUG` | `main-event` | Default event identifier |
-| `APP_URL` | `https://yourdomain.com` | Base URL used in staff invitation emails |
+| `APP_URL` | `https://yourdomain.com` | Canonical site URL: staff invite links, organizer welcome email (`/onboarding/organization`). On Vercel, `VERCEL_URL` is a fallback if unset. |
 
 ### 4. Database Setup
 
@@ -68,6 +69,7 @@ DATABASE_URL="your-production-db-url" npm run setup-db
 DATABASE_URL="your-production-db-url" npm run migrate-events
 DATABASE_URL="your-production-db-url" npm run migrate-organizations
 DATABASE_URL="your-production-db-url" npm run migrate-qr
+DATABASE_URL="your-production-db-url" pnpm run migrate-organizer-welcome-email
 ```
 
 ### 5. Configure Clerk
@@ -78,6 +80,7 @@ DATABASE_URL="your-production-db-url" npm run migrate-qr
    - Sign-up URL: `/login`
    - After sign-in: `/admin`
    - After sign-up: `/admin`
+3. **Webhooks (organizer welcome email):** Add endpoint `https://<your-domain>/api/clerk/welcome`, subscribe to **`user.created`**, copy **Signing Secret** into Vercel as `CLERK_WEBHOOK_SIGNING_SECRET`. See [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md) §6. (Avoid `/api/webhooks/*` on Vercel — the platform can return **404** for that prefix while `/api/health` still works.)
 
 ### 6. Verify Domain in Resend
 
@@ -102,6 +105,7 @@ Check the following endpoints:
 - `https://yourdomain.com/login` - Staff login
 - `https://yourdomain.com/admin` - Admin dashboard (requires staff access)
 - `https://yourdomain.com/api/health` - Health check
+- `https://yourdomain.com/api/clerk/welcome` - Clerk webhook probe (`signingSecretConfigured` in JSON)
 
 ## Post-Deployment Checklist
 

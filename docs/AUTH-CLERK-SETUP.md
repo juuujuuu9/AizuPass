@@ -73,6 +73,30 @@ In Clerk Dashboard → Configure → Emails:
 - Customize email templates
 - Configure your SendGrid/Resend/SMTP for sending
 
+### 6. Organizer welcome email (Clerk webhook)
+
+When a new Clerk user is created, the app can send a **Resend** welcome email with a link to `/onboarding/organization` (create your first org). This is separate from Clerk’s own verification emails.
+
+1. **Database:** add the dedupe column (once per environment):
+
+   ```bash
+   pnpm run migrate-organizer-welcome-email
+   ```
+
+2. **Environment:** set `CLERK_WEBHOOK_SIGNING_SECRET` to the **Signing Secret** from Clerk (starts with `whsec_`). Set `RESEND_API_KEY` and `FROM_EMAIL` as for other transactional mail. For correct links in the email when the webhook runs without a browser request, set **`APP_URL`** (or rely on `VERCEL_URL` on Vercel).
+
+3. **Clerk Dashboard → Webhooks:** add an endpoint:
+
+   - **URL:** `https://<your-production-domain>/api/clerk/welcome` (local testing: use a tunnel such as ngrok and point Clerk at `https://<tunnel>/api/clerk/welcome`).
+   - **Subscribe to events:** `user.created` (you can leave other events unsubscribed; the handler ignores them).
+   - **Development vs Production:** In the Clerk dashboard, switch the **instance** (Development / Production) to match where users sign up. A user created on your live site (`pk_live_…`) only triggers **Production** webhooks. Signing up on `localhost` with `pk_test_…` only triggers **Development** webhooks — and Clerk **cannot** call `http://localhost`; use ngrok (or similar) so the endpoint URL is public HTTPS.
+
+4. **Quick check:** Open `GET https://<your-domain>/api/clerk/welcome` in a browser. You should see JSON with `signingSecretConfigured: true` once `CLERK_WEBHOOK_SIGNING_SECRET` is set on the server.
+
+   **Vercel:** Do not use `/api/webhooks/…` for this app. On Vercel, paths under `/api/webhooks/*` can return **404** (`NOT_FOUND`) even when other API routes work; this project uses `/api/clerk/welcome` instead.
+
+5. **Note:** Staff who sign up via an invitation also receive this email; the template tells them to use their invite link if they were invited. Welcome email is sent at most once per user (`users.organizer_welcome_sent_at`).
+
 ## Access Control Model
 
 The app supports membership-based access:

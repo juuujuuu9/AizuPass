@@ -6,15 +6,16 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro",
+    "dev": "node ./node_modules/astro/astro.js dev",
+    "build": "node ./node_modules/astro/astro.js build",
+    "preview": "node ./node_modules/astro/astro.js preview",
+    "astro": "node ./node_modules/astro/astro.js",
     "setup-db": "node scripts/setup-tables.mjs",
     "migrate-qr": "node scripts/migrate-qr-security.mjs",
     "migrate-events": "node scripts/migrate-events.mjs",
     "migrate-organizations": "node scripts/migrate-organizations.mjs",
     "migrate-staff-preferences": "node scripts/migrate-staff-preferences.mjs",
+    "migrate-organizer-welcome-email": "node scripts/migrate-organizer-welcome-email.mjs",
     "wipe-events": "node scripts/wipe-events.mjs",
     "test:edge-cases": "node scripts/test-edge-cases.mjs",
     "test:edge-cases:ci": "node scripts/ci-test-edge-cases.mjs",
@@ -45,6 +46,7 @@
     "react-dom": "^19.2.4",
     "resend": "^6.9.2",
     "sonner": "^2.0.7",
+    "svix": "^1.89.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
     "zod": "^3.25.76"

@@ -24,6 +24,89 @@ function dataUrlToBase64(dataUrl: string) {
   return match[1];
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** http: or https: only; for safe use in HTML href */
+function safeDocsUrl(raw: string | undefined): string | null {
+  if (!raw?.trim()) return null;
+  try {
+    const u = new URL(raw.trim());
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+    return u.href;
+  } catch {
+    return null;
+  }
+}
+
+export async function sendOrganizerWelcomeEmail(data: {
+  toEmail: string;
+  firstName: string | null;
+  onboardingUrl: string;
+}) {
+  const { apiKey, fromEmail, fromName } = getConfiguredEmailSender();
+  if (!apiKey) {
+    return { success: false as const, error: 'Email service not configured' };
+  }
+  const from = fromName ? `${fromName} <${fromEmail}>` : fromEmail;
+  const greetingName = data.firstName?.trim() ? escapeHtml(data.firstName.trim()) : 'there';
+  const safeUrl = escapeHtml(data.onboardingUrl);
+  const docsHref = safeDocsUrl(getEnv('PUBLIC_DOCS_URL'));
+  const docsSection = docsHref
+    ? `<p class="muted" style="margin-top:24px">Questions? See our <a href="${escapeHtml(docsHref)}">documentation and FAQ</a>.</p>`
+    : '';
+
+  const { data: resendData, error } = await getResend().emails.send({
+    from,
+    to: data.toEmail,
+    subject: "Welcome to AizuPass — let's finish onboarding",
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #374151; max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #374151; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .card { background: #fff; border-radius: 8px; border: 1px solid #e5e7eb; padding: 16px; margin-top: 16px; }
+          .cta { display: inline-block; margin-top: 18px; background: #111827; color: #fff !important; text-decoration: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; }
+          .muted { color: #6b7280; font-size: 13px; margin-top: 16px; }
+          .link { word-break: break-all; color: #111827; }
+          .muted a { color: #111827; }
+        </style>
+      </head>
+      <body>
+        <div class="header"><h1>Welcome to AizuPass</h1></div>
+        <div class="content">
+          <p>Hi ${greetingName},</p>
+          <p>Your account is ready. To get started, <strong>create your organization</strong> — then you can add events, import guests, and run check-in.</p>
+          <div class="card">
+            <a class="cta" href="${safeUrl}">Continue onboarding</a>
+            <p class="muted">If a colleague invited you as staff, use the link in their invitation email instead; you do not need to create an organization.</p>
+          </div>
+          <p class="muted">If the button does not work, copy and paste this link:</p>
+          <p class="link">${safeUrl}</p>
+          ${docsSection}
+        </div>
+      </body>
+      </html>
+    `,
+  });
+
+  if (error) {
+    console.error('Resend API error (organizer welcome):', error);
+    return { success: false as const, error: error.message || 'Failed to send welcome email' };
+  }
+  return { success: true as const, data: resendData };
+}
+
 export async function sendQRCodeEmail(
   attendee: {
     firstName: string;

@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-23 — **AizuPass** naming in UI (layout titles, login/signup, scanner tab), README, [PRODUCT-STRATEGY.md](PRODUCT-STRATEGY.md), npm package `aizupass`. Offline IndexedDB renamed to `aizupass-offline` with one-time migration from `qr-check-in-offline` (`src/lib/offline.ts`).
+**Last updated:** 2026-03-23 — Clerk welcome webhook URL is **`/api/clerk/welcome`** (not `/api/webhooks/clerk`); microsite ingest is **`/api/ingest/entry`** — Vercel returns 404 for `/api/webhooks/*` on this stack. Point Clerk + integrators at the new paths after deploy.
 
 ---
 
@@ -22,7 +22,7 @@
 | RSVP in DB | Done | `scripts/setup-tables.mjs`, `src/lib/db.ts` |
 | Unique identifier | **Done** | UUID + short-lived token; see STEP-1. |
 | QR gen + email | Done | `src/lib/email.ts`, RSVPForm |
-| Production sender domain (`FROM_EMAIL`) | Missing | Still using Resend onboarding sender in non-production setup; must switch to verified domain `noreply@<chosen-domain>` before launch. |
+| Production sender domain (`FROM_EMAIL`) | Partial | Resend: `aizupass.com` verified, Pro. App/deploy: set `FROM_EMAIL` (e.g. `noreply@aizupass.com`) in production env, confirm bulk-email preview, run smoke send. |
 | QR download (single + bulk ZIP) | Missing | CSV export exists; no QR PNG download/ZIP flow yet. |
 | Print-ready QR badges (name below code) | Missing | No print stylesheet or badge layout currently. |
 | QR minimum size thresholds | Partial | QR width is set in config, but no explicit print-size enforcement/tests. |
@@ -54,7 +54,7 @@
 | SaaS product naming | **Done** | **AizuPass** — browser titles via `Layout.astro` / `ScannerLayout.astro`, auth page headings, README, product strategy; npm package name `aizupass`. |
 | Offline capability | **Done** | IndexedDB `aizupass-offline` (was `qr-check-in-offline`); one-time copy + merge + legacy delete on first open (`localStorage` marker `aizupass-offline-migrated`). Cache, offline queue, sync on reconnect; 409 = success. `src/lib/offline.ts`, `api/attendees/offline-cache`. |
 | Offline sync resilience (backoff/idempotency/queue visibility) | **Done** | Added queue dedupe, retry-with-backoff sync, and scanner-visible queue count. |
-| Multi-event / central hub | **Done** | Events table, event-scoped attendees; guestlist ingestion: **CSV primary** for most users; `POST /api/webhooks/entry` for automation; Zapier/Make first-class TBD — see [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md). |
+| Multi-event / central hub | **Done** | Events table, event-scoped attendees; guestlist ingestion: **CSV primary** for most users; `POST /api/ingest/entry` for automation; Zapier/Make first-class TBD — see [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md). |
 | Event-scoped scanner/manual override hardening | Partial | Event scoping exists broadly; scanner entry path/manual UX still needs stricter guardrails. |
 | Persistent event selection | **Done** | staff_preferences table; last_selected_event_id survives logout/login, works across devices. |
 | Attendance export with operational presets | Partial | Export with timestamps exists; dedicated checked-in/no-show presets pending. |
@@ -87,7 +87,7 @@ Follow this order; check off and date as you complete each item.
 
 - [x] **Done.** Schema: `events` table, `attendees` extended with `event_id`, `microsite_entry_id`, `source_data`; migration `npm run migrate-events` (with `--dry-run`); default event backfill.
 - [x] **Done.** QR format: `eventId:entryId:token` (v2); encode/decode in `src/lib/qr.ts`; v1-legacy (2 parts) supported during transition.
-- [x] **Done.** Webhook: `POST /api/webhooks/entry` with `MICROSITE_WEBHOOK_KEY`; idempotency by `event_id` + `microsite_entry_id`; optional QR refresh. Option B (per-event keys) doc’d in STEP-2.
+- [x] **Done.** Webhook: `POST /api/ingest/entry` with `MICROSITE_WEBHOOK_KEY`; idempotency by `event_id` + `microsite_entry_id`; optional QR refresh. Option B (per-event keys) doc’d in STEP-2.
 - [x] **Done.** Admin: event selector, filter attendees/stats by event; `GET /api/events`, `GET /api/attendees?eventId=`; `/admin/events`, `/admin/events/new`.
 - [x] **Done.** Scanner: event name shown in success result when present.
 - [x] **Done.** CSV import: Admin → select event → Import CSV; map columns to attendees; dedupe by event+email; `source_data` for import metadata. See [STEP-2-CENTRAL-HUB.md](STEP-2-CENTRAL-HUB.md).
@@ -195,9 +195,10 @@ Follow this order; check off and date as you complete each item.
 
 ### 13. Go-live email sender readiness
 
-- [ ] Verify Resend sending domain for production website domain.
-- [ ] Set `FROM_EMAIL` to `noreply@<chosen-domain>` (replace onboarding sender) in production environment.
-- [ ] Confirm sender preview in admin bulk email modal shows `... <noreply@<chosen-domain>>`.
+- [x] Verify Resend sending domain for production website domain.  
+  **Done (2026-03-23):** `aizupass.com` in Resend; Pro plan.
+- [ ] Set `FROM_EMAIL` to `noreply@aizupass.com` (or another address on the verified domain) in production environment.
+- [ ] Confirm sender preview in admin bulk email modal shows `... <noreply@aizupass.com>` (or your chosen `FROM_EMAIL`).
 - [ ] Run one end-to-end bulk-email smoke test in production-like env after domain verification.
 
 ### UI/UX polish (done)

@@ -19,7 +19,7 @@
 - **CSV import** (primary path for most organizers): delimiter auto-detect, UTF-8, row warnings, skipped-row export, **add / merge / replace** modes, batched processing; identity rules (email + name columns). Extra columns map into `source_data`.
 - **CSV export**; bulk actions (select, delete, export).
 - **Public RSVP** via `POST /api/attendees` (rate-limited, Zod-validated) for unauthenticated registration when enabled by flow.
-- **Webhook ingestion** for external forms and servers: `POST /api/webhooks/entry` with shared secret, optional idempotency via `micrositeEntryId`, optional QR generation and email.
+- **Webhook ingestion** for external forms and servers: `POST /api/ingest/entry` with shared secret, optional idempotency via `micrositeEntryId`, optional QR generation and email.
 
 ### Scanner and check-in
 
@@ -167,7 +167,7 @@ CSV remains the **default** guestlist path for typical organizers; API and autom
 | `POST /api/attendees/send-bulk-qr` | Bulk QR email |
 | `POST /api/attendees/refresh-qr` | Single attendee QR refresh |
 | `GET/POST /api/events`, `GET/DELETE /api/events/:id` | List/create events; get/delete one event |
-| `POST /api/webhooks/entry` | External guestlist / microsite webhook |
+| `POST /api/ingest/entry` | External guestlist / microsite webhook |
 | `GET /api/health` | Health check |
 
 ---
