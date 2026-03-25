@@ -46,50 +46,42 @@ const mobileTabIdle =
     class="sticky top-0 z-40 min-w-0 border-b border-border bg-card md:hidden"
     aria-label="Admin sections"
   >
-    <div class="flex flex-wrap items-center gap-6 px-4">
-      {variant === 'organization' && (
-        <>
-          <a href={`/admin/organization${organizationNavQuery}`} class={active === 'overview' ? mobileTabActive : mobileTabIdle}>Overview</a>
-          <a href={`/admin/organization/staff${organizationNavQuery}`} class={active === 'staff' ? mobileTabActive : mobileTabIdle}>Staff</a>
-          {showOrganizationBilling && (
-            <a href={`/admin/organization/billing${organizationNavQuery}`} class={active === 'billing' ? mobileTabActive : mobileTabIdle}>Billing</a>
-          )}
-          <a href={`/admin/organization/settings${organizationNavQuery}`} class={active === 'settings' ? mobileTabActive : mobileTabIdle}>Settings</a>
-          {showBackToOrganizations && (
-            <a href="/admin" class={`inline-flex items-center gap-1.5 ${mobileTabIdle}`}>
-              <svg class="h-[0.586rem] w-[0.586rem] shrink-0" viewBox="0 0 96.154 96.154" aria-hidden="true" fill="currentColor">
-                <path
-                  d="M75.183.561 17.578 46.513c-.951.76-.951 2.367 0 3.126l57.608 45.955c.689.547 1.717.709 2.61.414c.186-.061.33-.129.436-.186c.65-.351 1.057-1.025 1.057-1.765V2.093c0-.736-.405-1.414-1.057-1.762c-.108-.059-.253-.127-.426-.184C76.903-.15 75.874.011 75.183.561z"
-                />
-              </svg>
-              Manage Organizations
-            </a>
-          )}
-        </>
-      )}
-      {variant === 'event' && eventId && (
-        <>
-          <a href={`/admin?event=${eventId}`} class={active === 'attendees' ? mobileTabActive : mobileTabIdle}>Attendees</a>
-          {showEventImport && (
-            <a href={`/admin/events/import?event=${eventId}`} class={active === 'import' ? mobileTabActive : mobileTabIdle}>Import</a>
-          )}
-          <a href={`/api/attendees/export?eventId=${eventId}`} class={active === 'export' ? mobileTabActive : mobileTabIdle}>Export</a>
-          <a href={`/admin/events/edit?event=${eventId}`} class={active === 'settings' ? mobileTabActive : mobileTabIdle}>Settings</a>
-          {eventWorkspaceOrganizationId && (
-            <a
-              href={`/admin/organization?id=${eventWorkspaceOrganizationId}`}
-              class={`inline-flex items-center gap-1.5 ${mobileTabIdle}`}
-            >
-              <svg class="h-[0.586rem] w-[0.586rem] shrink-0" viewBox="0 0 96.154 96.154" aria-hidden="true" fill="currentColor">
-                <path
-                  d="M75.183.561 17.578 46.513c-.951.76-.951 2.367 0 3.126l57.608 45.955c.689.547 1.717.709 2.61.414c.186-.061.33-.129.436-.186c.65-.351 1.057-1.025 1.057-1.765V2.093c0-.736-.405-1.414-1.057-1.762c-.108-.059-.253-.127-.426-.184C76.903-.15 75.874.011 75.183.561z"
-                />
-              </svg>
-              Manage Events
-            </a>
-          )}
-        </>
-      )}
+    <div class="relative min-w-0">
+      <div
+        class="header-breadcrumb-scroll flex min-w-0 flex-nowrap items-center gap-6 overflow-x-auto overflow-y-clip overscroll-x-contain px-4 pr-10 [-webkit-overflow-scrolling:touch] sm:pr-12"
+      >
+        {variant === 'organization' && (
+          <>
+            <a href={`/admin/organization${organizationNavQuery}`} class={active === 'overview' ? mobileTabActive : mobileTabIdle}>Overview</a>
+            <a href={`/admin/organization/staff${organizationNavQuery}`} class={active === 'staff' ? mobileTabActive : mobileTabIdle}>Staff</a>
+            {showOrganizationBilling && (
+              <a href={`/admin/organization/billing${organizationNavQuery}`} class={active === 'billing' ? mobileTabActive : mobileTabIdle}>Billing</a>
+            )}
+            <a href={`/admin/organization/settings${organizationNavQuery}`} class={active === 'settings' ? mobileTabActive : mobileTabIdle}>Settings</a>
+            {showBackToOrganizations && (
+              <a href="/admin" class={mobileTabIdle}>Manage Organizations</a>
+            )}
+          </>
+        )}
+        {variant === 'event' && eventId && (
+          <>
+            <a href={`/admin?event=${eventId}`} class={active === 'attendees' ? mobileTabActive : mobileTabIdle}>Attendees</a>
+            {showEventImport && (
+              <a href={`/admin/events/import?event=${eventId}`} class={active === 'import' ? mobileTabActive : mobileTabIdle}>Import</a>
+            )}
+            <a href={`/api/attendees/export?eventId=${eventId}`} class={active === 'export' ? mobileTabActive : mobileTabIdle}>Export</a>
+            <a href={`/admin/events/edit?event=${eventId}`} class={active === 'settings' ? mobileTabActive : mobileTabIdle}>Settings</a>
+            {eventWorkspaceOrganizationId && (
+              <a href={`/admin/organization?id=${eventWorkspaceOrganizationId}`} class={mobileTabIdle}>Manage Events</a>
+            )}
+          </>
+        )}
+      </div>
+      <!-- Match DashboardHeader: fade at overflow edge; pointer-events-none keeps touch scroll on the row -->
+      <div
+        class="pointer-events-none absolute inset-y-0 -right-px z-10 w-10 bg-linear-to-l from-card to-transparent sm:w-12"
+        aria-hidden="true"
+      />
     </div>
   </nav>
 )}

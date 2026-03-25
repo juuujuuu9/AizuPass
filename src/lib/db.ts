@@ -9,6 +9,7 @@ import { getOrganizationByOwnerUserId, getEventForOrganization } from './db/orga
 
 export * from './db/organizations';
 export type { EventRow } from './db/event-row';
+export { sanitizeEventSettings } from './db/event-row';
 
 const DEFAULT_EVENT_CACHE_TTL_MS = 60 * 60 * 1000; // 1h
 let defaultEventIdCache: { id: string; expiresAt: number } | null = null;
@@ -419,15 +420,18 @@ export async function createAttendee(
     eventId?: string;
     micrositeEntryId?: string;
     sourceData?: Record<string, unknown>;
+    /** When true, sets checked_in and checked_in_at (e.g. Eventbrite already checked in). */
+    initialCheckedIn?: boolean;
   }
 ) {
   const db = getDb();
   const id = crypto.randomUUID();
   const eventId = data.eventId ?? (await getDefaultEventId());
   const sourceDataJson = data.sourceData != null ? JSON.stringify(data.sourceData) : null;
+  const checkedIn = Boolean(data.initialCheckedIn);
   const rows = await db`
-    INSERT INTO attendees (id, event_id, first_name, last_name, email, phone, company, dietary_restrictions, checked_in, rsvp_at, created_at, microsite_entry_id, source_data)
-    VALUES (${id}, ${eventId}, ${data.firstName}, ${data.lastName}, ${data.email}, ${data.phone ?? ''}, ${data.company ?? ''}, ${data.dietaryRestrictions ?? ''}, false, NOW(), NOW(), ${data.micrositeEntryId ?? null}, ${sourceDataJson})
+    INSERT INTO attendees (id, event_id, first_name, last_name, email, phone, company, dietary_restrictions, checked_in, checked_in_at, rsvp_at, created_at, microsite_entry_id, source_data)
+    VALUES (${id}, ${eventId}, ${data.firstName}, ${data.lastName}, ${data.email}, ${data.phone ?? ''}, ${data.company ?? ''}, ${data.dietaryRestrictions ?? ''}, ${checkedIn}, ${checkedIn ? new Date() : null}, NOW(), NOW(), ${data.micrositeEntryId ?? null}, ${sourceDataJson})
     RETURNING *
   `;
   return rowToAttendee(rows[0] as Record<string, unknown>);
@@ -520,6 +524,33 @@ export async function findAttendeeByEventAndMicrositeId(
     WHERE event_id = ${eventId} AND microsite_entry_id = ${micrositeEntryId}
   `;
   return rows.length ? (rows[0] as { id: string; qr_token: string | null; qr_expires_at: string | null }) : null;
+}
+
+/** Batch lookup for integration sync (e.g. Eventbrite attendee ids). */
+export async function findAttendeesByEventAndMicrositeIds(
+  eventId: string,
+  micrositeEntryIds: string[]
+): Promise<Map<string, string>> {
+  const unique = Array.from(new Set(micrositeEntryIds.filter(Boolean)));
+  const out = new Map<string, string>();
+  if (unique.length === 0) return out;
+  const db = getDb();
+  const rows = await db`
+    SELECT id, microsite_entry_id FROM attendees
+    WHERE event_id = ${eventId} AND microsite_entry_id = ANY(${unique}::text[])
+  `;
+  for (const row of rows) {
+    const mid = row.microsite_entry_id != null ? String(row.microsite_entry_id) : '';
+    if (mid) out.set(mid, String(row.id));
+  }
+  return out;
+}
+
+export async function updateAttendeeMicrositeEntryId(attendeeId: string, micrositeEntryId: string) {
+  const db = getDb();
+  await db`
+    UPDATE attendees SET microsite_entry_id = ${micrositeEntryId} WHERE id = ${attendeeId}
+  `;
 }
 
 /** For CSV import deduplication: skip if this event already has an attendee with this email. */
@@ -659,6 +690,66 @@ export async function updateStaffLastEventId(
       UPDATE staff_preferences SET last_selected_event_id = NULL WHERE user_id = ${userId}
     `;
   }
+}
+
+function parseSettingsColumn(raw: unknown): Record<string, unknown> {
+  if (raw == null) return {};
+  if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw);
+      return p && typeof p === 'object' && !Array.isArray(p) ? (p as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  }
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+}
+
+/** Full `events.settings` including integration secrets. Organizer-only; never send to the browser. */
+export async function getEventSettingsRawForManage(
+  userId: string,
+  eventId: string
+): Promise<Record<string, unknown> | null> {
+  if (!userId || !eventId) return null;
+  const allowed = await canUserManageEvent(userId, eventId);
+  if (!allowed) return null;
+  const db = getDb();
+  const rows = await db`SELECT settings FROM events WHERE id = ${eventId} LIMIT 1`;
+  if (!rows.length) return null;
+  return parseSettingsColumn(rows[0].settings);
+}
+
+export async function mergeEventbriteSettingsForManage(
+  userId: string,
+  eventId: string,
+  data: { eventbriteEventId: string; privateToken: string; lastSyncedAt: string }
+): Promise<boolean> {
+  if (!userId || !eventId) return false;
+  const allowed = await canUserManageEvent(userId, eventId);
+  if (!allowed) return false;
+  const db = getDb();
+  const rows = await db`SELECT settings FROM events WHERE id = ${eventId} LIMIT 1`;
+  if (!rows.length) return false;
+  const current = parseSettingsColumn(rows[0].settings);
+  const prevEb =
+    current.eventbrite && typeof current.eventbrite === 'object' && !Array.isArray(current.eventbrite)
+      ? (current.eventbrite as Record<string, unknown>)
+      : {};
+  const nextSettings = {
+    ...current,
+    eventbrite: {
+      ...prevEb,
+      eventbriteEventId: data.eventbriteEventId,
+      privateToken: data.privateToken,
+      lastSyncedAt: data.lastSyncedAt,
+    },
+  };
+  await db`
+    UPDATE events
+    SET settings = ${JSON.stringify(nextSettings)}::jsonb
+    WHERE id = ${eventId}
+  `;
+  return true;
 }
 
 /** Delete an event and all its attendees. */

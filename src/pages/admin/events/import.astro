@@ -39,6 +39,16 @@ const showEventImport = organization
   : false;
 const organizationName = organization?.name ?? '';
 const fromEmail = getEnv('FROM_EMAIL') || 'onboarding@resend.dev';
+
+const ebRaw =
+  event?.settings?.eventbrite && typeof event.settings.eventbrite === 'object' && !Array.isArray(event.settings.eventbrite)
+    ? (event.settings.eventbrite as Record<string, unknown>)
+    : null;
+const eventbritePageState = {
+  eventbriteEventId: typeof ebRaw?.eventbriteEventId === 'string' ? ebRaw.eventbriteEventId : '',
+  credentialsSaved: Boolean(ebRaw?.credentialsSaved),
+  lastSyncedAt: typeof ebRaw?.lastSyncedAt === 'string' ? ebRaw.lastSyncedAt : '',
+};
 ---
 
 <Layout title="Import CSV">
@@ -104,6 +114,72 @@ const fromEmail = getEnv('FROM_EMAIL') || 'onboarding@resend.dev';
             )}
           </div>
         ) : (
+          <>
+          {showEventImport && (
+            <div
+              id="eventbrite-sync-panel"
+              class="mb-8 space-y-4 rounded-lg border border-border bg-card p-6 shadow-sm max-w-2xl"
+            >
+              <h2 class="text-lg font-semibold text-foreground">Eventbrite</h2>
+              <p class="text-sm text-muted-foreground">
+                Pull attendees from an Eventbrite event using a{' '}
+                <a
+                  href="https://www.eventbrite.com/platform/docs/authentication"
+                  class="text-primary underline underline-offset-2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  private token
+                </a>{' '}
+                (organizer API). Each sync updates names and stores the latest Eventbrite metadata in attendee source data. New guests get check-in QR codes like a CSV import.
+              </p>
+              <div class="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label for="eb-event-id" class="block text-xs font-medium text-muted-foreground mb-1">
+                    Eventbrite event ID
+                  </label>
+                  <input
+                    id="eb-event-id"
+                    type="text"
+                    class="w-full rounded border border-input bg-background px-3 py-2 text-sm text-foreground"
+                    placeholder="e.g. 12345678901"
+                    autocomplete="off"
+                  />
+                </div>
+                <div>
+                  <label for="eb-private-token" class="block text-xs font-medium text-muted-foreground mb-1">
+                    Private token
+                  </label>
+                  <input
+                    id="eb-private-token"
+                    type="password"
+                    class="w-full rounded border border-input bg-background px-3 py-2 text-sm text-foreground"
+                    placeholder={eventbritePageState.credentialsSaved ? '•••••••• (saved — leave blank to reuse)' : 'Paste token'}
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
+              <label class="flex items-start gap-2 text-sm text-foreground">
+                <input type="checkbox" id="eb-save-credentials" class="mt-0.5" />
+                <span>Save Eventbrite event ID and token on this server for later syncs (organizers only; never shown back in full).</span>
+              </label>
+              {eventbritePageState.lastSyncedAt && (
+                <p class="text-xs text-muted-foreground">
+                  Last saved sync: {new Date(eventbritePageState.lastSyncedAt).toLocaleString()}
+                </p>
+              )}
+              <div id="eb-sync-error" class="hidden text-sm text-[var(--red-11)]"></div>
+              <div id="eb-sync-success" class="hidden text-sm text-[var(--green-11)]"></div>
+              <button
+                type="button"
+                id="eb-sync-btn"
+                class="rounded-lg bg-[var(--accent-9)] px-4 py-2 text-sm font-medium text-[var(--accent-contrast)] hover:opacity-95"
+              >
+                Sync from Eventbrite
+              </button>
+            </div>
+          )}
+
           <form id="import-form" class="space-y-4 rounded-lg border border-border bg-card p-6 shadow-sm max-w-2xl">
           <p class="text-sm text-muted-foreground">
             Importing into <strong class="text-foreground">{event.name}</strong>
@@ -356,6 +432,7 @@ const fromEmail = getEnv('FROM_EMAIL') || 'onboarding@resend.dev';
             </a>
           </div>
         </form>
+          </>
       )}
     </main>
   </div>
@@ -390,7 +467,7 @@ const fromEmail = getEnv('FROM_EMAIL') || 'onboarding@resend.dev';
     }
   </style>
 
-  <script type="application/json" id="import-page-data" set:html={JSON.stringify({ eventId: event?.id, eventName: event?.name ?? '', organizationName, fromEmail })} />
+  <script type="application/json" id="import-page-data" set:html={JSON.stringify({ eventId: event?.id, eventName: event?.name ?? '', organizationName, fromEmail, showEventbrite: showEventImport, eventbrite: eventbritePageState })} />
   <script>
     import { initImportPage } from '../../../scripts/import-page';
     initImportPage();

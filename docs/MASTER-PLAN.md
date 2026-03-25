@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-23 — §11.A P1: offline queue dedupe (atomic IndexedDB `addToQueue`), serialized `syncQueue`, sync-on-load when online, auth-aware sync + session banner (`GET /api/me/profile`, visibility probe), door fallback copy (torch + name search). §13 go-live sender: `npm run smoke:email`. Event-day stress: [EVENT-DAY-STRESS-HARDENING.md](EVENT-DAY-STRESS-HARDENING.md). Clerk welcome **`/api/clerk/welcome`**; ingest **`/api/ingest/entry`**.
+**Last updated:** 2026-03-25 — Eventbrite: organizer sync from Import page → `POST /api/integrations/eventbrite/sync`; credentials optional in `events.settings.eventbrite` (token never re-exposed in UI). Prior: §11.A P1 offline queue; §13 `npm run smoke:email`; ingest **`/api/ingest/entry`**.
 
 ---
 
@@ -55,7 +55,7 @@
 | Offline capability | **Done** | IndexedDB `aizupass-offline` (was `qr-check-in-offline`); one-time copy + merge + legacy delete on first open (`localStorage` marker `aizupass-offline-migrated`). Cache, offline queue, sync on reconnect; 409 = success. `src/lib/offline.ts`, `api/attendees/offline-cache`. |
 | Offline sync resilience (backoff/idempotency/queue visibility) | **Done** | Added queue dedupe, retry-with-backoff sync, and scanner-visible queue count. |
 | Event-day scale / cache warm-up / load verification | Reference | Stress lens + prioritized hardening (verify-first): [EVENT-DAY-STRESS-HARDENING.md](EVENT-DAY-STRESS-HARDENING.md). |
-| Multi-event / central hub | **Done** | Events table, event-scoped attendees; guestlist ingestion: **CSV primary** for most users; `POST /api/ingest/entry` for automation; Zapier/Make first-class TBD — see [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md). |
+| Multi-event / central hub | **Done** | Events table, event-scoped attendees; guestlist ingestion: **CSV primary** for most users; `POST /api/ingest/entry` for automation; **Eventbrite** pull sync on Import (private token); Zapier/Make first-class TBD — see [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md). |
 | Event-scoped scanner/manual override hardening | Partial | Event scoping exists broadly; scanner entry path/manual UX still needs stricter guardrails. |
 | Persistent event selection | **Done** | staff_preferences table; last_selected_event_id survives logout/login, works across devices. |
 | Attendance export with operational presets | Partial | Export with timestamps exists; dedicated checked-in/no-show presets pending. |
