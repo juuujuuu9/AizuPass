@@ -1,4 +1,8 @@
-import { wasOrganizerWelcomeEmailSent, recordOrganizerWelcomeEmailSent } from './db';
+import {
+  wasOrganizerWelcomeEmailSent,
+  recordOrganizerWelcomeEmailSent,
+  shouldSuppressOrganizerWelcomeEmail,
+} from './db';
 import { sendOrganizerWelcomeEmail } from './email';
 import { getAppBaseUrlFromRequest, getEnv } from './env';
 
@@ -24,6 +28,10 @@ export function scheduleWelcomeEmailIfPending(
   void (async () => {
     try {
       if (await wasOrganizerWelcomeEmailSent(userId)) return;
+      if (await shouldSuppressOrganizerWelcomeEmail(userId, email)) {
+        await recordOrganizerWelcomeEmailSent(userId);
+        return;
+      }
       const base = getAppBaseUrlFromRequest(request);
       if (!base) {
         console.warn(

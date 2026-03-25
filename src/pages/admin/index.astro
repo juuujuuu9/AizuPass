@@ -113,7 +113,12 @@ const pageTitle = showEventDashboard && event ? `${event.name} | Attendees` : 'E
       />
 
       <div class="flex min-h-[calc(100vh-4rem)] min-w-0 flex-col md:flex-row">
-        <AdminSidebar variant="event" eventId={event.id} active="attendees" />
+        <AdminSidebar
+          variant="event"
+          eventId={event.id}
+          active="attendees"
+          eventWorkspaceOrganizationId={organization?.id}
+        />
 
         <main class="min-w-0 flex-1 px-4 py-8">
           <AdminPage
@@ -143,17 +148,19 @@ const pageTitle = showEventDashboard && event ? `${event.name} | Attendees` : 'E
         <h1 class="text-2xl font-bold text-foreground mb-6">Organizations</h1>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <a
-            href="/onboarding/organization"
-            class="group flex flex-col items-center justify-center min-h-[180px] rounded-xl border border-dashed border-border bg-card/50 hover:bg-card hover:border-primary/50 transition-all"
-          >
-            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-3 group-hover:bg-primary/10 transition-colors">
-              <svg class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-            </div>
-            <span class="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Create organization</span>
-          </a>
+          {Astro.locals.isAdmin && (
+            <a
+              href="/onboarding/organization"
+              class="group flex flex-col items-center justify-center min-h-[180px] rounded-xl border border-dashed border-border bg-card/50 hover:bg-card hover:border-primary/50 transition-all"
+            >
+              <div class="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-3 group-hover:bg-primary/10 transition-colors">
+                <svg class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <span class="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Create organization</span>
+            </a>
+          )}
 
           {organizationsWithEvents.map((org) => (
             <a
@@ -207,7 +214,11 @@ const pageTitle = showEventDashboard && event ? `${event.name} | Attendees` : 'E
 
         {organizationsWithEvents.length === 0 && (
           <div class="mt-8 text-center">
-            <p class="text-muted-foreground">No organizations yet. Create your first one to get started.</p>
+            <p class="text-muted-foreground">
+              {Astro.locals.isAdmin
+                ? 'No organizations yet. Create your first one to get started.'
+                : 'You are not part of any organization yet. Ask an organizer to invite you.'}
+            </p>
           </div>
         )}
       </main>

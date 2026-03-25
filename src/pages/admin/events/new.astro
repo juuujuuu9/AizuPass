@@ -3,6 +3,10 @@ import Layout from '../../../layouts/Layout.astro';
 import DashboardHeader from '../../../components/DashboardHeader.astro';
 import { getEventForOrganization, getOrganizationByOwnerUserId } from '../../../lib/db';
 
+if (!Astro.locals.isAdmin) {
+  return Astro.redirect('/admin/organization');
+}
+
 const userId = Astro.locals.user?.id ?? '';
 const organization = userId ? await getOrganizationByOwnerUserId(userId) : null;
 const existingEvent = organization ? await getEventForOrganization(organization.id) : null;

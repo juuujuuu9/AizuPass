@@ -18,6 +18,9 @@ export const GET: APIRoute = async (context) => {
 export const POST: APIRoute = async (context) => {
   const userId = requireUserId(context);
   if (userId instanceof Response) return userId;
+  if (!context.locals.isAdmin) {
+    return errorResponse('Only organization organizers can create events', 403);
+  }
   const { request } = context;
   try {
     const body = (await request.json()) as { name?: string; slug?: string; micrositeUrl?: string };

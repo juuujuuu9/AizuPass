@@ -1,6 +1,11 @@
 import type { APIRoute } from 'astro';
 import { Webhook } from 'svix';
-import { ensureUserRow, wasOrganizerWelcomeEmailSent, recordOrganizerWelcomeEmailSent } from '../../../lib/db';
+import {
+  ensureUserRow,
+  wasOrganizerWelcomeEmailSent,
+  recordOrganizerWelcomeEmailSent,
+  shouldSuppressOrganizerWelcomeEmail,
+} from '../../../lib/db';
 import { sendOrganizerWelcomeEmail } from '../../../lib/email';
 import { getAppBaseUrlFromRequest, getEnv } from '../../../lib/env';
 import { json, errorResponse } from '../../../lib/api-response';
@@ -91,6 +96,10 @@ export const POST: APIRoute = async ({ request }) => {
     await ensureUserRow(userId, toEmail);
     if (await wasOrganizerWelcomeEmailSent(userId)) {
       return json({ ok: true, skipped: 'already_sent' });
+    }
+    if (await shouldSuppressOrganizerWelcomeEmail(userId, toEmail)) {
+      await recordOrganizerWelcomeEmailSent(userId);
+      return json({ ok: true, skipped: 'staff_or_invited' });
     }
 
     const base = getAppBaseUrlFromRequest(request);

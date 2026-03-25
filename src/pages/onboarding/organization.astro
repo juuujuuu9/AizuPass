@@ -2,6 +2,10 @@
 import Layout from '../../layouts/Layout.astro';
 import { getOrganizationByOwnerUserId } from '../../lib/db';
 
+if (Astro.locals.user?.role === 'staff') {
+  return Astro.redirect('/admin/organization');
+}
+
 const userId = Astro.locals.user?.id ?? '';
 const organization = userId ? await getOrganizationByOwnerUserId(userId) : null;
 

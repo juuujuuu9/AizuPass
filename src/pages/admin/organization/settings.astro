@@ -2,10 +2,28 @@
 import Layout from '../../../layouts/Layout.astro';
 import DashboardHeader from '../../../components/DashboardHeader.astro';
 import AdminSidebar from '../../../components/AdminSidebar.astro';
-import { getOrganizationByOwnerUserId } from '../../../lib/db';
+import { resolveOrganizationForAdminSession } from '../../../lib/db';
 
 const userId = Astro.locals.user?.id ?? '';
-const organization = userId ? await getOrganizationByOwnerUserId(userId) : null;
+const queryOrgId = Astro.url.searchParams.get('id')?.trim() ?? '';
+
+const resolved = userId
+  ? await resolveOrganizationForAdminSession(
+      userId,
+      queryOrgId || undefined,
+      Astro.locals.isAdmin,
+      '/admin/organization/settings'
+    )
+  : { status: 'no_access' as const };
+
+if (resolved.status === 'redirect') {
+  return Astro.redirect(resolved.to);
+}
+
+const organization = resolved.status === 'ok' ? resolved.organization : null;
+const orgNavQuery = resolved.status === 'ok' ? resolved.orgNavQuery : '';
+const showBackToOrganizations = orgNavQuery !== '';
+const isOrganizerUser = Astro.locals.isAdmin;
 ---
 
 <Layout title="Organization | Settings">
@@ -19,10 +37,21 @@ const organization = userId ? await getOrganizationByOwnerUserId(userId) : null;
       userFirstName={Astro.locals.user?.firstName ?? ''}
       userLastName={Astro.locals.user?.lastName ?? ''}
       userRole={Astro.locals.user?.role ?? ''}
-      organization={organization ? { label: organization.name, href: '/admin/organization' } : undefined}
+      organization={
+        organization
+          ? { label: organization.name, href: `/admin/organization${orgNavQuery}` }
+          : undefined
+      }
     />
     <div class="flex min-h-[calc(100vh-4rem)] min-w-0 flex-col md:flex-row">
-      {organization && <AdminSidebar variant="organization" active="settings" />}
+      {organization && (
+        <AdminSidebar
+          variant="organization"
+          active="settings"
+          organizationNavQuery={orgNavQuery}
+          showBackToOrganizations={showBackToOrganizations}
+        />
+      )}
 
       <main class="flex-1 px-4 py-10 space-y-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
@@ -34,11 +63,31 @@ const organization = userId ? await getOrganizationByOwnerUserId(userId) : null;
 
         {!organization ? (
           <div class="rounded-lg border border-(--amber-6) bg-(--amber-2) p-4 text-(--amber-11)">
-            <p class="font-medium">No organizer organization found</p>
-            <p class="mt-1 text-sm">Create one first to manage settings.</p>
-            <a href="/onboarding/organization" class="mt-3 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-              Create organization
-            </a>
+            {isOrganizerUser ? (
+              <>
+                <p class="font-medium">No organizer organization found</p>
+                <p class="mt-1 text-sm">Create one first to manage settings.</p>
+                <a
+                  href="/onboarding/organization"
+                  class="mt-3 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Create organization
+                </a>
+              </>
+            ) : (
+              <>
+                <p class="font-medium">Organization not available</p>
+                <p class="mt-1 text-sm">
+                  This link may be invalid, or you need to pick an organization you belong to.
+                </p>
+                <a
+                  href="/admin"
+                  class="mt-3 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Back to organizations
+                </a>
+              </>
+            )}
           </div>
         ) : (
           <section class="rounded-xl border border-border bg-card p-6">
@@ -69,24 +118,26 @@ const organization = userId ? await getOrganizationByOwnerUserId(userId) : null;
               </div>
             </form>
 
-            <div class="mt-8 pt-6 border-t border-border">
-              <h3 class="text-lg font-semibold text-foreground mb-4">Danger zone</h3>
-              <div class="rounded-lg border border-red-200 bg-red-50 dark:border-red-900/30 dark:bg-red-900/10 p-4">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="font-medium text-red-900 dark:text-red-400">Delete organization</p>
-                    <p class="text-sm text-red-700 dark:text-red-400/80">This will permanently delete your organization and all associated data.</p>
+            {isOrganizerUser && (
+              <div class="mt-8 pt-6 border-t border-border">
+                <h3 class="text-lg font-semibold text-foreground mb-4">Danger zone</h3>
+                <div class="rounded-lg border border-red-200 bg-red-50 dark:border-red-900/30 dark:bg-red-900/10 p-4">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <p class="font-medium text-red-900 dark:text-red-400">Delete organization</p>
+                      <p class="text-sm text-red-700 dark:text-red-400/80">This will permanently delete your organization and all associated data.</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled
+                      class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white opacity-50 cursor-not-allowed"
+                    >
+                      Delete
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    disabled
-                    class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white opacity-50 cursor-not-allowed"
-                  >
-                    Delete
-                  </button>
                 </div>
               </div>
-            </div>
+            )}
           </section>
         )}
       </main>

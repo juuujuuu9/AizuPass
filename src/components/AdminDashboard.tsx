@@ -73,6 +73,8 @@ interface AdminDashboardProps {
   eventName?: string;
   /** Desktop: show scanner CTA in the stats row (mobile uses header link in AdminPage). */
   showScannerCta?: boolean;
+  /** Organizers can create events; staff should not see "Create event" empty-state CTAs. */
+  canCreateEvent?: boolean;
   onRefresh: () => void;
 }
 
@@ -81,6 +83,7 @@ export function AdminDashboard({
   eventId,
   eventName,
   showScannerCta = false,
+  canCreateEvent = true,
   onRefresh,
 }: AdminDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -523,14 +526,34 @@ export function AdminDashboard({
         </CardHeader>
         <CardContent className="min-w-0">
           {sortedAttendees.length === 0 ? (
-            <EmptyState
-              onAddAttendee={() => {
-                window.location.href = eventId ? '/' : '/admin/events/new';
-              }}
-              onImportCSV={eventId ? () => { window.location.href = `/admin/events/import?event=${eventId}`; } : undefined}
-              addButtonLabel={eventId ? 'Add Attendee' : 'Create Event'}
-              addButtonRed={!eventId}
-            />
+            !eventId && !canCreateEvent ? (
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+                  <Users className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="mb-1 text-lg font-semibold text-foreground">Select an event</h3>
+                <p className="mb-6 max-w-sm text-sm text-muted-foreground">
+                  Choose an event above to manage attendees, or open your organization to see available events.
+                </p>
+                <a
+                  href="/admin/organization"
+                  className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Organization
+                </a>
+              </div>
+            ) : (
+              <EmptyState
+                onAddAttendee={() => {
+                  window.location.href = eventId ? '/' : '/admin/events/new';
+                }}
+                onImportCSV={
+                  eventId ? () => { window.location.href = `/admin/events/import?event=${eventId}`; } : undefined
+                }
+                addButtonLabel={eventId ? 'Add Attendee' : 'Create Event'}
+                addButtonRed={!eventId}
+              />
+            )
           ) : (
           <div className="min-w-0 space-y-2">
             {selectedIds.size > 0 && (

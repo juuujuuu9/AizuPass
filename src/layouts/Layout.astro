@@ -15,6 +15,7 @@ const fullTitle = title?.trim() ? `${title.trim()} | ${SITE_NAME}` : SITE_NAME;
   <head>
     <script is:inline>
       (function(){var r=document.documentElement;var s=localStorage.getItem('theme');var d=s==='dark'||(!s&&window.matchMedia('(prefers-color-scheme: dark)').matches);r.classList.toggle('dark',d);r.style.colorScheme=d?'dark':'light';})();
+      try{if(localStorage.getItem('admin-sidebar-collapsed')==='1')document.documentElement.classList.add('admin-sidebar-collapsed');}catch(e){}
     </script>
     <meta charset="utf-8" />
     <link rel="icon" type="image/png" href="/favicon.png?v=1" />

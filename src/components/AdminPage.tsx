@@ -152,6 +152,7 @@ export function AdminPage({
           eventId={eventId || undefined}
           eventName={events.find((e) => e.id === eventId)?.name}
           showScannerCta={events.length > 0}
+          canCreateEvent={canManageOrganization}
           onRefresh={() => eventId && loadAttendees(eventId, { silent: true })}
         />
       )}

@@ -20,10 +20,29 @@ if (safeReturnTo.split('?')[0] === '/') {
   safeReturnTo = '/admin';
 }
 
-const afterProfileHref =
-  safeReturnTo === '/admin'
-    ? '/onboarding/organization'
-    : `/onboarding/organization?returnTo=${encodeURIComponent(safeReturnTo)}`;
+/** Staff invite flow: finish name first, then `/invite/accept?token=…` (while role is still `none`). */
+const isInviteAcceptReturn =
+  safeReturnTo.split('?')[0] === '/invite/accept';
+
+const isStaffOnly = Astro.locals.user?.role === 'staff';
+let afterProfileHref: string;
+if (isInviteAcceptReturn) {
+  afterProfileHref = safeReturnTo;
+} else if (isStaffOnly) {
+  if (
+    safeReturnTo === '/admin' ||
+    safeReturnTo.startsWith('/onboarding/organization')
+  ) {
+    afterProfileHref = '/admin/organization';
+  } else {
+    afterProfileHref = safeReturnTo;
+  }
+} else {
+  afterProfileHref =
+    safeReturnTo === '/admin'
+      ? '/onboarding/organization'
+      : `/onboarding/organization?returnTo=${encodeURIComponent(safeReturnTo)}`;
+}
 
 if (await isUserProfileComplete(userId)) {
   return Astro.redirect(safeReturnTo);

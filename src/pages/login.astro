@@ -28,7 +28,12 @@ if (userId) {
   if (canAccessPath(safeReturnTo, currentRole)) {
     return Astro.redirect(safeReturnTo);
   }
-  const roleHome = currentRole === 'none' ? '/onboarding/organization' : '/admin';
+  const roleHome =
+    currentRole === 'none'
+      ? '/onboarding/organization'
+      : currentRole === 'staff'
+        ? '/admin/organization'
+        : '/admin';
   if (roleHome && canAccessPath(roleHome, currentRole)) {
     return Astro.redirect(roleHome);
   }

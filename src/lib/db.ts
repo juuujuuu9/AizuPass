@@ -190,6 +190,34 @@ export async function getUserAccessSummary(userId: string): Promise<{
   };
 }
 
+/**
+ * Organizer welcome email is for solo signups creating an org. Skip for staff and for anyone
+ * mid–staff-invite flow (pending invitation on their email).
+ */
+export async function shouldSuppressOrganizerWelcomeEmail(
+  userId: string,
+  email: string
+): Promise<boolean> {
+  const normalized = String(email ?? '').trim().toLowerCase();
+  if (!userId || !normalized) return false;
+
+  const summary = await getUserAccessSummary(userId);
+  if (summary.hasMembership && !summary.hasOrganizerRole) {
+    return true;
+  }
+
+  const db = getDb();
+  const pending = await db`
+    SELECT 1
+    FROM organization_invitations
+    WHERE lower(trim(email)) = ${normalized}
+      AND status = 'pending'
+      AND expires_at > NOW()
+    LIMIT 1
+  `;
+  return pending.length > 0;
+}
+
 export async function getEventById(id: string): Promise<EventRow | null> {
   const db = getDb();
   const rows = await db`SELECT * FROM events WHERE id = ${id}`;

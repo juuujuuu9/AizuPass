@@ -139,6 +139,67 @@ export async function getOrganizationMembership(
   return rows.length ? rowToMembership(rows[0] as Record<string, unknown>) : null;
 }
 
+/** Organizer owner or any active membership (staff). */
+export async function canUserAccessOrganization(
+  userId: string,
+  organizationId: string
+): Promise<boolean> {
+  if (!userId || !organizationId) return false;
+  const org = await getOrganizationById(organizationId);
+  if (!org) return false;
+  if (org.ownerUserId === userId) return true;
+  const m = await getOrganizationMembership(userId, organizationId);
+  return m !== null;
+}
+
+export type ResolveAdminOrganizationResult =
+  | { status: 'ok'; organization: OrganizationRow; orgNavQuery: string }
+  | { status: 'redirect'; to: string }
+  | { status: 'no_access' };
+
+/**
+ * Resolves which organization an admin/settings page is for. Organizers default to their owned org;
+ * staff must use ?id= when in multiple orgs, or are redirected to add it when they only have one.
+ */
+export async function resolveOrganizationForAdminSession(
+  userId: string,
+  queryOrgId: string | undefined,
+  hasOrganizerRole: boolean,
+  /** e.g. `/admin/organization` or `/admin/organization/staff` (no query string) */
+  adminSectionPath: string
+): Promise<ResolveAdminOrganizationResult> {
+  const idParam = queryOrgId?.trim() ?? '';
+
+  if (idParam) {
+    const allowed = await canUserAccessOrganization(userId, idParam);
+    if (!allowed) return { status: 'no_access' };
+    const organization = await getOrganizationById(idParam);
+    if (!organization) return { status: 'no_access' };
+    return {
+      status: 'ok',
+      organization,
+      orgNavQuery: `?id=${encodeURIComponent(idParam)}`,
+    };
+  }
+
+  if (hasOrganizerRole) {
+    const organization = await getOrganizationByOwnerUserId(userId);
+    if (!organization) return { status: 'no_access' };
+    return { status: 'ok', organization, orgNavQuery: '' };
+  }
+
+  const orgs = await getAllOrganizationsForUser(userId);
+  if (orgs.length === 0) return { status: 'no_access' };
+  if (orgs.length === 1) {
+    const id = orgs[0]!.id;
+    return {
+      status: 'redirect',
+      to: `${adminSectionPath}?id=${encodeURIComponent(id)}`,
+    };
+  }
+  return { status: 'redirect', to: '/admin' };
+}
+
 export async function getOrganizationMembershipsForUser(
   userId: string
 ): Promise<OrganizationMembershipRow[]> {
@@ -329,6 +390,7 @@ export async function removeOrganizationMembership(membershipId: string): Promis
 }
 
 export async function getInvitationByToken(token: string): Promise<{
+  organizationId: string;
   email: string;
   organizationName: string;
   role: OrganizationRole;
@@ -338,7 +400,7 @@ export async function getInvitationByToken(token: string): Promise<{
   if (!token) return null;
   const db = getDb();
   const rows = await db`
-    SELECT i.email, i.role, i.status, i.expires_at, o.name AS organization_name
+    SELECT i.organization_id, i.email, i.role, i.status, i.expires_at, o.name AS organization_name
     FROM organization_invitations i
     INNER JOIN organizations o ON o.id = i.organization_id
     WHERE i.token = ${token}
@@ -347,6 +409,7 @@ export async function getInvitationByToken(token: string): Promise<{
   if (!rows.length) return null;
   const row = rows[0] as Record<string, unknown>;
   return {
+    organizationId: String(row.organization_id),
     email: String(row.email),
     organizationName: String(row.organization_name),
     role: row.role as OrganizationRole,

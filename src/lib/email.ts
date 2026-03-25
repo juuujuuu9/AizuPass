@@ -93,7 +93,6 @@ export async function sendOrganizerWelcomeEmail(data: {
           <p>Your account is ready. To get started, <strong>create your organization</strong> — then you can add events, import guests, and run check-in.</p>
           <div class="card">
             <a class="cta" href="${safeUrl}">Continue onboarding</a>
-            <p class="muted">If a colleague invited you as staff, use the link in their invitation email instead; you do not need to create an organization.</p>
           </div>
           <p class="muted">If the button does not work, copy and paste this link:</p>
           <p class="link">${safeUrl}</p>

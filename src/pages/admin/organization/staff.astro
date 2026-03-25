@@ -2,15 +2,33 @@
 import Layout from '../../../layouts/Layout.astro';
 import DashboardHeader from '../../../components/DashboardHeader.astro';
 import AdminSidebar from '../../../components/AdminSidebar.astro';
-import { getOrganizationByOwnerUserId, getOrganizationStaffMembers } from '../../../lib/db';
+import { getOrganizationStaffMembers, resolveOrganizationForAdminSession } from '../../../lib/db';
 
 const userId = Astro.locals.user?.id ?? '';
-const organization = userId ? await getOrganizationByOwnerUserId(userId) : null;
-const staffMembers = organization ? await getOrganizationStaffMembers(organization.id) : [];
+const queryOrgId = Astro.url.searchParams.get('id')?.trim() ?? '';
 
-// Group staff by status
-const activeStaff = staffMembers.filter(m => m.status === 'active');
-const pendingInvites = staffMembers.filter(m => m.status === 'pending');
+const resolved = userId
+  ? await resolveOrganizationForAdminSession(
+      userId,
+      queryOrgId || undefined,
+      Astro.locals.isAdmin,
+      '/admin/organization/staff'
+    )
+  : { status: 'no_access' as const };
+
+if (resolved.status === 'redirect') {
+  return Astro.redirect(resolved.to);
+}
+
+const organization = resolved.status === 'ok' ? resolved.organization : null;
+const orgNavQuery = resolved.status === 'ok' ? resolved.orgNavQuery : '';
+const showBackToOrganizations = orgNavQuery !== '';
+
+const staffMembers = organization ? await getOrganizationStaffMembers(organization.id) : [];
+const isOrganizerUser = Astro.locals.isAdmin;
+
+const activeStaff = staffMembers.filter((m) => m.status === 'active');
+const pendingInvites = staffMembers.filter((m) => m.status === 'pending');
 ---
 
 <Layout title="Organization | Staff">
@@ -24,10 +42,21 @@ const pendingInvites = staffMembers.filter(m => m.status === 'pending');
       userFirstName={Astro.locals.user?.firstName ?? ''}
       userLastName={Astro.locals.user?.lastName ?? ''}
       userRole={Astro.locals.user?.role ?? ''}
-      organization={organization ? { label: organization.name, href: '/admin/organization' } : undefined}
+      organization={
+        organization
+          ? { label: organization.name, href: `/admin/organization${orgNavQuery}` }
+          : undefined
+      }
     />
     <div class="flex min-h-[calc(100vh-4rem)] min-w-0 flex-col md:flex-row">
-      {organization && <AdminSidebar variant="organization" active="staff" />}
+      {organization && (
+        <AdminSidebar
+          variant="organization"
+          active="staff"
+          organizationNavQuery={orgNavQuery}
+          showBackToOrganizations={showBackToOrganizations}
+        />
+      )}
 
       <main class="flex-1 px-4 py-10 space-y-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
@@ -54,11 +83,31 @@ const pendingInvites = staffMembers.filter(m => m.status === 'pending');
 
         {!organization ? (
           <div class="rounded-lg border border-(--amber-6) bg-(--amber-2) p-4 text-(--amber-11)">
-            <p class="font-medium">No organizer organization found</p>
-            <p class="mt-1 text-sm">Create one first to invite staff.</p>
-            <a href="/onboarding/organization" class="mt-3 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-              Create organization
-            </a>
+            {isOrganizerUser ? (
+              <>
+                <p class="font-medium">No organizer organization found</p>
+                <p class="mt-1 text-sm">Create one first to invite staff.</p>
+                <a
+                  href="/onboarding/organization"
+                  class="mt-3 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Create organization
+                </a>
+              </>
+            ) : (
+              <>
+                <p class="font-medium">Organization not available</p>
+                <p class="mt-1 text-sm">
+                  This link may be invalid, or you need to pick an organization you belong to.
+                </p>
+                <a
+                  href="/admin"
+                  class="mt-3 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Back to organizations
+                </a>
+              </>
+            )}
           </div>
         ) : (
           <section class="rounded-xl border border-border bg-card">

@@ -151,6 +151,12 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
     return redirect(`/login?returnTo=${returnTo}&required=auth`);
   }
 
+  if (userId && !testBypass && locals.user?.role === 'staff') {
+    if (pathname === '/onboarding/organization' || pathname === '/admin/events/new') {
+      return redirect('/admin/organization');
+    }
+  }
+
   if (!testBypass && userId && !profileComplete) {
     const emailOk = await isPrimaryEmailVerifiedByClerk(context, userId);
     const pendingCookie = hasEmailOnboardingPendingCookie(request);
