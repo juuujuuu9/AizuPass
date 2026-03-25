@@ -1,0 +1,197 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import DashboardHeader from '../../../components/DashboardHeader.astro';
+import AdminSidebar from '../../../components/AdminSidebar.astro';
+import {
+  getEventByIdForUser,
+  getAllEventsForUser,
+  getOrganizationById,
+  isUserOrganizerForOrganization,
+} from '../../../lib/db';
+
+const userId = Astro.locals.user?.id ?? '';
+const eventId = Astro.url.searchParams.get('event')?.trim();
+let event: Awaited<ReturnType<typeof getEventByIdForUser>> = null;
+const events = userId ? await getAllEventsForUser(userId) : [];
+
+const integrationEvents: typeof events = [];
+for (const ev of events) {
+  if (!ev.organizationId) continue;
+  const org = await getOrganizationById(ev.organizationId);
+  if (org && (await isUserOrganizerForOrganization(userId, org))) {
+    integrationEvents.push(ev);
+  }
+}
+
+if (eventId && userId) {
+  event = await getEventByIdForUser(eventId, userId);
+}
+
+const organization = event?.organizationId ? await getOrganizationById(event.organizationId) : null;
+
+if (organization && event && !(await isUserOrganizerForOrganization(userId, organization))) {
+  return Astro.redirect(`/admin?event=${event.id}`);
+}
+
+const showEventImport = organization
+  ? await isUserOrganizerForOrganization(userId, organization)
+  : false;
+
+const ebRaw =
+  event?.settings?.eventbrite && typeof event.settings.eventbrite === 'object' && !Array.isArray(event.settings.eventbrite)
+    ? (event.settings.eventbrite as Record<string, unknown>)
+    : null;
+const eventbritePageState = {
+  eventbriteEventId: typeof ebRaw?.eventbriteEventId === 'string' ? ebRaw.eventbriteEventId : '',
+  credentialsSaved: Boolean(ebRaw?.credentialsSaved),
+  lastSyncedAt: typeof ebRaw?.lastSyncedAt === 'string' ? ebRaw.lastSyncedAt : '',
+};
+---
+
+<Layout title="Integrations">
+  <div class="min-h-screen bg-background">
+    <DashboardHeader
+      homeHref="/admin"
+      organization={organization ? { label: organization.name, href: event?.id ? `/admin?event=${event.id}` : '/admin' } : undefined}
+      event={event ? { label: event.name, badge: 'Integrations' } : undefined}
+      showSignOut={true}
+      userEmail={Astro.locals.user?.email ?? ''}
+      userFirstName={Astro.locals.user?.firstName ?? ''}
+      userLastName={Astro.locals.user?.lastName ?? ''}
+      userRole={Astro.locals.user?.role ?? ''}
+    />
+
+    <div class="flex min-h-[calc(100vh-4rem)] min-w-0 flex-col md:flex-row">
+      {event && (
+        <AdminSidebar
+          variant="event"
+          eventId={event.id}
+          active="integrations"
+          eventWorkspaceOrganizationId={organization?.id}
+          showEventImport={showEventImport}
+        />
+      )}
+
+      <main class="flex-1 px-4 py-8">
+        <h1 class="text-2xl font-bold text-foreground mb-6">Integrations</h1>
+
+        {!eventId || !event ? (
+          <div class="rounded-lg border border-border bg-card p-6 max-w-2xl">
+            <p class="text-muted-foreground mb-4">Select an event to manage integrations:</p>
+            <ul class="space-y-2">
+              {integrationEvents.map((ev) => (
+                <li>
+                  <a
+                    href={`/admin/events/integrations?event=${ev.id}`}
+                    class="text-primary hover:underline font-medium"
+                  >
+                    {ev.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+            {integrationEvents.length === 0 && (
+              <p class="text-sm text-muted-foreground">
+                {events.length === 0 ? (
+                  Astro.locals.isAdmin ? (
+                    <>
+                      No events yet.{' '}
+                      <a href="/admin/events/new" class="text-primary hover:underline">
+                        Create one
+                      </a>{' '}
+                      first.
+                    </>
+                  ) : (
+                    <>No events yet. Ask an organizer to create one, then refresh this page.</>
+                  )
+                ) : (
+                  <>Only organizers can connect integrations. Use the attendees page to check people in.</>
+                )}
+              </p>
+            )}
+          </div>
+        ) : showEventImport ? (
+          <div
+            id="eventbrite-sync-panel"
+            class="space-y-4 rounded-lg border border-border bg-card p-6 shadow-sm max-w-2xl"
+          >
+            <h2 class="text-lg font-semibold text-foreground">Eventbrite</h2>
+            <p class="text-sm text-muted-foreground">
+              Pull attendees from an Eventbrite event using a{' '}
+              <a
+                href="https://www.eventbrite.com/platform/docs/authentication"
+                class="text-primary underline underline-offset-2"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                private token
+              </a>{' '}
+              (organizer API). Each sync updates names and stores the latest Eventbrite metadata in attendee
+              source data. New guests get check-in QR codes like a CSV import.
+            </p>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label for="eb-event-id" class="block text-xs font-medium text-muted-foreground mb-1">
+                  Eventbrite event ID
+                </label>
+                <input
+                  id="eb-event-id"
+                  type="text"
+                  class="w-full rounded border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  placeholder="e.g. 12345678901"
+                  autocomplete="off"
+                />
+              </div>
+              <div>
+                <label for="eb-private-token" class="block text-xs font-medium text-muted-foreground mb-1">
+                  Private token
+                </label>
+                <input
+                  id="eb-private-token"
+                  type="password"
+                  class="w-full rounded border border-input bg-background px-3 py-2 text-sm text-foreground"
+                  placeholder={eventbritePageState.credentialsSaved ? '•••••••• (saved — leave blank to reuse)' : 'Paste token'}
+                  autocomplete="off"
+                />
+              </div>
+            </div>
+            <label class="flex items-start gap-2 text-sm text-foreground">
+              <input type="checkbox" id="eb-save-credentials" class="mt-0.5" />
+              <span>Save Eventbrite event ID and token on this server for later syncs (organizers only; never shown back in full).</span>
+            </label>
+            {eventbritePageState.lastSyncedAt && (
+              <p class="text-xs text-muted-foreground">
+                Last saved sync: {new Date(eventbritePageState.lastSyncedAt).toLocaleString()}
+              </p>
+            )}
+            <div id="eb-sync-error" class="hidden text-sm text-[var(--red-11)]"></div>
+            <div id="eb-sync-success" class="hidden text-sm text-[var(--green-11)]"></div>
+            <button
+              type="button"
+              id="eb-sync-btn"
+              class="rounded-lg bg-[var(--accent-9)] px-4 py-2 text-sm font-medium text-[var(--accent-contrast)] hover:opacity-95"
+            >
+              Sync from Eventbrite
+            </button>
+          </div>
+        ) : (
+          <p class="text-sm text-muted-foreground">You do not have access to manage integrations for this event.</p>
+        )}
+      </main>
+    </div>
+  </div>
+
+  <script
+    type="application/json"
+    id="integrations-page-data"
+    set:html={JSON.stringify({
+      eventId: event?.id,
+      eventbrite: eventbritePageState,
+      showPanel: Boolean(event && showEventImport),
+    })}
+  />
+  <script>
+    import { initEventbriteIntegrationPage } from '../../../scripts/eventbrite-integration-page';
+    initEventbriteIntegrationPage();
+  </script>
+</Layout>

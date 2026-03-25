@@ -2,11 +2,19 @@
 /**
  * Shared admin nav: organization settings area vs per-event workspace.
  * variant=organization — active: overview | staff | billing | settings
- * variant=event — eventId required; active: attendees | import | export | settings (import optional via showEventImport)
+ * variant=event — eventId required; active: attendees | import | export | integrations | settings (import/integrations optional via showEventImport)
  */
 export interface Props {
   variant: 'organization' | 'event';
-  active: 'overview' | 'staff' | 'billing' | 'settings' | 'attendees' | 'import' | 'export';
+  active:
+    | 'overview'
+    | 'staff'
+    | 'billing'
+    | 'settings'
+    | 'attendees'
+    | 'import'
+    | 'export'
+    | 'integrations';
   eventId?: string;
   /** Appended to organization admin links (e.g. `?id=…` for staff). */
   organizationNavQuery?: string;
@@ -70,6 +78,9 @@ const mobileTabIdle =
               <a href={`/admin/events/import?event=${eventId}`} class={active === 'import' ? mobileTabActive : mobileTabIdle}>Import</a>
             )}
             <a href={`/api/attendees/export?eventId=${eventId}`} class={active === 'export' ? mobileTabActive : mobileTabIdle}>Export</a>
+            {showEventImport && (
+              <a href={`/admin/events/integrations?event=${eventId}`} class={active === 'integrations' ? mobileTabActive : mobileTabIdle}>Integrations</a>
+            )}
             <a href={`/admin/events/edit?event=${eventId}`} class={active === 'settings' ? mobileTabActive : mobileTabIdle}>Settings</a>
             {eventWorkspaceOrganizationId && (
               <a href={`/admin/organization?id=${eventWorkspaceOrganizationId}`} class={mobileTabIdle}>Manage Events</a>
@@ -188,6 +199,21 @@ const mobileTabIdle =
           </svg>
           Export
         </a>
+        {showEventImport && (
+          <a href={`/admin/events/integrations?event=${eventId}`} class={active === 'integrations' ? linkActive : linkIdle}>
+            <svg class="h-4 w-4 shrink-0" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M33,6A13,13,0,1,0,46,19,13,13,0,0,0,33,6ZM32,21a2,2,0,0,1-4,0V17a2,2,0,0,1,4,0Zm6,0a2,2,0,0,1-4,0V17a2,2,0,0,1,4,0Z"
+              />
+              <path
+                fill="currentColor"
+                d="M42,40H12V33.7A8,8,0,0,0,18,26V22a2,2,0,0,0-2-2H15V16a2,2,0,0,0-4,0v4H9V16a2,2,0,0,0-4,0v4H4a2,2,0,0,0-2,2v4a8,8,0,0,0,6,7.7V40a4,4,0,0,0,4,4H42a2,2,0,0,0,0-4Z"
+              />
+            </svg>
+            Integrations
+          </a>
+        )}
         <a href={`/admin/events/edit?event=${eventId}`} class={active === 'settings' ? linkActive : linkIdle}>
           <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
