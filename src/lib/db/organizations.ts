@@ -152,6 +152,17 @@ export async function canUserAccessOrganization(
   return m !== null;
 }
 
+/** Billing and other organizer-only controls for a specific organization. */
+export async function isUserOrganizerForOrganization(
+  userId: string,
+  organization: OrganizationRow
+): Promise<boolean> {
+  if (!userId) return false;
+  if (organization.ownerUserId === userId) return true;
+  const m = await getOrganizationMembership(userId, organization.id);
+  return m?.role === 'organizer';
+}
+
 export type ResolveAdminOrganizationResult =
   | { status: 'ok'; organization: OrganizationRow; orgNavQuery: string }
   | { status: 'redirect'; to: string }

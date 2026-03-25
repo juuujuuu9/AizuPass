@@ -2,7 +2,11 @@
 import Layout from '../../../layouts/Layout.astro';
 import DashboardHeader from '../../../components/DashboardHeader.astro';
 import AdminSidebar from '../../../components/AdminSidebar.astro';
-import { getOrganizationStaffMembers, resolveOrganizationForAdminSession } from '../../../lib/db';
+import {
+  getOrganizationStaffMembers,
+  isUserOrganizerForOrganization,
+  resolveOrganizationForAdminSession,
+} from '../../../lib/db';
 
 const userId = Astro.locals.user?.id ?? '';
 const queryOrgId = Astro.url.searchParams.get('id')?.trim() ?? '';
@@ -26,6 +30,9 @@ const showBackToOrganizations = orgNavQuery !== '';
 
 const staffMembers = organization ? await getOrganizationStaffMembers(organization.id) : [];
 const isOrganizerUser = Astro.locals.isAdmin;
+const showOrganizationBilling = organization
+  ? await isUserOrganizerForOrganization(userId, organization)
+  : false;
 
 const activeStaff = staffMembers.filter((m) => m.status === 'active');
 const pendingInvites = staffMembers.filter((m) => m.status === 'pending');
@@ -55,6 +62,7 @@ const pendingInvites = staffMembers.filter((m) => m.status === 'pending');
           active="staff"
           organizationNavQuery={orgNavQuery}
           showBackToOrganizations={showBackToOrganizations}
+          showOrganizationBilling={showOrganizationBilling}
         />
       )}
 

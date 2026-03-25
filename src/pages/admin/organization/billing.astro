@@ -2,7 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import DashboardHeader from '../../../components/DashboardHeader.astro';
 import AdminSidebar from '../../../components/AdminSidebar.astro';
-import { resolveOrganizationForAdminSession } from '../../../lib/db';
+import { isUserOrganizerForOrganization, resolveOrganizationForAdminSession } from '../../../lib/db';
 
 const userId = Astro.locals.user?.id ?? '';
 const queryOrgId = Astro.url.searchParams.get('id')?.trim() ?? '';
@@ -24,6 +24,10 @@ const organization = resolved.status === 'ok' ? resolved.organization : null;
 const orgNavQuery = resolved.status === 'ok' ? resolved.orgNavQuery : '';
 const showBackToOrganizations = orgNavQuery !== '';
 const isOrganizerUser = Astro.locals.isAdmin;
+
+if (organization && !(await isUserOrganizerForOrganization(userId, organization))) {
+  return Astro.redirect(`/admin/organization${orgNavQuery}`);
+}
 ---
 
 <Layout title="Organization | Billing">

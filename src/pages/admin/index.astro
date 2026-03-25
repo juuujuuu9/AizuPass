@@ -10,6 +10,7 @@ import {
   getAllEventsForUser,
   getAllAttendeesForUser,
   getOrganizationById,
+  isUserOrganizerForOrganization,
   type OrganizationWithRole,
 } from '../../lib/db';
 
@@ -25,6 +26,7 @@ let eventOptions: { id: string; name: string; slug: string }[] = [];
 let initialAttendees: import('../../types/attendee').Attendee[] = [];
 let organization: Awaited<ReturnType<typeof getOrganizationById>> = null;
 let canManageOrganization = false;
+let showEventImport = false;
 
 if (eventIdParam) {
   const ev = userId ? await getEventByIdForUser(eventIdParam, userId) : null;
@@ -61,6 +63,9 @@ if (eventIdParam) {
   }));
 
   canManageOrganization = Astro.locals.isAdmin || organization?.ownerUserId === userId;
+  showEventImport = organization
+    ? await isUserOrganizerForOrganization(userId, organization)
+    : false;
 }
 
 const organizations = !showEventDashboard && userId ? await getAllOrganizationsForUser(userId) : [];
@@ -118,6 +123,7 @@ const pageTitle = showEventDashboard && event ? `${event.name} | Attendees` : 'E
           eventId={event.id}
           active="attendees"
           eventWorkspaceOrganizationId={organization?.id}
+          showEventImport={showEventImport}
         />
 
         <main class="min-w-0 flex-1 px-4 py-8">
@@ -127,6 +133,7 @@ const pageTitle = showEventDashboard && event ? `${event.name} | Attendees` : 'E
             selectedEventId={eventIdParam}
             initialAttendees={initialAttendees}
             canManageOrganization={canManageOrganization}
+            canImportCsv={showEventImport}
           />
         </main>
       </div>

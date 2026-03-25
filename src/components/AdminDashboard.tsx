@@ -67,8 +67,10 @@ function getInitials(attendee: Attendee): string {
 
 interface AdminDashboardProps {
   attendees: Attendee[];
-  /** When set, show Import CSV (event-scoped) and bulk QR email actions. */
+  /** When set, show Import CSV (event-scoped) when `canImportCsv`; bulk QR email uses event context. */
   eventId?: string;
+  /** Organizers only; staff use attendees without CSV import. */
+  canImportCsv?: boolean;
   /** Used in bulk QR email copy when resending. */
   eventName?: string;
   /** Desktop: show scanner CTA in the stats row (mobile uses header link in AdminPage). */
@@ -84,6 +86,7 @@ export function AdminDashboard({
   eventName,
   showScannerCta = false,
   canCreateEvent = true,
+  canImportCsv = true,
   onRefresh,
 }: AdminDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -548,7 +551,11 @@ export function AdminDashboard({
                   window.location.href = eventId ? '/' : '/admin/events/new';
                 }}
                 onImportCSV={
-                  eventId ? () => { window.location.href = `/admin/events/import?event=${eventId}`; } : undefined
+                  eventId && canImportCsv
+                    ? () => {
+                        window.location.href = `/admin/events/import?event=${eventId}`;
+                      }
+                    : undefined
                 }
                 addButtonLabel={eventId ? 'Add Attendee' : 'Create Event'}
                 addButtonRed={!eventId}

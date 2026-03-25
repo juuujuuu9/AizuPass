@@ -22,6 +22,8 @@ interface AdminPageProps {
   selectedEventId?: string;
   /** Show organizer-only controls. */
   canManageOrganization?: boolean;
+  /** CSV import / sidebar Import; false for staff in this org. */
+  canImportCsv?: boolean;
 }
 
 export function AdminPage({
@@ -29,6 +31,7 @@ export function AdminPage({
   events = [],
   selectedEventId = '',
   canManageOrganization = false,
+  canImportCsv = true,
 }: AdminPageProps) {
   // Server passes selectedEventId (URL > DB). Use as initial state.
   const [eventId, setEventId] = useState(selectedEventId || '');
@@ -153,6 +156,7 @@ export function AdminPage({
           eventName={events.find((e) => e.id === eventId)?.name}
           showScannerCta={events.length > 0}
           canCreateEvent={canManageOrganization}
+          canImportCsv={canImportCsv}
           onRefresh={() => eventId && loadAttendees(eventId, { silent: true })}
         />
       )}

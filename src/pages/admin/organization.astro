@@ -2,7 +2,11 @@
 import Layout from '../../layouts/Layout.astro';
 import DashboardHeader from '../../components/DashboardHeader.astro';
 import AdminSidebar from '../../components/AdminSidebar.astro';
-import { getEventsForOrganization, resolveOrganizationForAdminSession } from '../../lib/db';
+import {
+  getEventsForOrganization,
+  isUserOrganizerForOrganization,
+  resolveOrganizationForAdminSession,
+} from '../../lib/db';
 
 const userId = Astro.locals.user?.id ?? '';
 const queryOrgId = Astro.url.searchParams.get('id')?.trim() ?? '';
@@ -26,6 +30,9 @@ const showBackToOrganizations = orgNavQuery !== '';
 
 const events = organization ? await getEventsForOrganization(organization.id) : [];
 const isOrganizerUser = Astro.locals.isAdmin;
+const showOrganizationBilling = organization
+  ? await isUserOrganizerForOrganization(userId, organization)
+  : false;
 ---
 
 <Layout title="Organization">
@@ -52,6 +59,7 @@ const isOrganizerUser = Astro.locals.isAdmin;
           active="overview"
           organizationNavQuery={orgNavQuery}
           showBackToOrganizations={showBackToOrganizations}
+          showOrganizationBilling={showOrganizationBilling}
         />
       )}
 
@@ -171,17 +179,19 @@ const isOrganizerUser = Astro.locals.isAdmin;
                               </svg>
                               View
                             </a>
-                            <a
-                              href={`/admin/events/import?event=${event.id}`}
-                              class="inline-flex items-center gap-1.5 px-2 py-1.5 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded"
-                              title="Import CSV"
-                              aria-label={`Import CSV for ${event.name}`}
-                            >
-                              <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                              </svg>
-                              Import
-                            </a>
+                            {showOrganizationBilling && (
+                              <a
+                                href={`/admin/events/import?event=${event.id}`}
+                                class="inline-flex items-center gap-1.5 px-2 py-1.5 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded"
+                                title="Import CSV"
+                                aria-label={`Import CSV for ${event.name}`}
+                              >
+                                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                                Import
+                              </a>
+                            )}
                             <a
                               href={`/api/attendees/export?eventId=${event.id}`}
                               class="inline-flex items-center gap-1.5 px-2 py-1.5 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded"

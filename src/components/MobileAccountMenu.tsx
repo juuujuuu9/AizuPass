@@ -17,6 +17,8 @@ type MobileAccountMenuProps = {
   subtitle: string;
   /** e.g. Organizer, Staff — shown as a pill under the subtitle */
   roleLabel?: string;
+  /** When false, hide theme control in the menu (navbar never shows theme). */
+  showThemeToggle?: boolean;
   manageAccountHref?: string;
   signOutRedirectUrl?: string;
   showSignOut?: boolean;
@@ -27,6 +29,7 @@ export function MobileAccountMenu({
   displayName,
   subtitle,
   roleLabel = '',
+  showThemeToggle = true,
   manageAccountHref = '/onboarding/profile',
   signOutRedirectUrl = '/',
   showSignOut = true,
@@ -39,7 +42,7 @@ export function MobileAccountMenu({
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          'inline-flex md:hidden h-9 w-9 shrink-0 items-center justify-center rounded-full',
+          'inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full',
           'bg-primary/15 text-xs font-semibold text-primary',
           'hover:bg-primary/25 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none'
         )}
@@ -73,18 +76,22 @@ export function MobileAccountMenu({
             {subtitle ? (
               <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
             ) : null}
-            <div className="mt-1.5 flex min-h-9 items-center justify-between gap-2">
-              {roleLabel ? (
-                <span className="inline-flex w-fit shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                  {roleLabel}
-                </span>
-              ) : (
-                <span className="min-w-0 flex-1" aria-hidden />
-              )}
-              <span className="shrink-0 [&_button]:h-9 [&_button]:w-9">
-                <ThemeToggle />
-              </span>
-            </div>
+            {(roleLabel || showThemeToggle) && (
+              <div className="mt-1.5 flex min-h-9 items-center justify-between gap-2">
+                {roleLabel ? (
+                  <span className="inline-flex w-fit shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                    {roleLabel}
+                  </span>
+                ) : (
+                  <span className="min-w-0 flex-1" aria-hidden />
+                )}
+                {showThemeToggle ? (
+                  <span className="ml-auto shrink-0 [&_button]:h-9 [&_button]:w-9">
+                    <ThemeToggle />
+                  </span>
+                ) : null}
+              </div>
+            )}
           </div>
         </div>
 

@@ -1,8 +1,6 @@
 ---
-import { ThemeToggle } from './ThemeToggle';
 import { MobileAccountMenu } from './MobileAccountMenu';
 import InviteStaffModal from './InviteStaffModal.astro';
-import { SignOutButton } from '@clerk/astro/components';
 
 type HeaderLink = {
   href: string;
@@ -72,7 +70,8 @@ const badgeClasses = {
   secondary: 'bg-secondary text-secondary-foreground',
 };
 
-const showHeaderActions = showThemeToggle || showSignOut || isAdmin || Boolean(userEmail);
+const showAccountMenu = showThemeToggle || showSignOut;
+const showHeaderActions = showAccountMenu || (isAdmin && organization);
 ---
 
 <header class="bg-card border-b border-border z-50 overflow-x-hidden md:sticky md:top-0">
@@ -180,22 +179,7 @@ const showHeaderActions = showThemeToggle || showSignOut || isAdmin || Boolean(u
         )}
       </div>
       {showHeaderActions && (
-        <div class="flex shrink-0 items-center gap-4">
-          {userEmail && (
-            <div class="hidden md:flex items-center gap-2 text-sm">
-              <span class="text-muted-foreground">{userEmail}</span>
-              {roleLabel && (
-                <span class="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                  {roleLabel}
-                </span>
-              )}
-            </div>
-          )}
-          {showThemeToggle && (
-            <span class="hidden md:inline-flex">
-              <ThemeToggle client:load />
-            </span>
-          )}
+        <div class="flex shrink-0 items-center gap-3 md:gap-4">
           {isAdmin && organization && (
             <button
               id="open-invite-staff-modal-header"
@@ -207,22 +191,16 @@ const showHeaderActions = showThemeToggle || showSignOut || isAdmin || Boolean(u
               <span class="hidden md:inline">Invite Staff</span>
             </button>
           )}
-          {showThemeToggle && (
+          {showAccountMenu && (
             <MobileAccountMenu
               client:load
               initials={userInitials}
               displayName={accountLabel}
               subtitle={menuSubtitle}
               roleLabel={roleLabel}
+              showThemeToggle={showThemeToggle}
               showSignOut={showSignOut}
             />
-          )}
-          {showSignOut && (
-            <span class={showThemeToggle ? 'hidden md:inline-flex' : 'inline-flex'}>
-              <SignOutButton asChild redirectUrl="/">
-                <button type="button" class="text-sm text-muted-foreground hover:text-primary bg-transparent border-none cursor-pointer p-0 font-inherit">Sign out</button>
-              </SignOutButton>
-            </span>
           )}
         </div>
       )}
