@@ -60,6 +60,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # RSVP + concurrent check-in tests POST /api/attendees without eventId; that path needs
+      # a row in events with slug default (or DEFAULT_EVENT_SLUG). migrate-events is idempotent.
+      - name: Ensure default event for edge-case RSVP
+        run: npm run migrate-events
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL != '' && secrets.DATABASE_URL || vars.DATABASE_URL }}
+
       - name: Run edge case tests
         run: npm run test:edge-cases:ci
         env:

@@ -6,6 +6,10 @@
  *
  * Staff APIs require auth bypass. Start dev server with BYPASS_AUTH_FOR_TESTS=true,
  * then run tests with same env. Script sends X-Test-Mode: 1 header.
+ *
+ * Concurrent check-in race test POSTs public RSVP /api/attendees without eventId, which
+ * uses getDefaultEventId() (slug default or DEFAULT_EVENT_SLUG). CI runs migrate-events
+ * first; locally run npm run migrate-events or set EDGE_CASE_EVENT_ID to a real event UUID.
  */
 
 const BASE_URL = process.argv[2] || 'http://localhost:4321';
@@ -17,6 +21,8 @@ const RESULTS = [];
 /** Required on every staff check-in; must match QR payload event or attendee's event. */
 const DUMMY_SCANNER_EVENT = '00000000-0000-4000-8000-000000000000';
 const FAKE_QR_EVENT = '00000000-0000-0000-0000-000000000001';
+/** Optional: UUID of an existing event; avoids relying on getDefaultEventId() / migrate-events. */
+const EDGE_CASE_EVENT_ID = process.env.EDGE_CASE_EVENT_ID?.trim() || '';
 
 function log(type, message) {
   const icon = type === 'PASS' ? '✓' : type === 'FAIL' ? '✗' : type === 'WARN' ? '⚠' : 'ℹ';
@@ -287,9 +293,13 @@ async function runTests() {
       firstName: 'Race',
       lastName: 'Test',
       email: `race-${unique}@example.com`,
+      ...(EDGE_CASE_EVENT_ID ? { eventId: EDGE_CASE_EVENT_ID } : {}),
     });
     if (attendeeCreate.status !== 201 || !attendeeCreate.data?.id) {
-      throw new Error(`Failed to create attendee for race test: ${attendeeCreate.status}`);
+      const detail = attendeeCreate.data != null ? JSON.stringify(attendeeCreate.data) : '(no body)';
+      throw new Error(
+        `Failed to create attendee for race test: ${attendeeCreate.status} ${detail}`
+      );
     }
 
     const raceHeaders = { 'X-Forwarded-For': '10.10.10.10' };

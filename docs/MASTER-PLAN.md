@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-25 — Eventbrite: organizer sync from **Integrations** (`/admin/events/integrations`) → `POST /api/integrations/eventbrite/sync`; credentials optional in `events.settings.eventbrite` (token never re-exposed in UI). Prior: §11.A P1 offline queue; §13 `npm run smoke:email`; ingest **`/api/ingest/entry`**.
+**Last updated:** 2026-03-25 — [PARTIFUL-KILLER.md](PARTIFUL-KILLER.md): competitive roadmap vs Partiful (strategy doc; checklist sync when work starts). Prior: Eventbrite sync [EVENTBRITE-INTEGRATION.md](EVENTBRITE-INTEGRATION.md); §11.A P1 offline queue; §13 `npm run smoke:email`; ingest **`/api/ingest/entry`**.
 
 ---
 
@@ -240,9 +240,11 @@ Deferred / lower priority:
 
 | Doc | Covers |
 |-----|--------|
+| [PARTIFUL-KILLER.md](PARTIFUL-KILLER.md) | Strategy: vs Partiful wedges, phased roadmap, integration cross-rules, epic slugs; not a dev checklist until merged here. |
 | [STEP-1-QR-SECURITY-PLAN.md](STEP-1-QR-SECURITY-PLAN.md) | Item 1: UUID, token-only QR, rate limit, audit, migration. |
 | [STEP-2-CENTRAL-HUB.md](STEP-2-CENTRAL-HUB.md) | Item 3: Central hub, events, CSV import (primary), webhook optional. |
 | [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md) | Guestlist integrations: CSV-first for typical users; API + Zapier/Make as equal-weight automation paths; security/scalability notes. |
+| [EVENTBRITE-INTEGRATION.md](EVENTBRITE-INTEGRATION.md) | Eventbrite pull sync: setup, API, credentials, testing protocol, edge cases / support. |
 | [FORM-MICROSITE-SETUP.md](FORM-MICROSITE-SETUP.md) | Linking a form microsite to the hub; copying Cursor rule into new projects. |
 | [form-microsite-hub-integration.mdc](form-microsite-hub-integration.mdc) | Portable Cursor rule: copy to new microsite’s `.cursor/rules/` for hub integration context. |
 | [EMAIL-SENDER-GO-LIVE-CHECKLIST.md](EMAIL-SENDER-GO-LIVE-CHECKLIST.md) | Production sender cutover checklist (Resend domain verify, `FROM_EMAIL=noreply@...`, modal preview + smoke test). |

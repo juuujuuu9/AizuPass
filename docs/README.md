@@ -37,6 +37,7 @@ This folder contains user-facing documentation for the QR Check-In system.
 | Document | Purpose |
 |----------|---------|
 | [PRODUCT-STRATEGY.md](./PRODUCT-STRATEGY.md) | Competitive positioning, pricing tiers, AI features, credibility plan |
+| [PARTIFUL-KILLER.md](./PARTIFUL-KILLER.md) | vs Partiful: wedge table, integration-aware roadmap, epic slugs for implementation |
 | [FOUNDER-CONTEXT.md](./FOUNDER-CONTEXT.md) | Origin story, agency niche insights, scanner gun replacement narrative |
 
 ## Contributing
