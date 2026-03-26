@@ -109,9 +109,11 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
         );
       }
     } catch (err) {
-      // e.g. `users` table missing — fail open until migration is applied
+      // HI-5: Fail closed — DB outage or missing table should not bypass profile gate
       console.error('[middleware] user profile sync', err);
-      profileComplete = true;
+      profileComplete = false;
+      // Set a flag so UI can show appropriate error (maintenance mode / try again)
+      locals.profileCheckError = true;
     }
   }
   if (locals.user && uidForProfile && !testBypass) {
@@ -157,12 +159,27 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
     }
   }
 
+  // HI-5: If profile check failed due to DB error, show error page instead of onboarding loop
+  if (!testBypass && userId && locals.profileCheckError) {
+    if (pathname.startsWith('/api/')) {
+      return new Response(
+        JSON.stringify({ error: 'Service temporarily unavailable. Please try again.', code: 'profile_check_error' }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    // Only redirect to error page if not already there
+    if (pathname !== '/error/profile-check') {
+      return redirect('/error/profile-check');
+    }
+  }
+
   if (!testBypass && userId && !profileComplete) {
     const emailOk = await isPrimaryEmailVerifiedByClerk(context, userId);
     const pendingCookie = hasEmailOnboardingPendingCookie(request);
     const needVerifyEmailStep = !emailOk || pendingCookie;
     const allowedIncomplete =
       pathname === '/onboarding/continue-onboarding' ||
+      pathname === '/error/profile-check' ||
       ((pathname === '/onboarding/profile' || pathname.startsWith('/api/me/profile')) && !needVerifyEmailStep);
     if (!allowedIncomplete) {
       if (pathname.startsWith('/api/')) {

@@ -21,5 +21,7 @@ declare namespace App {
     hasEvent: boolean;
     /** False until first/last name saved in `users` (see /onboarding/profile). */
     profileComplete?: boolean;
+    /** True when profile check failed due to DB error (fail-closed). See HI-5. */
+    profileCheckError?: boolean;
   }
 }

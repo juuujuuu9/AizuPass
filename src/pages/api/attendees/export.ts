@@ -3,10 +3,28 @@ import { csvResponse, errorResponse } from '../../../lib/api-response';
 import { getAllAttendeesForUser } from '../../../lib/db';
 import { requireEventAccess, requireUserId } from '../../../lib/access';
 
+/**
+ * Sanitizes CSV values to prevent formula injection.
+ * Prefixes dangerous starting characters (=, +, -, @, tab, carriage return)
+ * with a single quote to prevent formula execution in spreadsheet applications.
+ * HI-4: Applied to CSV export to match import sanitization.
+ */
+function sanitizeCSVValue(value: string): string {
+  if (!value) return value;
+  const dangerousChars = ['=', '+', '-', '@', '\t', '\r'];
+  const firstChar = value.charAt(0);
+  if (dangerousChars.includes(firstChar)) {
+    return `'` + value;
+  }
+  return value;
+}
+
 function escapeCsvField(val: string | number | null | undefined): string {
   if (val == null) return '""';
   const s = String(val);
-  return `"${s.replace(/"/g, '""')}"`;
+  // HI-4: Apply formula injection sanitization before quote escaping
+  const sanitized = sanitizeCSVValue(s);
+  return `"${sanitized.replace(/"/g, '""')}"`;
 }
 
 export const GET: APIRoute = async (context) => {
