@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-25 — [PARTIFUL-KILLER.md](PARTIFUL-KILLER.md): competitive roadmap vs Partiful (strategy doc; checklist sync when work starts). Prior: Eventbrite sync [EVENTBRITE-INTEGRATION.md](EVENTBRITE-INTEGRATION.md); §11.A P1 offline queue; §13 `npm run smoke:email`; ingest **`/api/ingest/entry`**.
+**Last updated:** 2026-03-26 — [Public OpenAPI roadmap](#14-public-openapi-developer-surface) added: per-event keys, CRUD, check-in API, batch ops, outbound webhooks, Zapier parity. Prior: web-first → PWA → native strategy; PARTIFUL-KILLER.md; Eventbrite; §11.A P1 offline queue; §13 `npm run smoke:email`; ingest `/api/ingest/entry`.
 
 ---
 
@@ -12,6 +12,25 @@
 - **Progress:** When you complete an item, update its checkbox and the "Last updated" date at the top. Add a short "Done" note (e.g. PR or key files) if helpful.
 - **References:** Other docs (e.g. [STEP-1-QR-SECURITY-PLAN.md](STEP-1-QR-SECURITY-PLAN.md)) implement specific items; this plan stays high-level and points to them.
 - **Docs later:** This file can be used as the basis for release notes, onboarding, or public roadmap.
+
+---
+
+## Client platforms: web-first, PWA, native
+
+**Strategy:** Lead with the **web** for marketing reach, SEO, and zero install friction. **PWA** is the natural next step (installability, stronger “feels like an app” story, aligned with existing offline work). **Store apps** are optional later for camera/OS polish and distribution—not a fork of the product model.
+
+**Preserve core differentiators:** Whatever competitors missed (security, event rules, roles, idempotency, audit trail, QR semantics) lives in **the API and database**, not in “only on web” logic. Clients thinly implement the same contracts; **offline** stays **outbox + sync** (IndexedDB + queue today on web; local persistence + same sync semantics on native when added).
+
+**When to add each layer:**
+
+| Stage | Role |
+|-------|------|
+| Web (now) | Primary surface; Astro + React scanner/admin. |
+| PWA | Service Worker + manifest; double down on install + offline narrative without a second codebase. |
+| Hybrid native (e.g. Capacitor) | Wrap the React client, add native plugins only where the browser is limiting (camera edge cases, background tasks). |
+| Full native (e.g. Expo) | Only if OS integration demands it; keep **shared API types/validation** (e.g. OpenAPI or shared Zod) so rules cannot drift per platform. |
+
+**Checklist:** No scoped deliverable yet—this section is the decision record. When starting PWA or app work, add a numbered implementation block and link key PRs here.
 
 ---
 
@@ -53,6 +72,7 @@
 | Production deployment docs | **Done** | VERCEL-DEPLOYMENT.md with step-by-step guide. |
 | SaaS product naming | **Done** | **AizuPass** — browser titles via `Layout.astro` / `ScannerLayout.astro`, auth page headings, README, product strategy; npm package name `aizupass`. |
 | Offline capability | **Done** | IndexedDB `aizupass-offline` (was `qr-check-in-offline`); one-time copy + merge + legacy delete on first open (`localStorage` marker `aizupass-offline-migrated`). Cache, offline queue, sync on reconnect; 409 = success. `src/lib/offline.ts`, `api/attendees/offline-cache`. |
+| PWA / native store apps | Reference | Web-first; PWA then optional hybrid (e.g. Capacitor) or full native later—same API/offline semantics. See [Client platforms](#client-platforms-web-first-pwa-native). |
 | Offline sync resilience (backoff/idempotency/queue visibility) | **Done** | Added queue dedupe, retry-with-backoff sync, and scanner-visible queue count. |
 | Event-day scale / cache warm-up / load verification | Reference | Stress lens + prioritized hardening (verify-first): [EVENT-DAY-STRESS-HARDENING.md](EVENT-DAY-STRESS-HARDENING.md). |
 | Multi-event / central hub | **Done** | Events table, event-scoped attendees; guestlist ingestion: **CSV primary** for most users; `POST /api/ingest/entry` for automation; **Eventbrite** pull sync on **Integrations** (private token); Zapier/Make first-class TBD — see [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md). |
@@ -69,6 +89,7 @@
 | db.ts split | **Partial** | First slice done (2026-03-22): `client.ts`, `event-row.ts`, `organizations.ts`; `db.ts` re-exports. Remaining: attendees/check-in/events-in-root as future slices. [DB-MODULE-LAYOUT.md](DB-MODULE-LAYOUT.md). |
 | Real-time sync (multi-staff) | Backlog | Two staff don't see each other's check-ins; optional polling/SSE for admin. |
 | Export/archive before wipe | Backlog | GDPR, data retention; export flow before delete-event. |
+| Public OpenAPI (per-event keys, CRUD, check-in) | Backlog | Scoped API keys, full guestlist CRUD, check-in API, batch ops. See [§14 Public OpenAPI](#14-public-openapi-developer-surface). |
 
 ---
 
@@ -124,10 +145,11 @@ Follow this order; check off and date as you complete each item.
 ### 10. Optional (later)
 
 - [x] Protect admin API routes (attendees, send-email, checkin, refresh-qr) with session check — done in middleware.
-- [ ] **Integrations — Zapier / Make (first-class):** Published connector(s) or maintained recipes with **parity** to the HTTP guestlist API for LC/NC users; same strategic weight as API improvements. Strategy: [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md).
+- [ ] **Integrations — Zapier / Make (first-class):** Published connector(s) or maintained recipes with **parity** to the HTTP guestlist API for LC/NC users; same strategic weight as API improvements. Strategy: [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md). **See also: §14.9 Zapier / Make connector parity.**
 - [ ] Capacity widget and/or no-show analytics.
 - [ ] Add to Wallet, group check-in — if needed.
 - [ ] **Paid ticketing:** Stripe Checkout → webhook → attendee creation with ticket type + payment metadata; reuse QR email flow. Strategy and schema notes: [TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md).
+- [ ] **Public OpenAPI surface:** See [§14 Public OpenAPI](#14-public-openapi-developer-surface) for full roadmap: per-event API keys, CRUD, check-in API, batch ops, outbound webhooks.
 
 ### 11. Edge-case hardening (operational)
 
@@ -217,6 +239,85 @@ Follow this order; check off and date as you complete each item.
 
 - [x] **Done.** `@radix-ui/colors` installed; `src/styles/tokens.css` with mauve/green/red/amber scales + brand (#d63a2e) mapping; `global.css` themed via semantic tokens; scanner overlay, CTAs, toasts, error states, QR frame use Radix vars. See [docs/ui-modernization/radix-colors-mapping.md](ui-modernization/radix-colors-mapping.md).
 
+### 14. Public OpenAPI (developer surface)
+
+**Purpose:** Document and expand the public API for third-party integrations, ticketing platforms, custom scanner apps, and low-code tools. Build on existing `/api/ingest/entry` foundation.
+
+**Strategy:** Start with OpenAPI v3 spec for existing webhook, add per-event API keys (scoped security), then expand CRUD surface. Target: developers and agencies building event integrations.
+
+#### 14.1 Per-event API keys (security foundation)
+
+- [ ] **Schema:** `events.settings.api_key` (encrypted at rest) + `events.settings.api_key_prefix` (readable for UI).
+- [ ] **Generation:** `evt_live_{random}` + `evt_test_{random}` patterns; organizer can rotate/regenerate in Admin → Event → API settings.
+- [ ] **Auth middleware:** Support `Authorization: Bearer evt_live_...` alongside existing session auth; map key → event → org for scoping.
+- [ ] **Rate limiting:** Per-key limits (e.g., 1000 req/hour) separate from IP-based limits.
+- [ ] **Audit log:** API key usage (last used, request count) for organizer visibility.
+
+**Primary files:** `src/lib/api-keys.ts` (new), `src/middleware.ts`, `src/pages/api/v1/*`.
+
+**Depends on:** Multi-event per org (if not, single-key model suffices temporarily).
+
+#### 14.2 Guestlist CRUD API
+
+- [ ] `GET /api/v1/events/{eventId}/attendees` — paginated list (cursor or offset), filters: `checkedIn`, `search`, `createdSince`, `updatedSince`.
+- [ ] `GET /api/v1/attendees/{attendeeId}` — single record with full profile, `source_data`, QR status.
+- [ ] `POST /api/v1/events/{eventId}/attendees` — create with idempotency key (`externalId` or `micrositeEntryId`).
+- [ ] `PATCH /api/v1/attendees/{attendeeId}` — update profile fields, metadata.
+- [ ] `DELETE /api/v1/attendees/{attendeeId}` — soft-delete with `reason` param.
+
+**Error contract:** Consistent JSON error shape with machine-readable codes (`attendee_not_found`, `event_not_found`, `already_checked_in`, `rate_limited`, `duplicate_external_id`).
+
+**Idempotency:** `Idempotency-Key: {uuid}` header for POST/PATCH; 24-hour replay window.
+
+#### 14.3 Check-in API (external scanners)
+
+- [ ] `POST /api/v1/attendees/{attendeeId}/checkin` — check in by attendee ID.
+- [ ] `POST /api/v1/checkin` — check in by QR payload (decode + validate in one call).
+- [ ] Optional params: `location`, `deviceId`, `notes` (for multi-station/venue tracking).
+- [ ] Response includes: `alreadyCheckedIn: true/false`, `checkedInAt`, `previousCheckin` (if duplicate).
+
+**Use cases:** Third-party scanner apps, hardware integrations, self-service kiosks, security pre-validation gates.
+
+#### 14.4 QR operations (no email side effects)
+
+- [ ] `POST /api/v1/attendees/{attendeeId}/qr/refresh` — rotate QR token, return new payload.
+- [ ] `GET /api/v1/attendees/{attendeeId}/qr` — get current QR URL/payload without sending email.
+- [ ] `POST /api/v1/qr/validate` — validate QR code without recording check-in (useful for security gates).
+
+#### 14.5 Event metadata (read-only)
+
+- [ ] `GET /api/v1/events/{eventId}` — event name, datetime, location, check-in stats (`total`, `checkedIn`, `noShows`), check-in open/closed status.
+
+#### 14.6 Batch operations
+
+- [ ] `POST /api/v1/attendees/batch` — create/update up to 100 attendees in one call; row-level errors returned without failing entire batch.
+- [ ] `POST /api/v1/checkins/batch` — offline check-in sync from external scanners; idempotent replay support.
+
+#### 14.7 Outbound webhooks (AizuPass → external)
+
+- [ ] Organizer-configurable webhook URLs per event: `events.settings.webhook_url`, `webhook_secret`.
+- [ ] Events: `attendee.created`, `attendee.updated`, `attendee.checked_in`, `attendee.deleted`.
+- [ ] Signed payloads (Svix/Stripe-style) with replay protection.
+- [ ] Delivery retry with backoff; delivery log in Admin → Event → Webhooks.
+
+#### 14.8 OpenAPI specification + docs
+
+- [ ] OpenAPI v3.1 YAML spec (`docs/openapi.yaml`) generated from or kept in sync with Zod schemas.
+- [ ] Published docs (e.g., Swagger UI or scalar.com) at `/docs/api` or standalone.
+- [ ] `curl` examples for all endpoints; Postman collection export.
+- [ ] Changelog/diff on spec changes in PRs.
+
+#### 14.9 Zapier / Make connector parity
+
+- [ ] Triggers: `New Attendee`, `Attendee Checked In`.
+- [ ] Actions: `Create Attendee`, `Update Attendee`, `Check In Attendee`, `Get Event Stats`.
+- [ ] Search: `Find Attendee by Email`.
+- [ ] Per-event API key input (not global); test mode support.
+
+**Related:** [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md) LC/NC strategy.
+
+---
+
 ### Backlog (from OpenKlaw architecture review)
 
 Quick wins (≈30 min each):
@@ -253,6 +354,7 @@ Deferred / lower priority:
 | [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md) | Item 2 + 12: Clerk auth setup, org/membership-based authorization, onboarding/invites. |
 | [TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md) | Future: paid ticketing — ticket type catalog, Stripe alignment, fulfillment vs SaaS billing, idempotency, build sequencing. |
 | [DB-MODULE-LAYOUT.md](DB-MODULE-LAYOUT.md) | Incremental split of `src/lib/db.ts` into `src/lib/db/*.ts`; public imports stay `@/lib/db`. |
+| MASTER-PLAN §14 | Public OpenAPI: per-event API keys, guestlist CRUD, check-in API, batch operations, outbound webhooks, Zapier/Make parity. |
 
 ---
 

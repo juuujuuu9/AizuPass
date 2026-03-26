@@ -389,12 +389,16 @@ export async function revokeOrganizationInvitation(
   return rows.length > 0;
 }
 
-export async function removeOrganizationMembership(membershipId: string): Promise<boolean> {
-  if (!membershipId) return false;
+export async function removeOrganizationMembership(
+  organizationId: string,
+  membershipId: string
+): Promise<boolean> {
+  if (!organizationId || !membershipId) return false;
   const db = getDb();
   const rows = await db`
     DELETE FROM organization_memberships
     WHERE id = ${membershipId}
+      AND organization_id = ${organizationId}
     RETURNING id
   `;
   return rows.length > 0;

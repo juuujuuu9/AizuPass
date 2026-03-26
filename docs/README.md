@@ -40,6 +40,15 @@ This folder contains user-facing documentation for the QR Check-In system.
 | [PARTIFUL-KILLER.md](./PARTIFUL-KILLER.md) | vs Partiful: wedge table, integration-aware roadmap, epic slugs for implementation |
 | [FOUNDER-CONTEXT.md](./FOUNDER-CONTEXT.md) | Origin story, agency niche insights, scanner gun replacement narrative |
 
+## Technical Roadmaps
+
+| Document | Purpose |
+|----------|---------|
+| [ROADMAP-EVENT-RSVP.md](./ROADMAP-EVENT-RSVP.md) | Event-specific RSVP system: form builder, theming, custom domains (architecture sketch) |
+| [STEP-1-QR-SECURITY-PLAN.md](./STEP-1-QR-SECURITY-PLAN.md) | QR token security: short-lived tokens, rotation, check-in race condition fixes |
+| [STEP-2-CENTRAL-HUB.md](./STEP-2-CENTRAL-HUB.md) | Hub-and-spoke architecture: microsites, webhooks, CSV ingest |
+| [INTEGRATIONS-STRATEGY.md](./INTEGRATIONS-STRATEGY.md) | Integration taxonomy: Eventbrite, Zapier, native integrations |
+
 ## Contributing
 
 When updating code, update the relevant documentation:

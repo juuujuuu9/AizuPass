@@ -22,7 +22,7 @@ export const DELETE: APIRoute = async (context) => {
       return errorResponse('Organization required', 403);
     }
 
-    const removed = await removeOrganizationMembership(membershipId);
+    const removed = await removeOrganizationMembership(organization.id, membershipId);
     if (!removed) {
       return errorResponse('Membership not found or could not be removed', 404);
     }

@@ -129,8 +129,15 @@ export async function sendQRCodeEmail(
   const fromName =
     overrides?.fromName
     ?? defaultFromName;
-  const eventName = overrides?.eventName ?? 'the event';
-  const from = fromName ? `${fromName} <${fromEmail}>` : fromEmail;
+  const eventName = escapeHtml(overrides?.eventName ?? 'the event');
+  const from = fromName ? `${escapeHtml(fromName)} <${fromEmail}>` : fromEmail;
+
+  // Escape all user-controlled values for HTML output (CR-2)
+  const safeFirstName = escapeHtml(attendee.firstName);
+  const safeLastName = escapeHtml(attendee.lastName);
+  const safeEmail = escapeHtml(attendee.email);
+  const safeCompany = attendee.company ? escapeHtml(attendee.company) : null;
+  const safeDietary = attendee.dietaryRestrictions ? escapeHtml(attendee.dietaryRestrictions) : null;
 
   let attachmentContent: string;
   try {
@@ -177,7 +184,7 @@ export async function sendQRCodeEmail(
       <body>
         <div class="header"><h1>You're Registered!</h1></div>
         <div class="content">
-          <p>Hi <strong>${attendee.firstName} ${attendee.lastName}</strong>,</p>
+          <p>Hi <strong>${safeFirstName} ${safeLastName}</strong>,</p>
           <p>Thank you for registering for <strong>${eventName}</strong> — we're excited to have you! Your unique QR code is below.</p>
           <div class="qr-container">
             <img src="cid:${QR_CID}" alt="Your QR Code" class="qr-code" />
@@ -194,10 +201,10 @@ export async function sendQRCodeEmail(
           </div>
           <div class="details">
             <h3>Registration Details:</h3>
-            <p><strong>Name:</strong> ${attendee.firstName} ${attendee.lastName}</p>
-            <p><strong>Email:</strong> ${attendee.email}</p>
-            ${attendee.company ? `<p><strong>Company:</strong> ${attendee.company}</p>` : ''}
-            ${attendee.dietaryRestrictions ? `<p><strong>Dietary Restrictions:</strong> ${attendee.dietaryRestrictions}</p>` : ''}
+            <p><strong>Name:</strong> ${safeFirstName} ${safeLastName}</p>
+            <p><strong>Email:</strong> ${safeEmail}</p>
+            ${safeCompany ? `<p><strong>Company:</strong> ${safeCompany}</p>` : ''}
+            ${safeDietary ? `<p><strong>Dietary Restrictions:</strong> ${safeDietary}</p>` : ''}
             <p><strong>Registration Date:</strong> ${new Date(attendee.rsvpAt).toLocaleDateString()}</p>
           </div>
           <p>We look forward to seeing you at ${eventName}!</p>
@@ -234,10 +241,14 @@ export async function sendOrganizationInviteEmail(data: {
   if (!apiKey) {
     return { success: false as const, error: 'Email service not configured' };
   }
-  const from = fromName ? `${fromName} <${fromEmail}>` : fromEmail;
-  const expiresLabel = data.expiresAt.toLocaleString();
-  const inviter = data.invitedByEmail ? ` by ${data.invitedByEmail}` : '';
-  const subject = `You're invited to join ${data.organizationName}`;
+  const from = fromName ? `${escapeHtml(fromName)} <${fromEmail}>` : fromEmail;
+
+  // Escape all user-controlled values for HTML output (CR-2)
+  const safeOrgName = escapeHtml(data.organizationName);
+  const safeInviteUrl = escapeHtml(data.inviteUrl);
+  const expiresLabel = escapeHtml(data.expiresAt.toLocaleString());
+  const inviter = data.invitedByEmail ? ` by ${escapeHtml(data.invitedByEmail)}` : '';
+  const subject = `You're invited to join ${safeOrgName}`;
 
   const { data: resendData, error } = await getResend().emails.send({
     from,
@@ -262,18 +273,18 @@ export async function sendOrganizationInviteEmail(data: {
       <body>
         <div class="header"><h1>Staff Invitation</h1></div>
         <div class="content">
-          <p>You were invited${inviter} to join <strong>${data.organizationName}</strong> as staff.</p>
+          <p>You were invited${inviter} to join <strong>${safeOrgName}</strong> as staff.</p>
           <div class="card">
             <p><strong>What you get access to:</strong></p>
             <ul>
               <li>Scanner and dashboard access for events in this organization</li>
               <li>No organization settings or organizer-only controls</li>
             </ul>
-            <a class="cta" href="${data.inviteUrl}">Accept Invitation</a>
+            <a class="cta" href="${safeInviteUrl}">Accept Invitation</a>
             <p class="muted">This invite expires on ${expiresLabel}.</p>
           </div>
           <p class="muted">If the button does not work, copy and paste this link:</p>
-          <p class="link">${data.inviteUrl}</p>
+          <p class="link">${safeInviteUrl}</p>
         </div>
       </body>
       </html>

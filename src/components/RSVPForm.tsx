@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Calendar, Building2, Mail } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Attendee, RSVPFormData } from '@/types/attendee';
 import { apiService } from '@/services/api';
@@ -98,7 +98,7 @@ export function RSVPForm({ onSuccess }: RSVPFormProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div className="max-w-xl mx-auto">
       <Card>
         <CardHeader>
           <CardTitle>Event Registration</CardTitle>
@@ -193,48 +193,6 @@ export function RSVPForm({ onSuccess }: RSVPFormProps) {
           </form>
         </CardContent>
       </Card>
-
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Event Information</CardTitle>
-            <CardDescription>
-              Details about the upcoming event
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-slate-500 mt-0.5" />
-              <div>
-                <p className="font-medium">Date & Time</p>
-                <p className="text-sm text-slate-600">
-                  March 15, 2024 • 6:00 PM - 9:00 PM
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <Building2 className="h-5 w-5 text-slate-500 mt-0.5" />
-              <div>
-                <p className="font-medium">Venue</p>
-                <p className="text-sm text-slate-600">
-                  Tech Innovation Center
-                  <br />
-                  123 Main Street, San Francisco, CA
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <Mail className="h-5 w-5 text-slate-500 mt-0.5" />
-              <div>
-                <p className="font-medium">Contact</p>
-                <p className="text-sm text-slate-600">
-                  events@yourcompany.com
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-2xl">

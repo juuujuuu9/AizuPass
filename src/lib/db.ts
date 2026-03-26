@@ -1,6 +1,14 @@
 /**
  * Database access layer. Organizations / invitations / memberships live in `./db/organizations.ts`.
  * See docs/DB-MODULE-LAYOUT.md.
+ *
+ * CR-4: Transaction Support Note —
+ * The current Neon HTTP driver (`@neondatabase/serverless`) does not support multi-statement transactions.
+ * Operations that require atomicity (e.g., createOrganizationForOwner, acceptOrganizationInvitation,
+ * deleteEventForUser) run as separate queries. This can leave orphaned data on partial failures.
+ *
+ * Future fix: Use Neon's `transaction()` API (WebSocket/pool mode) or add compensating cleanup logic.
+ * See: https://neon.tech/docs/serverless/transaction-support
  */
 import { getEnv } from './env';
 import { getDb, type SqlRow } from './db/client';

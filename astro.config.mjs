@@ -13,8 +13,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // https://astro.build/config
 export default defineConfig({
   output: 'server',
-  // Clerk handles its own CSRF protection
-  security: { checkOrigin: false },
+  // CR-1: Re-enabled CSRF protection. Clerk handles its own CSRF, but this protects all custom API routes.
+  security: { checkOrigin: true },
   integrations: [react(), clerk()],
 
   vite: {

@@ -1,0 +1,22 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { RSVPForm } from '../components/RSVPForm';
+import { Toaster } from '../components/ui/sonner';
+
+// Optional: Support ?event=abc123 for event-specific RSVP
+const eventId = Astro.url.searchParams.get('event')?.trim() || undefined;
+---
+
+<Layout title="Event Registration">
+  <div class="container mx-auto py-12 px-4">
+    <div class="max-w-2xl mx-auto">
+      <h1 class="text-3xl font-bold mb-2 text-center">Event Registration</h1>
+      <p class="text-muted-foreground text-center mb-8">
+        Register to receive your QR code for check-in
+      </p>
+
+      <RSVPForm client:load />
+    </div>
+  </div>
+  <Toaster client:load position="top-center" richColors />
+</Layout>
