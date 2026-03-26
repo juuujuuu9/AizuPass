@@ -35,6 +35,9 @@ async function main() {
     `;
     console.log('Events table ready');
 
+    await sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS organization_id UUID`;
+    console.log('events.organization_id column ready (if missing)');
+
     // 2. Add columns to attendees (idempotent where supported)
     await sql`ALTER TABLE attendees ADD COLUMN IF NOT EXISTS event_id UUID`;
     await sql`ALTER TABLE attendees ADD COLUMN IF NOT EXISTS microsite_entry_id TEXT`;
@@ -53,13 +56,27 @@ async function main() {
     } else {
       defaultEventId = crypto.randomUUID();
       if (DRY_RUN) {
-        console.log(`Would create default event: ${defaultEventId} (${DEFAULT_EVENT_NAME}, slug=${DEFAULT_EVENT_SLUG})`);
+        console.log(`Would create Demo Organization + default event: ${defaultEventId} (${DEFAULT_EVENT_NAME}, slug=${DEFAULT_EVENT_SLUG})`);
       } else {
+        // After migrate-organizations, events.organization_id is NOT NULL (one event per org).
         await sql`
-          INSERT INTO events (id, name, slug, created_at)
-          VALUES (${defaultEventId}, ${DEFAULT_EVENT_NAME}, ${DEFAULT_EVENT_SLUG}, NOW())
+          CREATE TABLE IF NOT EXISTS organizations (
+            id UUID PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            owner_user_id TEXT UNIQUE,
+            created_at TIMESTAMP DEFAULT NOW()
+          )
         `;
-        console.log(`Created default event: ${defaultEventId}`);
+        const defaultOrgId = crypto.randomUUID();
+        await sql`
+          INSERT INTO organizations (id, name, owner_user_id, created_at)
+          VALUES (${defaultOrgId}, 'Demo Organization', NULL, NOW())
+        `;
+        await sql`
+          INSERT INTO events (id, organization_id, name, slug, created_at)
+          VALUES (${defaultEventId}, ${defaultOrgId}, ${DEFAULT_EVENT_NAME}, ${DEFAULT_EVENT_SLUG}, NOW())
+        `;
+        console.log(`Created default org ${defaultOrgId} and event ${defaultEventId}`);
       }
     }
   } catch (e) {
