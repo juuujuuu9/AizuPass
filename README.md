@@ -45,6 +45,7 @@
 - **Rate** limits on RSVP, webhook, and check-in endpoints (`src/lib/rate-limit.ts`).
 - **`GET /api/health`** for uptime checks.
 - **CI**: GitHub Actions — `tsc --noEmit`, production build on PRs; **edge-case** script on main when `DATABASE_URL` is configured (see [`docs/qr-edge-cases.md`](docs/qr-edge-cases.md)).
+- **Security audit** (2026-03-21): Critical findings addressed — CSRF protection, HTML escaping in emails, IDOR fixes (see [`docs/AUDIT-2026-03-21.md`](docs/AUDIT-2026-03-21.md)).
 
 ---
 
@@ -64,19 +65,48 @@
 
 ---
 
+## Recent progress
+
+| Date | Milestone |
+|------|-----------|
+| 2026-03-26 | **Security audit remediation** — Fixed 5 critical issues: CSRF protection re-enabled, email HTML escaping, IDOR vulnerability patched, hardcoded RSVP data removed. See [`docs/AUDIT-2026-03-21.md`](docs/AUDIT-2026-03-21.md). |
+| 2026-03-26 | **Public RSVP page** — Added `/rsvp` route for unauthenticated event registration. |
+
+---
+
 ## Planned development roadmap
 
-The **single source of truth** for checkboxes, ordering, and concern audit is **[`docs/MASTER-PLAN.md`](docs/MASTER-PLAN.md)**. Highlights:
+The **single source of truth** for checkboxes, ordering, and concern audit is **[`docs/MASTER-PLAN.md`](docs/MASTER-PLAN.md)**. Below are the strategic highlights:
 
+### Phase 1: Launch readiness
+| Priority | Area | Status |
+|----------|------|--------|
+| **P0** | Production **Resend domain** and `FROM_EMAIL` on owned domain | In progress — [`docs/EMAIL-SENDER-GO-LIVE-CHECKLIST.md`](docs/EMAIL-SENDER-GO-LIVE-CHECKLIST.md) |
+| **P0** | Security hardening (audit follow-up) | ✅ Critical issues resolved |
+| **P1** | **Zapier / Make** as first-class alongside the HTTP API — [`docs/INTEGRATIONS-STRATEGY.md`](docs/INTEGRATIONS-STRATEGY.md) |
+
+### Phase 2: Door operations & scale
 | Priority | Area |
 |----------|------|
-| **Launch** | Production **Resend domain** and `FROM_EMAIL` on owned domain — [`docs/EMAIL-SENDER-GO-LIVE-CHECKLIST.md`](docs/EMAIL-SENDER-GO-LIVE-CHECKLIST.md) |
-| **Integrations** | **Zapier / Make** as first-class alongside the HTTP API — [`docs/INTEGRATIONS-STRATEGY.md`](docs/INTEGRATIONS-STRATEGY.md) |
-| **Door ops** | Hardware **keyboard-wedge** scanner input; further offline duplicate protection; scanner session UX |
-| **Attendee assets** | Bulk **QR ZIP** export; **print/badge** layout; duplicate-name disambiguation in print/search |
-| **Reporting** | **No-shows** view/export; tighter **live** check-in counter (polling vs SSE TBD) |
-| **Optional product** | Capacity / no-show **analytics**, **Apple Wallet**, group check-in |
-| **Backlog** | `db.ts` split; optional **SSE** for multi-staff admin; **export before event wipe** (retention) |
+| **P1** | Hardware **keyboard-wedge** scanner input; offline duplicate protection |
+| **P1** | Bulk **QR ZIP** export; **print/badge** layouts; duplicate-name disambiguation |
+| **P2** | **No-shows** reporting; live check-in counter (polling vs SSE) |
+| **P2** | Pagination on attendee APIs; Neon transaction support for multi-step ops |
+
+### Phase 3: Product expansion
+| Priority | Area | Reference |
+|----------|------|-----------|
+| **P2** | **Event RSVP system** — Per-event customizable forms, theming, custom domains | [`docs/ROADMAP-EVENT-RSVP.md`](docs/ROADMAP-EVENT-RSVP.md) |
+| **P3** | Capacity / no-show **analytics** dashboard |
+| **P3** | **Apple Wallet** pass support |
+| **P3** | Group / +1 check-in flows |
+
+### Technical debt & infrastructure
+| Priority | Area |
+|----------|------|
+| **Ongoing** | `db.ts` modularization; replace in-memory rate limiter with Redis/Vercel KV |
+| **Backlog** | Optional **SSE** for multi-staff admin real-time sync |
+| **Backlog** | **Export before event wipe** (data retention compliance) |
 
 CSV remains the **default** guestlist path for typical organizers; API and automation are for builders and LC/NC workflows (see integrations strategy).
 
@@ -138,14 +168,16 @@ CSV remains the **default** guestlist path for typical organizers; API and autom
 | Route | Purpose |
 |------|---------|
 | `/` | Scanner (standalone check-in experience) |
+| `/scanner` | Standalone scanner (same capability as `/`) |
+| `/rsvp` | Public event registration (unauthenticated) |
 | `/admin` | Organizer/staff dashboard |
 | `/admin/events` | Event list and management |
 | `/admin/events/import` | Event CSV import + optional bulk QR email |
+| `/admin/events/integrations` | Eventbrite and external integrations |
 | `/admin/organization` | Organization settings + invitations |
 | `/admin/organization/staff` | Staff management |
 | `/admin/organization/settings` | Organization settings |
 | `/admin/organization/billing` | Billing placeholder |
-| `/scanner` | Standalone scanner (same capability as `/`) |
 | `/login` | Sign-in |
 | `/signup` | Sign-up (Clerk) |
 | `/invite/accept` | Invitation acceptance |
@@ -215,7 +247,9 @@ See `.env.example` for the canonical list. Main variables:
 | Doc | Purpose |
 |-----|---------|
 | [`docs/MASTER-PLAN.md`](docs/MASTER-PLAN.md) | Roadmap, dev checklist, concern audit |
+| [`docs/ROADMAP-EVENT-RSVP.md`](docs/ROADMAP-EVENT-RSVP.md) | Event-specific RSVP: form builder, theming, custom domains |
 | [`docs/INTEGRATIONS-STRATEGY.md`](docs/INTEGRATIONS-STRATEGY.md) | CSV vs API vs Zapier/Make |
+| [`docs/AUDIT-2026-03-21.md`](docs/AUDIT-2026-03-21.md) | Security audit findings and remediation |
 | [`docs/README.md`](docs/README.md) | User-facing docs index (guides, FAQ) |
 | [`docs/VERCEL-DEPLOYMENT.md`](docs/VERCEL-DEPLOYMENT.md) | Production deployment |
 | [`docs/AUTH-CLERK-SETUP.md`](docs/AUTH-CLERK-SETUP.md) | Clerk + org/membership |
