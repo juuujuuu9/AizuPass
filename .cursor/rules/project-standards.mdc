@@ -28,3 +28,8 @@ This project uses **pnpm** with a committed lockfile. Vercel and other CI enviro
 
 - Whenever you add, remove, or bump a dependency in `package.json`, run **`pnpm install`** locally so **`pnpm-lock.yaml` is updated**, and **commit the lockfile in the same change** as the manifest edit (or in the same PR).
 - Before pushing dependency work, verify with **`pnpm install --frozen-lockfile`** (or let CI do it); if it fails, the lockfile is stale.
+
+# Commits
+
+- **No tool attribution in commit messages** — Do not add lines like `Made-with: Cursor` or similar footers. Keep messages to conventional subject + body only.
+- This repo ships **`.githooks/commit-msg`**, which strips `Made-with:` lines if hooks are enabled. One-time per clone: **`git config core.hooksPath .githooks`** (repo-local, not global).

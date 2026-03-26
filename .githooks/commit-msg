@@ -1,0 +1,8 @@
+#!/bin/sh
+# Remove tool-injected attribution lines (e.g. Cursor) from commit messages.
+msg_file=$1
+[ -n "$msg_file" ] && [ -f "$msg_file" ] || exit 0
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+grep -v '^Made-with: ' "$msg_file" > "$tmp" || true
+cat "$tmp" > "$msg_file"
