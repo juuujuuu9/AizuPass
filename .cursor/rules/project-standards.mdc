@@ -21,3 +21,10 @@ Use inline annotations to manage the evolution of this project's standards:
 - `// RULE-CANDIDATE: [description]` — Use when you see a pattern repeating 3+ times.
 - `// RULE-QUESTION: [id]` — Use if a rule feels outdated or hinders speed.
 - `// RULE-VIOLATION: [id] Reason: [text] Expires: [date]` — Use for intentional technical debt.
+
+# Dependencies (pnpm)
+
+This project uses **pnpm** with a committed lockfile. Vercel and other CI environments install with an effective **frozen lockfile** (`pnpm install` refuses to proceed if `pnpm-lock.yaml` does not match `package.json`).
+
+- Whenever you add, remove, or bump a dependency in `package.json`, run **`pnpm install`** locally so **`pnpm-lock.yaml` is updated**, and **commit the lockfile in the same change** as the manifest edit (or in the same PR).
+- Before pushing dependency work, verify with **`pnpm install --frozen-lockfile`** (or let CI do it); if it fails, the lockfile is stale.
