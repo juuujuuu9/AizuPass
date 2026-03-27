@@ -133,23 +133,23 @@ export async function updateUserProfile(
   `;
 }
 
-function rowToAttendee(row: SqlRow) {
+function rowToAttendee(row: SqlRow): Attendee {
   return {
     id: row.id as string,
     firstName: row.first_name as string,
     lastName: row.last_name as string,
     email: row.email as string,
-    phone: row.phone as string | null,
-    company: row.company as string | null,
-    dietaryRestrictions: row.dietary_restrictions as string | null,
+    phone: (row.phone as string | null) ?? undefined,
+    company: (row.company as string | null) ?? undefined,
+    dietaryRestrictions: (row.dietary_restrictions as string | null) ?? undefined,
     checkedIn: row.checked_in as boolean,
-    checkedInAt: row.checked_in_at as string | null,
+    checkedInAt: (row.checked_in_at as string | null) ?? undefined,
     rsvpAt: row.rsvp_at as string,
-    qrExpiresAt: row.qr_expires_at as string | null,
-    qrUsedAt: row.qr_used_at as string | null,
-    qrUsedByDevice: row.qr_used_by_device as string | null,
-    eventId: row.event_id as string | null,
-    micrositeEntryId: row.microsite_entry_id as string | null,
+    qrExpiresAt: (row.qr_expires_at as string | null) ?? undefined,
+    qrUsedAt: (row.qr_used_at as string | null) ?? undefined,
+    qrUsedByDevice: (row.qr_used_by_device as string | null) ?? undefined,
+    eventId: (row.event_id as string | null) ?? undefined,
+    micrositeEntryId: (row.microsite_entry_id as string | null) ?? undefined,
     sourceData: row.source_data,
     createdAt: row.created_at as string,
   };
@@ -363,11 +363,31 @@ export async function getDefaultEventId(): Promise<string> {
   return event.id;
 }
 
-export async function getAllAttendeesForUser(userId: string, eventId?: string) {
+export type AttendeeListOpts = { limit?: number; offset?: number };
+
+export async function getAllAttendeesForUser(
+  userId: string,
+  eventId?: string,
+  opts?: AttendeeListOpts
+) {
   if (!userId) return [];
   const db = getDb();
+  const limit = opts?.limit;
+  const offset = opts?.offset ?? 0;
+  const paginate = limit != null && limit > 0;
+
   if (eventId) {
-    const rows = await db`
+    const rows = paginate
+      ? await db`
+      SELECT a.*
+      FROM attendees a
+      INNER JOIN events e ON e.id = a.event_id
+      INNER JOIN organization_memberships m ON m.organization_id = e.organization_id
+      WHERE a.event_id = ${eventId} AND m.user_id = ${userId}
+      ORDER BY a.created_at DESC NULLS LAST, a.rsvp_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `
+      : await db`
       SELECT a.*
       FROM attendees a
       INNER JOIN events e ON e.id = a.event_id
@@ -377,7 +397,17 @@ export async function getAllAttendeesForUser(userId: string, eventId?: string) {
     `;
     return rows.map((row) => rowToAttendee(row as Record<string, unknown>));
   }
-  const rows = await db`
+  const rows = paginate
+    ? await db`
+    SELECT a.*
+    FROM attendees a
+    INNER JOIN events e ON e.id = a.event_id
+    INNER JOIN organization_memberships m ON m.organization_id = e.organization_id
+    WHERE m.user_id = ${userId}
+    ORDER BY a.created_at DESC NULLS LAST, a.rsvp_at DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `
+    : await db`
     SELECT a.*
     FROM attendees a
     INNER JOIN events e ON e.id = a.event_id
@@ -445,16 +475,36 @@ export async function getAttendeesForOfflineCacheForUser(
   return rows.map((row) => rowToOffline(row as Record<string, unknown>));
 }
 
-export async function searchAttendeesForUser(userId: string, eventId?: string, q?: string) {
-  if (!q?.trim()) return getAllAttendeesForUser(userId, eventId);
+export async function searchAttendeesForUser(
+  userId: string,
+  eventId?: string,
+  q?: string,
+  opts?: AttendeeListOpts
+) {
+  if (!q?.trim()) return getAllAttendeesForUser(userId, eventId, opts);
   const db = getDb();
   const pattern = `%${String(q).trim().slice(0, 200)}%`;
+  const limit = opts?.limit;
+  const offset = opts?.offset ?? 0;
+  const paginate = limit != null && limit > 0;
   const rowToAttendeeWithEvent = (row: Record<string, unknown>) => ({
     ...rowToAttendee(row),
     eventName: row.event_name as string | undefined,
   });
   if (eventId) {
-    const rows = await db`
+    const rows = paginate
+      ? await db`
+      SELECT a.*, e.name as event_name
+      FROM attendees a
+      INNER JOIN events e ON e.id = a.event_id
+      INNER JOIN organization_memberships m ON m.organization_id = e.organization_id
+      WHERE a.event_id = ${eventId}
+        AND m.user_id = ${userId}
+        AND (a.first_name ILIKE ${pattern} OR a.last_name ILIKE ${pattern} OR a.email ILIKE ${pattern})
+      ORDER BY a.created_at DESC NULLS LAST, a.rsvp_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `
+      : await db`
       SELECT a.*, e.name as event_name
       FROM attendees a
       INNER JOIN events e ON e.id = a.event_id
@@ -466,7 +516,18 @@ export async function searchAttendeesForUser(userId: string, eventId?: string, q
     `;
     return rows.map((row) => rowToAttendeeWithEvent(row as Record<string, unknown>));
   }
-  const rows = await db`
+  const rows = paginate
+    ? await db`
+    SELECT a.*, e.name as event_name
+    FROM attendees a
+    INNER JOIN events e ON e.id = a.event_id
+    INNER JOIN organization_memberships m ON m.organization_id = e.organization_id
+    WHERE m.user_id = ${userId}
+      AND (a.first_name ILIKE ${pattern} OR a.last_name ILIKE ${pattern} OR a.email ILIKE ${pattern})
+    ORDER BY a.created_at DESC NULLS LAST, a.rsvp_at DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `
+    : await db`
     SELECT a.*, e.name as event_name
     FROM attendees a
     INNER JOIN events e ON e.id = a.event_id
@@ -650,7 +711,7 @@ export async function bulkUpdateAttendeeQRTokens(
   const expiresAts = updates.map(u => u.expiresAt.toISOString());
   
   // Single batched UPDATE using unnest
-  const result = await db`
+  const rows = await db`
     UPDATE attendees 
     SET qr_token = v.token, 
         qr_expires_at = v.expires_at::timestamp with time zone
@@ -661,9 +722,10 @@ export async function bulkUpdateAttendeeQRTokens(
         unnest(${expiresAts}::text[]) as expires_at
     ) AS v
     WHERE attendees.id = v.id
+    RETURNING attendees.id
   `;
-  
-  return result.count || 0;
+
+  return rows.length;
 }
 
 export async function findAttendeeByEventAndMicrositeId(

@@ -44,9 +44,9 @@ export const POST: APIRoute = async ({ request }) => {
     return json(
       {
         error: 'Rate limit exceeded. Please try again later.',
-        retryAfter: rate.retryAfter,
+        retryAfter: rate.retryAfterSec,
       },
-      { status: 429 }
+      429
     );
   }
 
@@ -58,20 +58,20 @@ export const POST: APIRoute = async ({ request }) => {
     if (!validation.success) {
       return errorResponse(validation.error, 400);
     }
-    const { firstName, lastName, email, phone, company, dietaryRestrictions, eventId, status } = validation.data;
+    const { firstName, lastName, email, phone, company, dietaryRestrictions, eventId } = validation.data;
 
-    // Create attendee
+    // Create attendee (optional status in schema reserved for future use; DB has no status column yet)
     const attendee = await createAttendee({
       firstName,
       lastName,
       email,
-      company,
-      dietaryRequirements: dietaryRestrictions,
+      phone: phone ?? undefined,
+      company: company ?? undefined,
+      dietaryRestrictions: dietaryRestrictions ?? undefined,
       eventId,
-      status: status || 'registered',
     });
 
-    return json(attendee, { status: 201 });
+    return json(attendee, 201);
   } catch (err) {
     console.error('POST /api/attendees', err);
     return errorResponse('Failed to create attendee', 500);

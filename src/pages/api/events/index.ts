@@ -31,7 +31,11 @@ export const POST: APIRoute = async (context) => {
       return errorResponse(validation.error, 400);
     }
     const { name, slug, micrositeUrl } = validation.data;
-    const event = await createEventForUser(userId, { name, slug, micrositeUrl });
+    const event = await createEventForUser(userId, {
+      name,
+      slug,
+      micrositeUrl: micrositeUrl ?? undefined,
+    });
     return json(event, 201);
   } catch (err) {
     const msg = (err as Error)?.message ?? '';
