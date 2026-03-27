@@ -35,8 +35,7 @@ export const POST: APIRoute = async (context) => {
     const manage = await requireEventManage(context, eventId);
     if (manage instanceof Response) return manage;
 
-    // Get attendees
-    const attendees = await getAllAttendeesForUser(userId, eventId);
+    const { data: attendees } = await getAllAttendeesForUser(userId, eventId);
 
     if (attendees.length === 0) {
       return errorResponse('No attendees found', 404);

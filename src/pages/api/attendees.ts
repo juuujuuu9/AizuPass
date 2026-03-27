@@ -8,6 +8,8 @@ import { attendeeCreationSchema, validateRequestBody } from '../../lib/validatio
 
 export const prerender = false;
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const GET: APIRoute = async (context) => {
   const userId = requireUserId(context);
   if (userId instanceof Response) return userId;
@@ -16,12 +18,12 @@ export const GET: APIRoute = async (context) => {
     const url = new URL(request.url);
     const eventId = url.searchParams.get('eventId') ?? undefined;
     if (eventId) {
+      if (!UUID_RE.test(eventId)) return errorResponse('Invalid eventId format', 400);
       const check = await requireEventAccess(context, eventId);
       if (check instanceof Response) return check;
     }
     const q = url.searchParams.get('q')?.trim() ?? undefined;
 
-    // HI-3: Pagination support
     const limit = url.searchParams.has('limit')
       ? parseInt(url.searchParams.get('limit')!, 10)
       : undefined;

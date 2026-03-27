@@ -43,7 +43,11 @@ class ApiService {
   async getAllAttendees(eventId?: string): Promise<Attendee[]> {
     const url = eventId ? `/api/attendees?eventId=${encodeURIComponent(eventId)}` : '/api/attendees';
     const res = await this.fetchWithError(url);
-    return (res as { ok: true; data: Attendee[] }).data ?? [];
+    const body = (res as { ok: true; data: unknown }).data;
+    if (body && typeof body === 'object' && 'data' in body) {
+      return (body as { data: Attendee[] }).data ?? [];
+    }
+    return (body as Attendee[]) ?? [];
   }
 
   async searchAttendees(eventId?: string, q?: string): Promise<(Attendee & { eventName?: string })[]> {
@@ -52,12 +56,20 @@ class ApiService {
     if (q?.trim()) params.set('q', q.trim());
     const url = `/api/attendees?${params.toString()}`;
     const res = await this.fetchWithError(url);
-    return (res as { ok: true; data: (Attendee & { eventName?: string })[] }).data ?? [];
+    const body = (res as { ok: true; data: unknown }).data;
+    if (body && typeof body === 'object' && 'data' in body) {
+      return (body as { data: (Attendee & { eventName?: string })[] }).data ?? [];
+    }
+    return (body as (Attendee & { eventName?: string })[]) ?? [];
   }
 
   async getEvents(): Promise<{ id: string; name: string; slug: string }[]> {
     const res = await this.fetchWithError('/api/events');
-    return (res as { ok: true; data: { id: string; name: string; slug: string }[] }).data ?? [];
+    const body = (res as { ok: true; data: unknown }).data;
+    if (body && typeof body === 'object' && 'data' in body) {
+      return (body as { data: { id: string; name: string; slug: string }[] }).data ?? [];
+    }
+    return (body as { id: string; name: string; slug: string }[]) ?? [];
   }
 
   async getEvent(id: string): Promise<{ id: string; name: string; slug: string } | null> {

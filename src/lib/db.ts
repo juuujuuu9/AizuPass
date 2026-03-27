@@ -365,19 +365,31 @@ export async function getDefaultEventId(): Promise<string> {
 
 export type AttendeeListOpts = { limit?: number; offset?: number };
 
+export interface PaginatedAttendees {
+  data: Attendee[];
+  pagination: { total: number; limit: number; offset: number; hasMore: boolean };
+}
+
 export async function getAllAttendeesForUser(
   userId: string,
   eventId?: string,
   opts?: AttendeeListOpts
-) {
-  if (!userId) return [];
+): Promise<PaginatedAttendees> {
+  if (!userId) return { data: [], pagination: { total: 0, limit: 20, offset: 0, hasMore: false } };
   const db = getDb();
-  const limit = opts?.limit;
+  const limit = Math.min(Math.max(opts?.limit ?? 20, 0), 100);
   const offset = opts?.offset ?? 0;
-  const paginate = limit != null && limit > 0;
 
   if (eventId) {
-    const rows = paginate
+    const countRows = await db`
+      SELECT count(*)::int AS count
+      FROM attendees a
+      INNER JOIN events e ON e.id = a.event_id
+      INNER JOIN organization_memberships m ON m.organization_id = e.organization_id
+      WHERE a.event_id = ${eventId} AND m.user_id = ${userId}
+    `;
+    const total = Number((countRows[0] as Record<string, unknown>).count) || 0;
+    const rows = limit > 0
       ? await db`
       SELECT a.*
       FROM attendees a
@@ -387,17 +399,20 @@ export async function getAllAttendeesForUser(
       ORDER BY a.created_at DESC NULLS LAST, a.rsvp_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `
-      : await db`
-      SELECT a.*
-      FROM attendees a
-      INNER JOIN events e ON e.id = a.event_id
-      INNER JOIN organization_memberships m ON m.organization_id = e.organization_id
-      WHERE a.event_id = ${eventId} AND m.user_id = ${userId}
-      ORDER BY a.created_at DESC NULLS LAST, a.rsvp_at DESC
-    `;
-    return rows.map((row) => rowToAttendee(row as Record<string, unknown>));
+      : [];
+    const data = rows.map((row) => rowToAttendee(row as Record<string, unknown>));
+    return { data, pagination: { total, limit, offset, hasMore: offset + data.length < total } };
   }
-  const rows = paginate
+
+  const countRows = await db`
+    SELECT count(*)::int AS count
+    FROM attendees a
+    INNER JOIN events e ON e.id = a.event_id
+    INNER JOIN organization_memberships m ON m.organization_id = e.organization_id
+    WHERE m.user_id = ${userId}
+  `;
+  const total = Number((countRows[0] as Record<string, unknown>).count) || 0;
+  const rows = limit > 0
     ? await db`
     SELECT a.*
     FROM attendees a
@@ -407,15 +422,9 @@ export async function getAllAttendeesForUser(
     ORDER BY a.created_at DESC NULLS LAST, a.rsvp_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `
-    : await db`
-    SELECT a.*
-    FROM attendees a
-    INNER JOIN events e ON e.id = a.event_id
-    INNER JOIN organization_memberships m ON m.organization_id = e.organization_id
-    WHERE m.user_id = ${userId}
-    ORDER BY a.created_at DESC NULLS LAST, a.rsvp_at DESC
-  `;
-  return rows.map((row) => rowToAttendee(row as Record<string, unknown>));
+    : [];
+  const data = rows.map((row) => rowToAttendee(row as Record<string, unknown>));
+  return { data, pagination: { total, limit, offset, hasMore: offset + data.length < total } };
 }
 
 /** Minimal attendee data including qr_token for offline cache. Staff-only. */
@@ -480,19 +489,29 @@ export async function searchAttendeesForUser(
   eventId?: string,
   q?: string,
   opts?: AttendeeListOpts
-) {
+): Promise<PaginatedAttendees> {
   if (!q?.trim()) return getAllAttendeesForUser(userId, eventId, opts);
   const db = getDb();
   const pattern = `%${String(q).trim().slice(0, 200)}%`;
-  const limit = opts?.limit;
+  const limit = Math.min(Math.max(opts?.limit ?? 20, 0), 100);
   const offset = opts?.offset ?? 0;
-  const paginate = limit != null && limit > 0;
   const rowToAttendeeWithEvent = (row: Record<string, unknown>) => ({
     ...rowToAttendee(row),
     eventName: row.event_name as string | undefined,
   });
+
   if (eventId) {
-    const rows = paginate
+    const countRows = await db`
+      SELECT count(*)::int AS count
+      FROM attendees a
+      INNER JOIN events e ON e.id = a.event_id
+      INNER JOIN organization_memberships m ON m.organization_id = e.organization_id
+      WHERE a.event_id = ${eventId}
+        AND m.user_id = ${userId}
+        AND (a.first_name ILIKE ${pattern} OR a.last_name ILIKE ${pattern} OR a.email ILIKE ${pattern})
+    `;
+    const total = Number((countRows[0] as Record<string, unknown>).count) || 0;
+    const rows = limit > 0
       ? await db`
       SELECT a.*, e.name as event_name
       FROM attendees a
@@ -504,19 +523,21 @@ export async function searchAttendeesForUser(
       ORDER BY a.created_at DESC NULLS LAST, a.rsvp_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `
-      : await db`
-      SELECT a.*, e.name as event_name
-      FROM attendees a
-      INNER JOIN events e ON e.id = a.event_id
-      INNER JOIN organization_memberships m ON m.organization_id = e.organization_id
-      WHERE a.event_id = ${eventId}
-        AND m.user_id = ${userId}
-        AND (a.first_name ILIKE ${pattern} OR a.last_name ILIKE ${pattern} OR a.email ILIKE ${pattern})
-      ORDER BY a.created_at DESC NULLS LAST, a.rsvp_at DESC
-    `;
-    return rows.map((row) => rowToAttendeeWithEvent(row as Record<string, unknown>));
+      : [];
+    const data = rows.map((row) => rowToAttendeeWithEvent(row as Record<string, unknown>));
+    return { data, pagination: { total, limit, offset, hasMore: offset + data.length < total } };
   }
-  const rows = paginate
+
+  const countRows = await db`
+    SELECT count(*)::int AS count
+    FROM attendees a
+    INNER JOIN events e ON e.id = a.event_id
+    INNER JOIN organization_memberships m ON m.organization_id = e.organization_id
+    WHERE m.user_id = ${userId}
+      AND (a.first_name ILIKE ${pattern} OR a.last_name ILIKE ${pattern} OR a.email ILIKE ${pattern})
+  `;
+  const total = Number((countRows[0] as Record<string, unknown>).count) || 0;
+  const rows = limit > 0
     ? await db`
     SELECT a.*, e.name as event_name
     FROM attendees a
@@ -527,16 +548,9 @@ export async function searchAttendeesForUser(
     ORDER BY a.created_at DESC NULLS LAST, a.rsvp_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `
-    : await db`
-    SELECT a.*, e.name as event_name
-    FROM attendees a
-    INNER JOIN events e ON e.id = a.event_id
-    INNER JOIN organization_memberships m ON m.organization_id = e.organization_id
-    WHERE m.user_id = ${userId}
-      AND (a.first_name ILIKE ${pattern} OR a.last_name ILIKE ${pattern} OR a.email ILIKE ${pattern})
-    ORDER BY a.created_at DESC NULLS LAST, a.rsvp_at DESC
-  `;
-  return rows.map((row) => rowToAttendeeWithEvent(row as Record<string, unknown>));
+    : [];
+  const data = rows.map((row) => rowToAttendeeWithEvent(row as Record<string, unknown>));
+  return { data, pagination: { total, limit, offset, hasMore: offset + data.length < total } };
 }
 
 export async function getAttendeeById(id: string) {

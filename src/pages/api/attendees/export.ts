@@ -42,7 +42,7 @@ export const GET: APIRoute = async (context) => {
     const access = await requireEventAccess(context, eventId);
     if (access instanceof Response) return access;
 
-    const attendees = await getAllAttendeesForUser(userId, eventId);
+    const { data: attendees } = await getAllAttendeesForUser(userId, eventId);
     const headers = [
       'First Name',
       'Last Name',
