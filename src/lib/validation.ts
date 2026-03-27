@@ -94,6 +94,34 @@ export const attendeeCreationSchema = z.object({
   status: z.string().optional(),
 });
 
+// Event creation schema
+export const eventCreationSchema = z.object({
+  name: z.string().min(1, 'Event name is required').max(255, 'Event name is too long').transform((s) => s.trim()),
+  slug: z
+    .string()
+    .min(1, 'Slug is required')
+    .max(100, 'Slug is too long')
+    .regex(/^[a-z0-9-]+$/, 'Slug can only contain lowercase letters, numbers, and hyphens')
+    .transform((s) => s.trim()),
+  micrositeUrl: z.string().max(500, 'URL is too long').optional().nullable(),
+});
+
+// Profile update schema
+export const profileUpdateSchema = z.object({
+  firstName: nameSchema,
+  lastName: nameSchema,
+});
+
+// Organization creation schema
+export const organizationCreationSchema = z.object({
+  name: z.string().min(1, 'Organization name is required').max(255, 'Organization name is too long').transform((s) => s.trim()),
+});
+
+// Invitation creation schema
+export const invitationCreationSchema = z.object({
+  email: emailSchema,
+});
+
 // Generic request validation helper
 export function validateRequestBody<T>(schema: z.ZodSchema<T>, data: unknown): { success: true; data: T } | { success: false; error: string } {
   const result = schema.safeParse(data);
@@ -109,6 +137,10 @@ export type RSVPFormData = z.infer<typeof rsvpFormSchema>;
 export type CheckInData = z.infer<typeof checkInSchema>;
 export type ManualCheckInData = z.infer<typeof manualCheckInSchema>;
 export type AttendeeCreationData = z.infer<typeof attendeeCreationSchema>;
+export type EventCreationData = z.infer<typeof eventCreationSchema>;
+export type ProfileUpdateData = z.infer<typeof profileUpdateSchema>;
+export type OrganizationCreationData = z.infer<typeof organizationCreationSchema>;
+export type InvitationCreationData = z.infer<typeof invitationCreationSchema>;
 
 // Validation helper functions
 export function validateRSVPForm(data: unknown): { success: true; data: RSVPFormData } | { success: false; errors: string[] } {
