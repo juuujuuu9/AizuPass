@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { createEventForUser, getAllEventsForUser } from '../../../lib/db';
 import { requireUserId } from '../../../lib/access';
 import { json, errorResponse } from '../../../lib/api-response';
+import { eventCreationSchema, validateRequestBody } from '../../../lib/validation';
 
 export const GET: APIRoute = async (context) => {
   const userId = requireUserId(context);
@@ -23,17 +24,14 @@ export const POST: APIRoute = async (context) => {
   }
   const { request } = context;
   try {
-    const body = (await request.json()) as { name?: string; slug?: string; micrositeUrl?: string };
-    const name = (body?.name ?? '').trim();
-    const slug = (body?.slug ?? '').trim().toLowerCase().replace(/\s+/g, '-');
-    if (!name || !slug) {
-      return errorResponse('name and slug are required');
+    // ME-12: Use Zod validation instead of manual checks
+    const body = (await request.json()) as Record<string, unknown>;
+    const validation = validateRequestBody(eventCreationSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 400);
     }
-    const event = await createEventForUser(userId, {
-      name,
-      slug,
-      micrositeUrl: body?.micrositeUrl?.trim() || undefined,
-    });
+    const { name, slug, micrositeUrl } = validation.data;
+    const event = await createEventForUser(userId, { name, slug, micrositeUrl });
     return json(event, 201);
   } catch (err) {
     const msg = (err as Error)?.message ?? '';

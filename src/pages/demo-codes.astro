@@ -15,8 +15,20 @@ const invalidDataUrl = await generateQRCodeBase64(DEMO_INVALID, demoQrOpts);
 <ScannerLayout>
   <div class="min-h-screen bg-background p-4 sm:p-6">
     <main class="max-w-lg mx-auto">
-      <h1 class="text-xl font-semibold text-foreground mb-1">Demo QR Codes</h1>
-      <p class="text-sm text-muted-foreground mb-6">Scan these codes at the scanner page to test Green, Yellow, and Red feedback. Staff only.</p>
+      <div class="flex items-start justify-between mb-6">
+        <div>
+          <h1 class="text-xl font-semibold text-foreground mb-1">Demo QR Codes</h1>
+          <p class="text-sm text-muted-foreground">Scan these codes at the scanner page to test Green, Yellow, and Red feedback. Staff only.</p>
+        </div>
+        <a
+          href="/demo-codes-print"
+          target="_blank"
+          class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium whitespace-nowrap rounded-md border border-border bg-card hover:bg-accent transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+          Print / PDF
+        </a>
+      </div>
 
       <div class="space-y-6">
         <section class="rounded-lg border border-border bg-card p-4">
@@ -66,6 +78,17 @@ const invalidDataUrl = await generateQRCodeBase64(DEMO_INVALID, demoQrOpts);
       </div>
 
       <p class="text-xs text-muted-foreground mt-8">Open the scanner page on another device or tab, then scan these codes. They return canned responses and never modify the database.</p>
+
+      <div class="sm:hidden mt-4">
+        <a
+          href="/demo-codes-print"
+          target="_blank"
+          class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+          Open printable version
+        </a>
+      </div>
     </main>
   </div>
 </ScannerLayout>

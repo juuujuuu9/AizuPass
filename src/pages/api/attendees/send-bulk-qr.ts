@@ -6,6 +6,8 @@ import { generateQRCodeBase64 } from '../../../lib/qr-client';
 import { getOrCreateQRPayload } from '../../../lib/qr-token';
 import { requireEventManage } from '../../../lib/access';
 
+const MAX_BULK_EMAIL_COUNT = 100;
+
 export const POST: APIRoute = async (context) => {
   try {
     const { request } = context;
@@ -19,6 +21,14 @@ export const POST: APIRoute = async (context) => {
 
     if (!attendeeIds || !Array.isArray(attendeeIds) || attendeeIds.length === 0) {
       return errorResponse('attendeeIds array is required');
+    }
+
+    // ME-2: Enforce maximum bulk email count to prevent abuse
+    if (attendeeIds.length > MAX_BULK_EMAIL_COUNT) {
+      return errorResponse(
+        `Cannot send more than ${MAX_BULK_EMAIL_COUNT} emails at once. Please batch your requests.`,
+        400
+      );
     }
 
     if (!eventId) {

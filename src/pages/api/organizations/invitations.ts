@@ -8,6 +8,7 @@ import { requireUserId } from '../../../lib/access';
 import { sendOrganizationInviteEmail } from '../../../lib/email';
 import { getAppBaseUrl } from '../../../lib/env';
 import { json, errorResponse } from '../../../lib/api-response';
+import { invitationCreationSchema, validateRequestBody } from '../../../lib/validation';
 
 const DEFAULT_INVITE_TTL_DAYS = 7;
 
@@ -35,11 +36,13 @@ export const POST: APIRoute = async (context) => {
     if (!organization) {
       return errorResponse('Organization required', 403);
     }
-    const body = (await context.request.json()) as { email?: string };
-    const email = String(body?.email ?? '').trim().toLowerCase();
-    if (!email || !email.includes('@')) {
-      return errorResponse('Valid email is required');
+    // ME-12: Use Zod validation instead of manual email check
+    const body = (await context.request.json()) as Record<string, unknown>;
+    const validation = validateRequestBody(invitationCreationSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 400);
     }
+    const { email } = validation.data;
 
     const expiresAt = new Date(Date.now() + DEFAULT_INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
     const invitation = await createOrganizationInvitation({

@@ -4,6 +4,7 @@ import { requireUserId, requireEventAccess } from '../../lib/access';
 import { getClientIp } from '../../lib/rate-limit';
 import { searchAttendeesForUser, createAttendee } from '../../lib/db';
 import { checkRateLimit } from '../../lib/rate-limit';
+import { attendeeCreationSchema, validateRequestBody } from '../../lib/validation';
 
 export const prerender = false;
 
@@ -52,29 +53,22 @@ export const POST: APIRoute = async ({ request }) => {
   try {
     const body = await request.json();
 
-    // Basic validation
-    if (!body.firstName || !body.lastName || !body.email || !body.eventId) {
-      return json(
-        { error: 'Missing required fields: firstName, lastName, email, eventId' },
-        { status: 400 }
-      );
+    // ME-12: Use Zod validation instead of manual checks
+    const validation = validateRequestBody(attendeeCreationSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 400);
     }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(body.email)) {
-      return json({ error: 'Invalid email format' }, { status: 400 });
-    }
+    const { firstName, lastName, email, phone, company, dietaryRestrictions, eventId, status } = validation.data;
 
     // Create attendee
     const attendee = await createAttendee({
-      firstName: body.firstName,
-      lastName: body.lastName,
-      email: body.email,
-      company: body.company,
-      dietaryRequirements: body.dietaryRequirements,
-      eventId: body.eventId,
-      status: body.status || 'registered',
+      firstName,
+      lastName,
+      email,
+      company,
+      dietaryRequirements: dietaryRestrictions,
+      eventId,
+      status: status || 'registered',
     });
 
     return json(attendee, { status: 201 });

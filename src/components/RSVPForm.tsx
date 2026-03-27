@@ -17,6 +17,22 @@ import { apiService } from '@/services/api';
 import { generateQRCodeBase64 } from '@/lib/qr-client';
 import { QRDisplay } from './QRDisplay';
 
+/**
+ * ME-11: Type guard to validate API response matches Attendee type.
+ * Prevents runtime errors from unexpected API response shapes.
+ */
+function isAttendeeResponse(obj: unknown): obj is Attendee & { qrPayload?: string } {
+  if (typeof obj !== 'object' || obj === null) return false;
+  const a = obj as Record<string, unknown>;
+  return (
+    typeof a.id === 'string' &&
+    typeof a.firstName === 'string' &&
+    typeof a.lastName === 'string' &&
+    typeof a.email === 'string' &&
+    (a.qrPayload === undefined || typeof a.qrPayload === 'string')
+  );
+}
+
 interface RSVPFormProps {
   onSuccess?: () => void;
 }
@@ -63,7 +79,14 @@ export function RSVPForm({ onSuccess }: RSVPFormProps) {
         return;
       }
 
-      const attendee = result as Attendee;
+      // ME-11: Validate response shape instead of unsafe type assertion
+      if (!isAttendeeResponse(result)) {
+        console.error('Invalid attendee response:', result);
+        toast.error('Registration succeeded but received invalid data. Please refresh.');
+        setLoading(false);
+        return;
+      }
+      const attendee = result;
       setNewAttendee(attendee);
 
       const qrPayload = attendee.qrPayload ?? (await apiService.getQRPayload(attendee.id)).qrPayload;

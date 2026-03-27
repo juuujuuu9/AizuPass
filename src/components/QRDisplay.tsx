@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Maximize2, Minimize2, Smartphone, Sun, Focus, AlertCircle, Download } from 'lucide-react';
+import { Maximize2, Minimize2, Smartphone, Sun, Focus, AlertCircle, Download, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface QRDisplayProps {
@@ -147,6 +147,13 @@ export function QRDisplay({ qrDataUrl, attendeeName }: QRDisplayProps) {
             <Maximize2 className="h-3.5 w-3.5" />
           </button>
         </div>
+      )}
+
+      {!isFullscreen && (
+        <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+          <Shield className="h-3.5 w-3.5" />
+          This QR code can only be used once. Screenshot at your own risk.
+        </p>
       )}
 
       {/* Phone-to-Phone Tips */}
