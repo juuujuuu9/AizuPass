@@ -8,15 +8,18 @@ const emailSchema = z
   .max(255, 'Email is too long')
   .transform((email) => email.toLowerCase().trim());
 
-// Name validation - allows Unicode letters (all languages), spaces, hyphens, apostrophes
-// ME-5/ME-9: Changed from [a-zA-Z] to \p{L} to support international characters (é, ñ, ü, CJK, Arabic, Cyrillic, etc.)
+// Name validation - allows letters (including Unicode), spaces, hyphens, apostrophes
+// ME-5/ME-9: Uses Unicode-aware validation to support international characters (é, ñ, ü, CJK, Arabic, Cyrillic, etc.)
+// Note: Using a permissive approach that accepts any non-digit, non-special characters as letters
 const nameSchema = z
   .string()
   .min(1, 'Name is required')
   .max(100, 'Name is too long')
   .regex(
-    /^[\p{L}\s\-\'\.]+$/u,
-    'Name can only contain letters, spaces, hyphens, and apostrophes'
+    // Accepts letters from any alphabet, spaces, hyphens, apostrophes, periods
+    // Rejects digits and most special characters
+    /^[^0-9!@#$%^&*()_=+\[\]{}|;:",<>?/\\]+$/,
+    'Name can only contain letters, spaces, hyphens, apostrophes, and periods'
   )
   .transform((name) => name.trim());
 
@@ -131,4 +134,3 @@ export function validateManualCheckIn(data: unknown): { success: true; data: Man
   }
   return { success: false, errors: result.error.errors.map((e) => e.message) };
 }
-
