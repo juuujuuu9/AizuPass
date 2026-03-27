@@ -7,8 +7,8 @@ export const GET: APIRoute = async (context) => {
   const userId = requireUserId(context);
   if (userId instanceof Response) return userId;
   try {
-    const events = await getAllEventsForUser(userId);
-    return json(events);
+    const eventsResult = await getAllEventsForUser(userId);
+    return json(eventsResult);
   } catch (err) {
     console.error('GET /api/events', err);
     return errorResponse('Failed to fetch events', 500);

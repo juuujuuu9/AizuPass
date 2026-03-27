@@ -18,6 +18,10 @@
    ========================================================================== */
 
 :root {
+  /* Font Families — Body + Heading Pair */
+  --font-body: 'Spline Sans', sans-serif;
+  --font-heading: 'Quicksand', sans-serif;
+
   /* Background / Canvas */
   --bg-app: var(--mauve-1);
   --bg-card: var(--mauve-2);

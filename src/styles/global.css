@@ -4,6 +4,10 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
+  /* Font Families */
+  --font-body: var(--font-body);
+  --font-heading: var(--font-heading);
+
   /* Radix Colors — semantic mapping for Tailwind utilities */
   --color-background: var(--bg-app);
   --color-foreground: var(--text-primary);
@@ -48,6 +52,23 @@ html.theme-flash *::after {
 body {
   background-color: var(--bg-app);
   color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+/* Headings use the heading font */
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+}
+
+/* Buttons and UI elements often look better with heading font */
+button,
+.btn,
+[data-btn],
+[role="button"] {
+  font-family: var(--font-heading);
+  font-weight: 600;
 }
 
 /* Admin header breadcrumb: scroll without visible scrollbar or reserved gutter */

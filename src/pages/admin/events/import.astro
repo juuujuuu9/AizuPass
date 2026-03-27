@@ -13,7 +13,8 @@ import { getEnv } from '../../../lib/env';
 const userId = Astro.locals.user?.id ?? '';
 const eventId = Astro.url.searchParams.get('event')?.trim();
 let event: Awaited<ReturnType<typeof getEventByIdForUser>> = null;
-const events = userId ? await getAllEventsForUser(userId) : [];
+const eventsResult = userId ? await getAllEventsForUser(userId) : null;
+const events = eventsResult?.data ?? [];
 
 const importableEvents: typeof events = [];
 for (const ev of events) {

@@ -25,7 +25,8 @@ export const GET: APIRoute = async (context) => {
       const access = await requireEventAccess(context, eventId);
       if (access instanceof Response) return access;
     }
-    const events = await getAllEventsForUser(userId);
+    const eventsResult = await getAllEventsForUser(userId);
+    const events = eventsResult.data ?? [];
     const defaultEvent = events.find((e) => e.slug === 'default') ?? events[0];
     const defaultEventId = defaultEvent?.id ?? '';
 
