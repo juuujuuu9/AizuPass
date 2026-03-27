@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
-import { json, errorResponse, requireUserId } from '../../lib/api-utils';
-import { requireEventAccess, getClientIp } from '../../lib/api-utils';
+import { json, errorResponse } from '../../lib/api-response';
+import { requireUserId, requireEventAccess } from '../../lib/access';
+import { getClientIp } from '../../lib/rate-limit';
 import { searchAttendeesForUser, createAttendee } from '../../lib/db';
 import { checkRateLimit } from '../../lib/rate-limit';
 

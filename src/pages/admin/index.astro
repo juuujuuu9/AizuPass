@@ -36,7 +36,8 @@ if (eventIdParam) {
   showEventDashboard = true;
   event = ev;
 
-  const events = userId ? await getAllEventsForUser(userId) : [];
+  const eventsResult = userId ? await getAllEventsForUser(userId) : { data: [] };
+  const events = eventsResult.data ?? [];
   eventOptions = events.map((e) => ({ id: e.id, name: e.name, slug: e.slug }));
 
   organization = ev.organizationId ? await getOrganizationById(ev.organizationId) : null;
@@ -155,20 +156,6 @@ const pageTitle = showEventDashboard && event ? `${event.name} | Attendees` : 'E
         <h1 class="text-2xl font-bold text-foreground mb-6">Organizations</h1>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {Astro.locals.isAdmin && (
-            <a
-              href="/onboarding/organization"
-              class="group flex flex-col items-center justify-center min-h-[180px] rounded-xl border border-dashed border-border bg-card/50 hover:bg-card hover:border-primary/50 transition-all"
-            >
-              <div class="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-3 group-hover:bg-primary/10 transition-colors">
-                <svg class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-              </div>
-              <span class="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Create organization</span>
-            </a>
-          )}
-
           {organizationsWithEvents.map((org) => (
             <a
               href={`/admin/organization?id=${org.id}`}
@@ -217,6 +204,20 @@ const pageTitle = showEventDashboard && event ? `${event.name} | Attendees` : 'E
               </div>
             </a>
           ))}
+
+          {Astro.locals.isAdmin && (
+            <a
+              href="/onboarding/organization"
+              class="group flex flex-col items-center justify-center min-h-[180px] rounded-xl border border-dashed border-border bg-card/50 hover:bg-card hover:border-primary/50 transition-all"
+            >
+              <div class="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-3 group-hover:bg-primary/10 transition-colors">
+                <svg class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <span class="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Create organization</span>
+            </a>
+          )}
         </div>
 
         {organizationsWithEvents.length === 0 && (

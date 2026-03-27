@@ -52,7 +52,7 @@ const showOrganizationBilling = organization
           : undefined
       }
     />
-    <div class="flex min-h-[calc(100vh-4rem)] min-w-0 flex-col md:flex-row">
+    <div class="flex min-h-[calc(100vh-4rem)] min-w-0 flex-col md:flex-row overflow-hidden">
       {organization && (
         <AdminSidebar
           variant="organization"
@@ -63,7 +63,7 @@ const showOrganizationBilling = organization
         />
       )}
 
-      <main class="flex-1 px-4 py-10 space-y-6">
+      <main class="flex-1 min-w-0 px-4 py-10 space-y-6">
         {!organization ? (
           <div class="rounded-lg border border-(--amber-6) bg-(--amber-2) p-4 text-(--amber-11)">
             {isOrganizerUser ? (
@@ -95,15 +95,15 @@ const showOrganizationBilling = organization
         ) : (
           <>
             <div class={`grid grid-cols-1 gap-4 ${isOrganizerUser ? 'sm:grid-cols-2' : ''}`}>
-              <section class="rounded-xl border border-border bg-card p-6">
-                <h2 class="text-lg font-semibold text-foreground">{organization.name}</h2>
+              <section class="rounded-xl border border-border bg-card p-6 min-w-0">
+                <h2 class="text-lg font-semibold text-foreground truncate">{organization.name}</h2>
                 <p class="mt-1 text-sm text-muted-foreground">Organization overview</p>
               </section>
 
               {isOrganizerUser && (
                 <a
                   href="/admin/events/new"
-                  class="group flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 hover:bg-card hover:border-primary/50 transition-all"
+                  class="group hidden sm:flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 p-6 hover:bg-card hover:border-primary/50 transition-all"
                 >
                   <div class="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-3 group-hover:bg-primary/10 transition-colors">
                     <svg
@@ -123,18 +123,91 @@ const showOrganizationBilling = organization
             </div>
 
             <section class="rounded-xl border border-border bg-card">
-              <div class="border-b border-border px-6 py-4 flex items-center justify-between">
+              <div class="border-b border-border px-4 py-4 sm:px-6 flex items-center justify-between">
                 <h2 class="text-lg font-semibold text-foreground">Events</h2>
                 {isOrganizerUser && (
                   <a
                     href="/admin/events/new"
-                    class="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+                    class="rounded bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
                   >
                     + New event
                   </a>
                 )}
               </div>
-              <div class="overflow-x-auto">
+
+              {/* Mobile card layout */}
+              <div class="md:hidden divide-y divide-border">
+                {events.length === 0 ? (
+                  <div class="px-4 py-8 text-center text-muted-foreground">
+                    {isOrganizerUser
+                      ? 'No events yet. Create one to get started.'
+                      : 'No events yet for this organization. Ask an organizer to create one.'}
+                  </div>
+                ) : (
+                  events.map((event) => (
+                    <div class="p-4 min-w-0">
+                      <a
+                        href={`/admin?event=${event.id}`}
+                        class="block text-base font-semibold text-foreground hover:text-primary mb-1 truncate"
+                      >
+                        {event.name}
+                      </a>
+                      <p class="text-xs text-muted-foreground truncate">{event.slug}</p>
+                      <div class="my-3 border-t border-border" />
+                      <div class="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1" style="-webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none;">
+                        <a
+                          href={`/admin?event=${event.id}`}
+                          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary bg-primary/10 rounded-full"
+                        >
+                          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          View
+                        </a>
+                        {showOrganizationBilling && (
+                          <a
+                            href={`/admin/events/import?event=${event.id}`}
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground bg-muted rounded-full"
+                          >
+                            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            </svg>
+                            Import
+                          </a>
+                        )}
+                        <a
+                          href={`/api/attendees/export?eventId=${event.id}`}
+                          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground bg-muted rounded-full"
+                        >
+                          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Export
+                        </a>
+                        {Astro.locals.isAdmin && (
+                          <button
+                            type="button"
+                            data-delete-event
+                            data-event-id={event.id}
+                            data-event-name={event.name}
+                            class="inline-flex items-center justify-center px-3 py-1.5 text-sm text-red-600 bg-muted rounded-full ml-auto"
+                            title="Delete event"
+                            aria-label={`Delete event ${event.name}`}
+                          >
+                            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Desktop table layout */}
+              <div class="hidden md:block overflow-x-auto">
                 <table class="min-w-full divide-y divide-border">
                   <thead class="bg-muted">
                     <tr>
@@ -256,4 +329,10 @@ const showOrganizationBilling = organization
       });
     });
   </script>
+
+  <style>
+    .overflow-x-auto::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
 </Layout>
