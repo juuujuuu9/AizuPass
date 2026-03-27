@@ -9,6 +9,17 @@
  *
  * Future fix: Use Neon's `transaction()` API (WebSocket/pool mode) or add compensating cleanup logic.
  * See: https://neon.tech/docs/serverless/transaction-support
+ *
+ * LO-6: QR Token Storage — Accepted Risk
+ * QR tokens are stored in plaintext (qr_token column) rather than hashed. This is an intentional
+ * design choice because:
+ * 1. Tokens are short-lived (24h default expiration via TOKEN_TTL_MS)
+ * 2. Tokens are single-use (qr_used_at is set on first scan, token is cleared after use)
+ * 3. QR codes must be scannable offline, requiring token availability in the cache
+ * 4. Hashing would require additional complexity for offline validation and QR payload generation
+ *
+ * Defense-in-depth: Tokens are 128-bit cryptographically random values generated via generateQRToken().
+ * Database access is restricted via RLS (Row Level Security) and org-scoped queries.
  */
 import { getEnv } from './env';
 import { getDb, type SqlRow } from './db/client';
@@ -23,6 +34,10 @@ export { getDb } from './db/client';
 
 const DEFAULT_EVENT_CACHE_TTL_MS = 60 * 60 * 1000; // 1h
 let defaultEventIdCache: { id: string; expiresAt: number } | null = null;
+
+// LO-5: Simple in-memory cache for user access summary to reduce DB load
+const USER_ACCESS_CACHE_TTL_MS = 5_000; // 5 seconds
+const userAccessCache = new Map<string, { data: { hasMembership: boolean; hasOrganizerRole: boolean; organizationCount: number; eventCount: number }; expiresAt: number }>();
 
 /** One row per Clerk user; display name for the account (all orgs). */
 export interface UserRow {
@@ -179,6 +194,13 @@ export async function getUserAccessSummary(userId: string): Promise<{
   if (!userId) {
     return { hasMembership: false, hasOrganizerRole: false, organizationCount: 0, eventCount: 0 };
   }
+
+  // LO-5: Check cache first
+  const cached = userAccessCache.get(userId);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.data;
+  }
+
   const db = getDb();
   const rows = await db`
     SELECT
@@ -193,12 +215,16 @@ export async function getUserAccessSummary(userId: string): Promise<{
   const organizationCount = Number(row.organization_count ?? 0);
   const eventCount = Number(row.event_count ?? 0);
   const organizerRows = Number(row.organizer_rows ?? 0);
-  return {
+  const result = {
     hasMembership: organizationCount > 0,
     hasOrganizerRole: organizerRows > 0,
     organizationCount,
     eventCount,
   };
+
+  // LO-5: Store in cache
+  userAccessCache.set(userId, { data: result, expiresAt: Date.now() + USER_ACCESS_CACHE_TTL_MS });
+  return result;
 }
 
 /**

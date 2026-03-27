@@ -7,6 +7,7 @@ import {
 } from '../../../lib/db';
 import { requireUserId } from '../../../lib/access';
 import { json, errorResponse } from '../../../lib/api-response';
+import { organizationCreationSchema, validateRequestBody } from '../../../lib/validation';
 
 export const GET: APIRoute = async (context) => {
   const userId = requireUserId(context);
@@ -31,11 +32,14 @@ export const POST: APIRoute = async (context) => {
   if (userId instanceof Response) return userId;
 
   try {
-    const body = (await context.request.json()) as { name?: string };
-    const name = String(body?.name ?? '').trim();
-    if (!name) {
-      return errorResponse('Organization name is required');
+    // ME-12: Use Zod validation instead of manual checks
+    const body = (await context.request.json()) as Record<string, unknown>;
+    const validation = validateRequestBody(organizationCreationSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 400);
     }
+    const { name } = validation.data;
+
     const organization = await createOrganizationForOwner(userId, name);
     return json({ organization }, 201);
   } catch (err) {

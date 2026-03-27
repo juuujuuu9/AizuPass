@@ -45,7 +45,7 @@
 - **Rate** limits on RSVP, webhook, and check-in endpoints (`src/lib/rate-limit.ts`).
 - **`GET /api/health`** for uptime checks.
 - **CI**: GitHub Actions — `tsc --noEmit`, production build on PRs; **edge-case** script on main when `DATABASE_URL` is configured (see [`docs/qr-edge-cases.md`](docs/qr-edge-cases.md)).
-- **Security audit** (2026-03-21): Critical findings addressed — CSRF protection, HTML escaping in emails, IDOR fixes (see [`docs/AUDIT-2026-03-21.md`](docs/AUDIT-2026-03-21.md)).
+- **Security audit** (2026-03-21): Critical findings addressed — CSRF protection, HTML escaping in emails, IDOR fixes (see [`docs/audit/AUDIT-2026-03-21.md`](docs/audit/AUDIT-2026-03-21.md)).
 
 ---
 
@@ -69,7 +69,7 @@
 
 | Date | Milestone |
 |------|-----------|
-| 2026-03-26 | **Security audit remediation** — Fixed 5 critical issues: CSRF protection re-enabled, email HTML escaping, IDOR vulnerability patched, hardcoded RSVP data removed. See [`docs/AUDIT-2026-03-21.md`](docs/AUDIT-2026-03-21.md). |
+| 2026-03-26 | **Security audit remediation** — Fixed 5 critical issues: CSRF protection re-enabled, email HTML escaping, IDOR vulnerability patched, hardcoded RSVP data removed. See [`docs/audit/AUDIT-2026-03-21.md`](docs/audit/AUDIT-2026-03-21.md). |
 | 2026-03-26 | **Public RSVP page** — Added `/rsvp` route for unauthenticated event registration. |
 
 ---
@@ -249,7 +249,8 @@ See `.env.example` for the canonical list. Main variables:
 | [`docs/MASTER-PLAN.md`](docs/MASTER-PLAN.md) | Roadmap, dev checklist, concern audit |
 | [`docs/ROADMAP-EVENT-RSVP.md`](docs/ROADMAP-EVENT-RSVP.md) | Event-specific RSVP: form builder, theming, custom domains |
 | [`docs/INTEGRATIONS-STRATEGY.md`](docs/INTEGRATIONS-STRATEGY.md) | CSV vs API vs Zapier/Make |
-| [`docs/AUDIT-2026-03-21.md`](docs/AUDIT-2026-03-21.md) | Security audit findings and remediation |
+| [`docs/audit/AUDIT-2026-03-21.md`](docs/audit/AUDIT-2026-03-21.md) | Security audit findings and remediation |
+| [`docs/audit/AUDIT-TEMPLATE-PROMPT.md`](docs/audit/AUDIT-TEMPLATE-PROMPT.md) | Reusable prompt for the same style of full integrity audit |
 | [`docs/README.md`](docs/README.md) | User-facing docs index (guides, FAQ) |
 | [`docs/VERCEL-DEPLOYMENT.md`](docs/VERCEL-DEPLOYMENT.md) | Production deployment |
 | [`docs/AUTH-CLERK-SETUP.md`](docs/AUTH-CLERK-SETUP.md) | Clerk + org/membership |
@@ -267,5 +268,5 @@ Deploy on **Vercel**. For production setup and verification, use [`docs/VERCEL-D
 
 ## CI/CD
 
-- **Pull requests** (branches `main` / `master`): `npm ci`, `npx tsc --noEmit`, `npm run build` with placeholder env.
+- **Pull requests** (branches `main` / `master`): `pnpm install --frozen-lockfile`, `pnpm exec tsc --noEmit`, `pnpm run build` with placeholder env.
 - **Push to main/master**: optional **edge-case** job runs when `DATABASE_URL` is available as a GitHub secret/variable (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).

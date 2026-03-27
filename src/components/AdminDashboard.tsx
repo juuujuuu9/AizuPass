@@ -172,15 +172,27 @@ export function AdminDashboard({
     onRefresh();
   };
 
+  // LO-3: Properly escape CSV fields with formula injection protection
+  const escapeCsvField = (val: string | number | null | undefined): string => {
+    if (val == null) return '""';
+    const s = String(val);
+    // Sanitize formula-triggering characters
+    const dangerousChars = ['=', '+', '-', '@', '\t', '\r'];
+    const firstChar = s.charAt(0);
+    const sanitized = dangerousChars.includes(firstChar) ? `'` + s : s;
+    // Escape quotes by doubling them
+    return `"${sanitized.replace(/"/g, '""')}"`;
+  };
+
   const handleBulkExport = () => {
     const toExport = sortedAttendees.filter((a) => selectedIds.has(a.id));
     if (toExport.length === 0) return;
     const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Company', 'Dietary Restrictions', 'Checked In', 'Check-in Time', 'Registration Date'];
     const csvContent = [
-      headers.join(','),
+      headers.map(escapeCsvField).join(','),
       ...toExport.map((a) =>
         [a.firstName, a.lastName, a.email, a.phone ?? '', a.company ?? '', a.dietaryRestrictions ?? '', a.checkedIn ? 'Yes' : 'No', a.checkedInAt ? new Date(a.checkedInAt).toLocaleString() : '', new Date(a.rsvpAt).toLocaleDateString()]
-          .map((f) => `"${f}"`)
+          .map(escapeCsvField)
           .join(',')
       ),
     ].join('\n');

@@ -21,7 +21,8 @@ export function logCheckInAttempt(params: {
   entryId?: string | null;
   timestamp?: Date;
 }): void {
-  const { ip, outcome, attendeeId = null, eventId = null, timestamp = new Date() } = params;
+  // ME-6: Include entryId in audit log output for complete traceability
+  const { ip, outcome, attendeeId = null, eventId = null, entryId = null, timestamp = new Date() } = params;
   const line = JSON.stringify({
     type: 'check_in_attempt',
     timestamp: timestamp.toISOString(),
@@ -29,6 +30,7 @@ export function logCheckInAttempt(params: {
     outcome,
     attendeeId,
     eventId,
+    entryId,
   });
   console.log(line);
 }

@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { acceptOrganizationInvitation } from '../../../../lib/db';
 import { requireUserId } from '../../../../lib/access';
 import { json, errorResponse } from '../../../../lib/api-response';
+import { invitationAcceptSchema, validateRequestBody } from '../../../../lib/validation';
 
 export const POST: APIRoute = async (context) => {
   const userId = requireUserId(context);
@@ -9,11 +10,14 @@ export const POST: APIRoute = async (context) => {
   const email = context.locals.user?.email ?? '';
 
   try {
-    const body = (await context.request.json()) as { token?: string };
-    const token = String(body?.token ?? '').trim();
-    if (!token) {
-      return errorResponse('Invite token is required');
+    // ME-12: Use Zod validation instead of manual checks
+    const body = (await context.request.json()) as Record<string, unknown>;
+    const validation = validateRequestBody(invitationAcceptSchema, body);
+    if (!validation.success) {
+      return errorResponse(validation.error, 400);
     }
+    const { token } = validation.data;
+
     const result = await acceptOrganizationInvitation(token, userId, email);
     if (!result.ok) {
       const map: Record<string, { status: number; error: string }> = {

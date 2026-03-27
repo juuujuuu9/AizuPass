@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 const title = 'Scanner | AizuPass';
+const description = "AizuPass check-in scanner — scan QR codes to check in event attendees.";
 ---
 
 <!DOCTYPE html>
@@ -13,11 +14,30 @@ const title = 'Scanner | AizuPass';
     <link rel="icon" type="image/png" href="/favicon.png?v=1" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
+
+    <!-- LO-10: Meta description for SEO -->
+    <meta name="description" content={description} />
+
+    <!-- LO-10: Open Graph tags -->
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="AizuPass" />
+
     <title>{title}</title>
     <link rel="preload" as="audio" href="/sounds/success.mp3" />
     <link rel="preload" as="audio" href="/sounds/error.mp3" />
   </head>
   <body>
+    <!-- LO-10: Noscript fallback for users without JavaScript -->
+    <noscript>
+      <div style="padding: 2rem; text-align: center; font-family: system-ui, sans-serif; background: #f8fafc; min-height: 100vh;">
+        <h1 style="font-size: 1.5rem; margin-bottom: 1rem; color: #0f172a;">JavaScript Required</h1>
+        <p style="color: #475569; max-width: 400px; margin: 0 auto;">
+          The AizuPass scanner requires JavaScript to function. Please enable JavaScript in your browser settings to continue.
+        </p>
+      </div>
+    </noscript>
     <slot />
   </body>
 </html>

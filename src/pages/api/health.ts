@@ -9,7 +9,7 @@ export const GET: APIRoute = async () => {
       status: 'ok',
       timestamp,
       version: process.env.npm_package_version || '0.0.1',
-      environment: process.env.NODE_ENV || 'production',
+      // LO-1: Removed NODE_ENV from response to avoid information leakage
     },
     200,
     { 'Cache-Control': 'no-store, max-age=0' }

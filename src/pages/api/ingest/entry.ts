@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import crypto from 'crypto';
 import { checkRateLimit, getClientIp } from '../../../lib/rate-limit';
 import { generateQRCodeBase64 } from '../../../lib/qr-client';
 import {
@@ -21,6 +22,41 @@ function getWebhookKey(): string {
   return getEnv('MICROSITE_WEBHOOK_KEY') || '';
 }
 
+/**
+ * Timing-safe comparison for webhook key to prevent timing attacks.
+ * Uses crypto.timingSafeEqual to compare secrets in constant time.
+ */
+function isValidWebhookKey(authHeader: string | null, expectedKey: string): boolean {
+  if (!authHeader || !expectedKey) return false;
+
+  const prefix = 'Bearer ';
+  if (!authHeader.startsWith(prefix)) return false;
+
+  const providedKey = authHeader.slice(prefix.length);
+
+  // Prevent timing attacks: compare in constant time using timingSafeEqual
+  // We must compare equal-length buffers, so we use the key length as reference
+  try {
+    const expectedBuffer = Buffer.from(expectedKey);
+    const providedBuffer = Buffer.from(providedKey);
+
+    // If lengths differ, we still want to run a comparison to avoid leaking length info
+    // but we know it will fail. We compare against a dummy buffer of the same length
+    // to keep timing consistent.
+    if (expectedBuffer.length !== providedBuffer.length) {
+      // Compare against a dummy buffer of the expected length to prevent length leak
+      const dummyBuffer = Buffer.alloc(expectedBuffer.length);
+      // This comparison will always fail but takes the same time as a real comparison
+      crypto.timingSafeEqual(expectedBuffer, dummyBuffer);
+      return false;
+    }
+
+    return crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+  } catch {
+    return false;
+  }
+}
+
 function parseName(name: string): { firstName: string; lastName: string } {
   const trimmed = (name || '').trim();
   const space = trimmed.indexOf(' ');
@@ -31,7 +67,7 @@ function parseName(name: string): { firstName: string; lastName: string } {
 export const POST: APIRoute = async ({ request }) => {
   const auth = request.headers.get('Authorization');
   const key = getWebhookKey();
-  if (!key || auth !== `Bearer ${key}`) {
+  if (!isValidWebhookKey(auth, key)) {
     return errorResponse('Unauthorized', 401);
   }
 

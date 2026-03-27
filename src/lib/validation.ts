@@ -122,6 +122,16 @@ export const invitationCreationSchema = z.object({
   email: emailSchema,
 });
 
+// Invitation acceptance schema
+export const invitationAcceptSchema = z.object({
+  token: z.string().min(1, 'Invite token is required').max(255, 'Token is too long'),
+});
+
+// Staff preference update schema (for last selected event)
+export const staffPreferenceSchema = z.object({
+  eventId: z.string().uuid('Invalid event ID').nullable().optional(),
+});
+
 // Generic request validation helper
 export function validateRequestBody<T>(schema: z.ZodSchema<T>, data: unknown): { success: true; data: T } | { success: false; error: string } {
   const result = schema.safeParse(data);
@@ -141,6 +151,8 @@ export type EventCreationData = z.infer<typeof eventCreationSchema>;
 export type ProfileUpdateData = z.infer<typeof profileUpdateSchema>;
 export type OrganizationCreationData = z.infer<typeof organizationCreationSchema>;
 export type InvitationCreationData = z.infer<typeof invitationCreationSchema>;
+export type InvitationAcceptData = z.infer<typeof invitationAcceptSchema>;
+export type StaffPreferenceData = z.infer<typeof staffPreferenceSchema>;
 
 // Validation helper functions
 export function validateRSVPForm(data: unknown): { success: true; data: RSVPFormData } | { success: false; errors: string[] } {
