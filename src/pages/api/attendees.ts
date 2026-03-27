@@ -1,15 +1,10 @@
 import type { APIRoute } from 'astro';
-import { json, errorResponse } from '../../lib/api-response';
-import {
-  searchAttendeesForUser,
-  getAttendeeByIdForUser,
-  createAttendee,
-  deleteAttendee,
-} from '../../lib/db';
-import { getOrCreateQRPayload } from '../../lib/qr-token';
-import { checkRateLimit, getClientIp } from '../../lib/rate-limit';
-import { validateRSVPForm } from '../../lib/validation';
-import { requireEventAccess, requireEventManage, requireUserId } from '../../lib/access';
+import { json, errorResponse, requireUserId } from '../../lib/api-utils';
+import { requireEventAccess, getClientIp } from '../../lib/api-utils';
+import { searchAttendeesForUser, createAttendee } from '../../lib/db';
+import { checkRateLimit } from '../../lib/rate-limit';
+
+export const prerender = false;
 
 export const GET: APIRoute = async (context) => {
   const userId = requireUserId(context);
@@ -23,8 +18,17 @@ export const GET: APIRoute = async (context) => {
       if (check instanceof Response) return check;
     }
     const q = url.searchParams.get('q')?.trim() ?? undefined;
-    const attendees = await searchAttendeesForUser(userId, eventId, q);
-    return json(attendees);
+
+    // HI-3: Pagination support
+    const limit = url.searchParams.has('limit')
+      ? parseInt(url.searchParams.get('limit')!, 10)
+      : undefined;
+    const offset = url.searchParams.has('offset')
+      ? parseInt(url.searchParams.get('offset')!, 10)
+      : undefined;
+
+    const result = await searchAttendeesForUser(userId, eventId, q, { limit, offset });
+    return json(result);
   } catch (err) {
     console.error('GET /api/attendees', err);
     return errorResponse('Failed to fetch attendees', 500);
@@ -36,68 +40,45 @@ export const POST: APIRoute = async ({ request }) => {
   const rate = checkRateLimit(`attendees:${ip}`, { maxAttempts: 20 });
   if (!rate.allowed) {
     return json(
-      { error: 'Too many RSVPs. Please try again later.' },
-      429,
-      rate.retryAfterSec != null ? { 'Retry-After': String(rate.retryAfterSec) } : undefined
+      {
+        error: 'Rate limit exceeded. Please try again later.',
+        retryAfter: rate.retryAfter,
+      },
+      { status: 429 }
     );
   }
 
   try {
-    const rawData = (await request.json()) || {};
+    const body = await request.json();
 
-    // Validate input using zod schema
-    const validation = validateRSVPForm(rawData);
-    if (!validation.success) {
-      return json({ error: 'Validation failed', details: validation.errors }, 400);
+    // Basic validation
+    if (!body.firstName || !body.lastName || !body.email || !body.eventId) {
+      return json(
+        { error: 'Missing required fields: firstName, lastName, email, eventId' },
+        { status: 400 }
+      );
     }
 
-    const data = validation.data;
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(body.email)) {
+      return json({ error: 'Invalid email format' }, { status: 400 });
+    }
+
+    // Create attendee
     const attendee = await createAttendee({
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-      phone: data.phone ?? undefined,
-      company: data.company ?? undefined,
-      dietaryRestrictions: data.dietaryRestrictions ?? undefined,
-      eventId: data.eventId,
+      firstName: body.firstName,
+      lastName: body.lastName,
+      email: body.email,
+      company: body.company,
+      dietaryRequirements: body.dietaryRequirements,
+      eventId: body.eventId,
+      status: body.status || 'registered',
     });
-    const qrResult = await getOrCreateQRPayload(attendee.id);
-    const body = qrResult
-      ? { ...attendee, qrPayload: qrResult.qrPayload, qrExpiresAt: qrResult.expiresAt.toISOString() }
-      : attendee;
-    return json(body, 201);
+
+    return json(attendee, { status: 201 });
   } catch (err) {
-    const msg = (err as Error)?.message || '';
-    if (msg.includes('unique') || msg.includes('duplicate')) {
-      return errorResponse('This email is already registered for this event', 409);
-    }
     console.error('POST /api/attendees', err);
     return errorResponse('Failed to create attendee', 500);
-  }
-};
-
-export const DELETE: APIRoute = async (context) => {
-  const userId = requireUserId(context);
-  if (userId instanceof Response) return userId;
-  const { request } = context;
-  try {
-    const { id } = ((await request.json()) || {}) as { id?: string };
-    if (!id) {
-      return errorResponse('Attendee ID is required');
-    }
-    const attendee = await getAttendeeByIdForUser(id, userId);
-    if (!attendee?.eventId) {
-      return errorResponse('Attendee not found', 404);
-    }
-    const manage = await requireEventManage(context, String(attendee.eventId));
-    if (manage instanceof Response) return manage;
-    const deleted = await deleteAttendee(id);
-    if (!deleted) {
-      return errorResponse('Attendee not found', 404);
-    }
-    return json({ success: true });
-  } catch (err) {
-    console.error('DELETE /api/attendees', err);
-    return errorResponse('Failed to delete attendee', 500);
   }
 };

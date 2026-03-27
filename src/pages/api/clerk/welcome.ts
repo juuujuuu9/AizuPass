@@ -109,7 +109,7 @@ export const POST: APIRoute = async ({ request }) => {
       );
       return errorResponse('Cannot build onboarding link (set APP_URL)', 500);
     }
-    const onboardingUrl = `${base}/onboarding/organization`;
+    const onboardingUrl = `${base}/onboarding/resume`;
 
     const result = await sendOrganizerWelcomeEmail({
       toEmail,

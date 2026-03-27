@@ -256,9 +256,52 @@ export async function getEventByIdForUser(
   return rows.length ? rowToEvent(rows[0] as Record<string, unknown>) : null;
 }
 
-export async function getAllEventsForUser(userId: string): Promise<EventRow[]> {
-  if (!userId) return [];
+const DEFAULT_PAGE_SIZE = 100;
+const MAX_PAGE_SIZE = 1000;
+
+export interface PaginationOptions {
+  limit?: number;
+  offset?: number;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}
+
+function normalizePagination(options?: PaginationOptions): { limit: number; offset: number } {
+  const limit = Math.min(
+    Math.max(1, options?.limit ?? DEFAULT_PAGE_SIZE),
+    MAX_PAGE_SIZE
+  );
+  const offset = Math.max(0, options?.offset ?? 0);
+  return { limit, offset };
+}
+
+export async function getAllEventsForUser(
+  userId: string,
+  options?: PaginationOptions
+): Promise<PaginatedResult<EventRow>> {
+  if (!userId) return { data: [], pagination: { total: 0, limit: DEFAULT_PAGE_SIZE, offset: 0, hasMore: false } };
   const db = getDb();
+  const { limit, offset } = normalizePagination(options);
+
+  // Get total count
+  const countResult = await db`
+    SELECT COUNT(DISTINCT e.id) as count
+    FROM events e
+    INNER JOIN organization_memberships m
+      ON m.organization_id = e.organization_id
+    WHERE m.user_id = ${userId}
+  `;
+  const total = Number((countResult[0] as { count: string }).count) || 0;
+
+  // Get paginated results
   const rows = await db`
     SELECT DISTINCT e.*
     FROM events e
@@ -266,8 +309,18 @@ export async function getAllEventsForUser(userId: string): Promise<EventRow[]> {
       ON m.organization_id = e.organization_id
     WHERE m.user_id = ${userId}
     ORDER BY e.created_at DESC
+    LIMIT ${limit} OFFSET ${offset}
   `;
-  return rows.map((row) => rowToEvent(row as Record<string, unknown>));
+
+  return {
+    data: rows.map((row) => rowToEvent(row as Record<string, unknown>)),
+    pagination: {
+      total,
+      limit,
+      offset,
+      hasMore: offset + rows.length < total,
+    },
+  };
 }
 
 export async function getDefaultEventId(): Promise<string> {

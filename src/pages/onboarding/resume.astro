@@ -1,0 +1,35 @@
+---
+import { getOrganizationByOwnerUserId, getEventsForOrganization } from '../../lib/db';
+
+/**
+ * Smart onboarding entry point for "Continue onboarding" email link.
+ * Redirects based on user's current state to avoid jarring warnings.
+ *
+ * Flow:
+ * - No org → /onboarding/organization
+ * - Has org, no events → /admin/events/new
+ * - Has org and events → /admin
+ */
+
+const userId = Astro.locals.user?.id ?? '';
+if (!userId) {
+  return Astro.redirect('/sign-in?redirect=' + encodeURIComponent('/onboarding/resume'));
+}
+
+const organization = await getOrganizationByOwnerUserId(userId);
+
+if (!organization) {
+  // No org yet - send to org creation
+  return Astro.redirect('/onboarding/organization');
+}
+
+const events = await getEventsForOrganization(organization.id);
+
+if (events.length === 0) {
+  // Has org, no events - send to event creation
+  return Astro.redirect('/admin/events/new');
+}
+
+// Has org and events - send to admin dashboard
+return Astro.redirect('/admin');
+---

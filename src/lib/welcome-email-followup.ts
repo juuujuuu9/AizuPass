@@ -45,7 +45,7 @@ export function scheduleWelcomeEmailIfPending(
       const result = await sendOrganizerWelcomeEmail({
         toEmail,
         firstName: firstName?.trim() ? firstName.trim() : null,
-        onboardingUrl: `${base}/onboarding/organization`,
+        onboardingUrl: `${base}/onboarding/resume`,
       });
       if (result.success) await recordOrganizerWelcomeEmailSent(userId);
       else console.error('[welcome-email-followup] send failed:', result.error);
