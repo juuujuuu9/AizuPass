@@ -19,7 +19,7 @@ export const POST: APIRoute = async (context) => {
   const { request } = context;
   const ip = getClientIp(request);
 
-  const rate = checkRateLimit(ip);
+  const rate = await checkRateLimit(ip);
   if (!rate.allowed) {
     logCheckInAttempt({ ip, outcome: 'rate_limited' });
     return json(

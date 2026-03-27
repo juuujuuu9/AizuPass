@@ -36,7 +36,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const ip = getClientIp(request);
-  const rate = checkRateLimit(`ingest:${ip}`, { maxAttempts: 60 });
+  const rate = await checkRateLimit(`ingest:${ip}`, { maxAttempts: 60 });
   if (!rate.allowed) {
     return json(
       { error: 'Too many requests. Please try again later.' },

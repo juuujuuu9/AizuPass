@@ -28,7 +28,7 @@ export const POST: APIRoute = async (context) => {
   if (userId instanceof Response) return userId;
 
   const ip = getClientIp(context.request);
-  const rate = checkRateLimit(`eventbrite-sync:${ip}`, { maxAttempts: 20 });
+  const rate = await checkRateLimit(`eventbrite-sync:${ip}`, { maxAttempts: 20 });
   if (!rate.allowed) {
     return json(
       { error: 'Too many sync requests. Please try again later.' },

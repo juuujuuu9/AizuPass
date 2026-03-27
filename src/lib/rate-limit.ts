@@ -12,10 +12,10 @@ export interface RateLimitOptions {
   windowMs?: number;
 }
 
-export function checkRateLimit(
+export async function checkRateLimit(
   key: string,
   options: RateLimitOptions = {}
-): { allowed: boolean; retryAfterSec?: number } {
+): Promise<{ allowed: boolean; retryAfterSec?: number }> {
   const maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
   const windowMs = options.windowMs ?? DEFAULT_WINDOW_MS;
   const storeKey = `${key}:${maxAttempts}:${windowMs}`;

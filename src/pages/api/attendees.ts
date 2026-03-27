@@ -38,7 +38,7 @@ export const GET: APIRoute = async (context) => {
 
 export const POST: APIRoute = async ({ request }) => {
   const ip = getClientIp(request);
-  const rate = checkRateLimit(`attendees:${ip}`, { maxAttempts: 20 });
+  const rate = await checkRateLimit(`attendees:${ip}`, { maxAttempts: 20 });
   if (!rate.allowed) {
     return json(
       {

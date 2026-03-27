@@ -30,6 +30,18 @@ Product strategy and competitive positioning for **AizuPass** — covering marke
 
 AXS wins on **venue scale, exclusive inventory, and promoter contracts**. We do not compete on arena distribution. We win on **taste, speed, transparency, owned audience, and door experience** for events below that tier — especially where the product must feel like part of the creative output, not a box office.
 
+### vs. Eventbrite (Pricing Parity, Experience Superiority)
+
+| Dimension | Eventbrite | AizuPass |
+|-----------|------------|----------|
+| **Ticket fees** | 3.5% + $1.79 + 2.9% processing | **Same** — we match exactly |
+| **Payout timing** | After event ends | **48 hours (Pro) or daily (Business)** — cash flow advantage |
+| **Guest data** | Eventbrite owns/markets to | **You own it** — no platform interference |
+| **Discovery** | Public marketplace, competing events | **None** — your guests see only your event |
+| **Branding** | Heavy Eventbrite ads, emails | **Your logo, your colors, your domain** |
+
+**The pitch:** *"Switch for the cash flow. Stay for the control."*
+
 ---
 
 ## Target ICPs & culture positioning
@@ -106,18 +118,25 @@ Target buyers and guests skew **hip, aesthetic-forward, culture-heavy**: creativ
 
 ## Staff Access Strategy
 
-**Decision:** Include 1 staff user in freemium, paywall additional staff.
+**Decision:** Include 1 staff user in freemium, unlimited staff on Pro/Business.
 
 **Why:**
 - Single organizers (freemium target) typically check in alone at small events
 - Needing 2+ scanners = event growth = value proven = willingness to pay
-- Charging for staff on tiny events feels like "tax on success"
+- **Real upgrade driver:** Payout speed, not staff count — cash flow is the pain point
+
+**Freemium** gets 1 staff (organizer-only check-in)
+**Pro/Business** get unlimited staff + faster payouts (48hr/daily)
 
 ### Tier Structure
 
-- **Freemium:** 1 org, 1 active event, 1 staff, 150 guests
-- **Pro ($29-49/mo):** Unlimited orgs/events, unlimited staff, 500+ guests, analytics
-- **Business ($99-149/mo):** White-label, API, priority support
+| Tier | Price | Limits | Payout Speed | Key Features |
+|------|-------|--------|--------------|--------------|
+| **Freemium** | $0 | 1 org, 1 event, 1 staff, 150 guests | 7 days post-event | RSVP, CSV import, offline check-in, basic QR |
+| **Pro** | $39/mo | Unlimited everything | 48 hours after sale | Custom logo, analytics, 2+ staff, fee absorption option |
+| **Business** | $99/mo | Unlimited everything | Daily payout | White-label (custom domain, colors), API access, phone support |
+
+**The pitch:** *"Same fees as Eventbrite. Get your money 5 days faster."*
 
 ---
 
@@ -178,8 +197,13 @@ AI-generated email copy variations ("formal gala" vs "casual backyard" tone), sm
 
 ## Open Questions / TODO
 
+**Pricing decisions (resolved):**
+- [x] Ticket processing fees: Match Eventbrite at 3.5% + $1.79 (attendee pays)
+- [x] Payout speed as upgrade driver: 7 days (Free) → 48 hours (Pro $39) → Daily (Business $99)
+- [ ] "Branding Pass" one-off pricing viability ($5-10/event for logo+colors only)
+
+**Technical:**
 - [ ] SPF/DKIM complexity assessment for custom email domains
-- [ ] "Branding Pass" one-off pricing viability
 - [ ] Fuzzy matching algorithm selection for guest prediction
 - [ ] Audio synthesis library for intelligent feedback tones
 - [ ] Founding Organizer tier capacity (50? 100?)

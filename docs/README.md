@@ -38,6 +38,7 @@ This folder contains user-facing documentation for the QR Check-In system.
 |----------|---------|
 | [PRODUCT-STRATEGY.md](./PRODUCT-STRATEGY.md) | Competitive positioning, pricing tiers, AI features, credibility plan |
 | [PARTIFUL-KILLER.md](./PARTIFUL-KILLER.md) | vs Partiful: wedge table, integration-aware roadmap, epic slugs for implementation |
+| [POSH-COMPETITIVE-ANALYSIS.md](./POSH-COMPETITIVE-ANALYSIS.md) | vs Posh.vip: competitive matrix, positioning taglines, kickback/affiliate strategy |
 | [FOUNDER-CONTEXT.md](./FOUNDER-CONTEXT.md) | Origin story, agency niche insights, scanner gun replacement narrative |
 
 ## Technical Roadmaps

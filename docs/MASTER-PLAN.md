@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-26 — [Public OpenAPI roadmap](#14-public-openapi-developer-surface) added: per-event keys, CRUD, check-in API, batch ops, outbound webhooks, Zapier parity. Prior: web-first → PWA → native strategy; PARTIFUL-KILLER.md; Eventbrite; §11.A P1 offline queue; §13 `npm run smoke:email`; ingest `/api/ingest/entry`.
+**Last updated:** 2026-03-26 — Pricing finalized: Eventbrite-matching fees (3.5% + $1.79), payout speed as tier differentiator (Free=7 days, Pro=$39/48hr, Business=$99/daily). See [TICKETING-TYPES-PRICING-STRATEGY.md §4](TICKETING-TYPES-PRICING-STRATEGY.md) and [PRODUCT-STRATEGY.md](PRODUCT-STRATEGY.md).
 
 ---
 
@@ -82,7 +82,7 @@
 | No-shows report | Missing | Can be derived from CSV, but no explicit in-app no-shows view/export flow. |
 | Real-time check-in counter dashboard | Partial | 30s polling exists; near real-time organizer dashboard still limited. |
 | Add to Wallet / Group / Capacity / Analytics | Not implemented | Optional; prioritize later. |
-| Paid ticketing (Stripe, ticket types, inventory) | Not implemented | Fourth attendee path: Checkout → webhook → attendee + payment metadata; catalog vs fulfillment split. See [TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md). Billing placeholder: `/admin/organization/billing` (SaaS vs ticket charges — keep separate). |
+| Paid ticketing (Stripe, ticket types, inventory) | Not implemented | Fourth attendee path: Checkout → webhook → attendee + payment metadata; catalog vs fulfillment split. Platform processing fee matches Eventbrite (3.5% + $1.79, attendee pays). Payout speed tiered: 7 days (Free) → 48hr (Pro $39) → Daily (Business $99). See [TICKETING-TYPES-PRICING-STRATEGY.md §4](TICKETING-TYPES-PRICING-STRATEGY.md). |
 | Rate limiting on RSVP/webhook | **Done** | `lib/rate-limit.ts`; 20/min attendees, 60/min webhook; checkin unchanged (5/min). |
 | Scanner debounce (150ms→500ms) | **Done** | `config/qr.ts` debounceMs: 500; CheckInScanner uses it. |
 | QR error correction H | **Done** | `config/qr.ts`; webhook email uses QR_GENERATION. |
@@ -148,7 +148,7 @@ Follow this order; check off and date as you complete each item.
 - [ ] **Integrations — Zapier / Make (first-class):** Published connector(s) or maintained recipes with **parity** to the HTTP guestlist API for LC/NC users; same strategic weight as API improvements. Strategy: [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md). **See also: §14.9 Zapier / Make connector parity.**
 - [ ] Capacity widget and/or no-show analytics.
 - [ ] Add to Wallet, group check-in — if needed.
-- [ ] **Paid ticketing:** Stripe Checkout → webhook → attendee creation with ticket type + payment metadata; reuse QR email flow. Strategy and schema notes: [TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md).
+- [ ] **Paid ticketing:** Stripe Checkout → webhook → attendee creation with ticket type + payment metadata + platform fee (3.5% + $1.79, Eventbrite-matching); reuse QR email flow. Implement payout speed tiers (7 days/48hr/daily). Strategy: [TICKETING-TYPES-PRICING-STRATEGY.md §4](TICKETING-TYPES-PRICING-STRATEGY.md).
 - [ ] **Public OpenAPI surface:** See [§14 Public OpenAPI](#14-public-openapi-developer-surface) for full roadmap: per-event API keys, CRUD, check-in API, batch ops, outbound webhooks.
 
 ### 11. Edge-case hardening (operational)
@@ -352,7 +352,8 @@ Deferred / lower priority:
 | [ui-modernization/](ui-modernization/) | UI Modernization: CURSOR-CHECKLIST, qr-ui-components, qr-ui-animations.css. Rule: `.cursor/rules/ui-modernization.mdc`. Radix Colors: `radix-colors-mapping.md`. |
 | [qr-edge-cases.md](qr-edge-cases.md) | API edge-case tests, CSV import validation, critical manual paths. `scripts/test-edge-cases.mjs`, `scripts/generate-test-csvs.mjs`. |
 | [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md) | Item 2 + 12: Clerk auth setup, org/membership-based authorization, onboarding/invites. |
-| [TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md) | Future: paid ticketing — ticket type catalog, Stripe alignment, fulfillment vs SaaS billing, idempotency, build sequencing. |
+| [TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md) | Future: paid ticketing — ticket type catalog, Eventbrite-matching fees (3.5% + $1.79), payout speed tiers (§4), Stripe alignment, fulfillment vs SaaS billing, idempotency, build sequencing. |
+| [PRODUCT-STRATEGY.md](PRODUCT-STRATEGY.md) | ICPs, tier pricing ($39/$99), competitive positioning vs Eventbrite, payout speed differentiation, customization philosophy. |
 | [DB-MODULE-LAYOUT.md](DB-MODULE-LAYOUT.md) | Incremental split of `src/lib/db.ts` into `src/lib/db/*.ts`; public imports stay `@/lib/db`. |
 | MASTER-PLAN §14 | Public OpenAPI: per-event API keys, guestlist CRUD, check-in API, batch operations, outbound webhooks, Zapier/Make parity. |
 

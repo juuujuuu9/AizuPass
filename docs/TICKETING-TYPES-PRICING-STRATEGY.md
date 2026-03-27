@@ -74,7 +74,76 @@ Pragmatic path: start with **`price_cents` + `price_data`**, then attach **`stri
 
 ---
 
-## 4. Coexistence with existing entry paths
+## 4. Platform processing fee (revenue model) — UPDATED
+
+**Strategy:** Match Eventbrite exactly. Same fees, better everything (cash flow, data ownership, branding).
+
+A per-ticket processing fee is baked into every sale and retained by the platform as a revenue stream distinct from SaaS subscriptions.
+
+### Fee structure (Eventbrite-matching)
+
+|| Model | Who pays | Example | Best for |
+||-------|----------|---------|----------|
+|| **Pass-through (default)** | Attendee | $25 ticket + $3.39 fees = $28.39 total | All events; transparent |
+|| **Absorbed** | Organizer | $25 ticket, $21.61 payout | Premium galas, charities (Pro/Business feature) |
+**Attendee pays (pass-through by default):**
+- **Service fee:** 3.5% + $1.79 per ticket (platform revenue)
+- **Payment processing:** 2.9% (pass-through to Stripe)
+
+**Positioning:** *"We charge exactly what Eventbrite charges. But unlike them, you own your guest list and get your money faster."*
+
+### Total fee examples
+
+| Ticket Price | Service Fee | Stripe (2.9%) | Total Fee | Attendee Pays |
+|--------------|-------------|---------------|-----------|---------------|
+| $10 | $2.14 | $0.29 | $2.43 | $12.43 |
+| $25 | $2.66 | $0.73 | $3.39 | $28.39 |
+| $50 | $3.54 | $1.45 | $4.99 | $54.99 |
+| $100 | $5.29 | $2.90 | $8.19 | $108.19 |
+
+**Platform net revenue per ticket** (service fee minus Stripe's portion): ~$1.50-2.50 depending on ticket price.
+
+### Payout speed gate (the upgrade driver)
+
+|| Component | Where it goes |
+||-----------|---------------|
+| Stripe processing (~2.9% + $0.30) | Stripe (payment rail cost) |
+| Platform fee (remainder) | AizuPass (your revenue) |
+
+The real differentiator isn't lower fees — it's cash flow. Eventbrite holds money until post-event.
+
+| Tier | Payout Timing | Monthly Cost |
+|------|---------------|--------------|
+| **Freemium** | 7 days after event ends | $0 |
+| **Pro** | 48 hours after each sale | $39/mo |
+| **Business** | Daily (next business day) | $99/mo |
+
+**Freemium pitch:** *"Get started free. Money arrives after your event wraps up."*
+**Pro pitch:** *"Get paid within 48 hours — not weeks later."*
+
+### Data model additions
+
+Add to `event_ticket_types`:
+- `platform_fee_cents` — calculated as 3.5% + $1.79 per ticket
+- `stripe_fee_cents` — 2.9% of ticket price
+- `fee_mode` — `'pass_through' | 'absorbed'` (organizer choice, Pro/Business feature)
+
+Add to `attendees` / `purchases`:
+- `platform_fee_cents` — what platform captured
+- `stripe_fee_cents` — what Stripe took
+- `payout_cents` — what organizer receives (if absorbed) or ticket face value (if pass-through)
+- `payout_scheduled_at` — when payout will be released (tier-dependent)
+
+### Display and compliance
+
+- Checkout must show all line items: "Ticket: $25.00 | Service fee: $2.66 | Processing: $0.73 | **Total: $28.39**"
+- No hidden fees at final step — transparent from first click
+- Email receipt breaks down all components
+- Organizer dashboard shows gross, fees, and net clearly
+
+---
+
+## 5. Coexistence with existing entry paths
 
 Paid flow becomes a **fourth path**: Stripe Checkout → success webhook → create (or finalize) attendee with ticket + payment fields → existing **QR + Resend** path.
 
@@ -85,7 +154,7 @@ Paid flow becomes a **fourth path**: Stripe Checkout → success webhook → cre
 
 ---
 
-## 5. Inventory and concurrency
+## 6. Inventory and concurrency
 
 Avoid naive `quantity_sold++` without locking under concurrent checkouts.
 
@@ -94,7 +163,7 @@ Avoid naive `quantity_sold++` without locking under concurrent checkouts.
 
 ---
 
-## 6. Product sequencing (build order)
+## 7. Product sequencing (build order)
 
 1. **Single paid GA type per event** — one ticket type, one Checkout session, webhook creates attendee + QR email.
 2. **Multiple tiers** (e.g. GA / VIP) — multiple type rows; Checkout `line_items`.
@@ -106,7 +175,7 @@ Avoid naive `quantity_sold++` without locking under concurrent checkouts.
 
 ---
 
-## 7. What not to over-model on day one
+## 8. What not to over-model on day one
 
 - Reserved seating (sections, seats) — different problem domain.
 - Refund rules in schema — start with policy copy + Stripe dashboard; encode when support load justifies it.
@@ -114,7 +183,7 @@ Avoid naive `quantity_sold++` without locking under concurrent checkouts.
 
 ---
 
-## 8. Summary
+## 9. Summary
 
 You are adding a **payment rail** in front of attendee creation, not replacing the check-in core. **`event_ticket_types`** holds the catalog; **payment metadata** lives on `attendees` or a **`purchases`** table depending on cart semantics. Keep **organizer SaaS billing** and **ticket buyer charges** as distinct Stripe concepts and route webhooks accordingly.
 
