@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { errorResponse, json } from '../../../lib/api-response';
 import { getAllAttendeesForUser } from '../../../lib/db';
-import { getOrCreateQRPayload } from '../../../lib/qr-token';
+import { bulkGenerateQRPayloads } from '../../../lib/qr-token';
 import { requireEventManage, requireUserId } from '../../../lib/access';
 
 /**
@@ -42,30 +42,15 @@ export const POST: APIRoute = async (context) => {
       return errorResponse('No attendees found', 404);
     }
 
-    // Refresh QRs in batches
+    // ME-7: Use batched QR generation to reduce N+1 queries
     const results = { refreshed: 0, failed: 0, errors: [] as string[] };
-    const BATCH_SIZE = 10;
-
-    for (let i = 0; i < attendees.length; i += BATCH_SIZE) {
-      const batch = attendees.slice(i, i + BATCH_SIZE);
-      await Promise.all(
-        batch.map(async (attendee) => {
-          try {
-            await getOrCreateQRPayload(attendee.id, eventId || attendee.eventId || undefined);
-            results.refreshed++;
-          } catch (err) {
-            results.failed++;
-            results.errors.push(
-              `Failed for ${attendee.id}: ${err instanceof Error ? err.message : 'Unknown error'}`
-            );
-          }
-        })
-      );
-
-      // Small delay between batches
-      if (i + BATCH_SIZE < attendees.length) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+    const attendeeIds = attendees.map((a) => a.id);
+    try {
+      const batchResults = await bulkGenerateQRPayloads(attendeeIds, eventId);
+      results.refreshed = batchResults.length;
+    } catch (err) {
+      results.failed = attendeeIds.length;
+      results.errors.push(err instanceof Error ? err.message : 'Bulk refresh failed');
     }
 
     return json({

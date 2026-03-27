@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { errorResponse, json } from '../../../lib/api-response';
-import { getAttendeeById, getEventById } from '../../../lib/db';
+import { getAttendeesByIds, getEventById } from '../../../lib/db';
 import { sendQRCodeEmail } from '../../../lib/email';
 import { generateQRCodeBase64 } from '../../../lib/qr-client';
 import { getOrCreateQRPayload } from '../../../lib/qr-token';
@@ -48,11 +48,14 @@ export const POST: APIRoute = async (context) => {
       errors: [] as { attendeeId: string; error: string }[],
     };
 
+    // ME-7: Batch fetch all attendees in a single query
+    const attendeesMap = await getAttendeesByIds(attendeeIds);
+
     // Resend rate limit: 2 requests per second. Process sequentially with 550ms spacing.
     const RESEND_DELAY_MS = 550;
     for (const attendeeId of attendeeIds) {
       try {
-        const attendee = await getAttendeeById(attendeeId);
+        const attendee = attendeesMap.get(attendeeId);
         if (!attendee) {
           results.failed++;
           results.errors.push({ attendeeId, error: 'Attendee not found' });

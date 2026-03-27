@@ -14,10 +14,12 @@ import { getEnv } from './env';
 import { getDb, type SqlRow } from './db/client';
 import { rowToEvent, type EventRow } from './db/event-row';
 import { getOrganizationByOwnerUserId, getEventForOrganization } from './db/organizations';
+import type { Attendee } from '../types/attendee';
 
 export * from './db/organizations';
 export type { EventRow } from './db/event-row';
 export { sanitizeEventSettings } from './db/event-row';
+export { getDb } from './db/client';
 
 const DEFAULT_EVENT_CACHE_TTL_MS = 60 * 60 * 1000; // 1h
 let defaultEventIdCache: { id: string; expiresAt: number } | null = null;
@@ -456,6 +458,33 @@ export async function getAttendeeById(id: string) {
   return rows.length ? rowToAttendee(rows[0] as Record<string, unknown>) : null;
 }
 
+/**
+ * ME-7: Batch fetch attendees by IDs in a single query.
+ * Reduces N queries to 1 query for bulk operations.
+ *
+ * @param ids Array of attendee IDs
+ * @returns Map of id -> attendee for quick lookup
+ */
+export async function getAttendeesByIds(ids: string[]): Promise<Map<string, Attendee>> {
+  if (ids.length === 0) return new Map();
+
+  const db = getDb();
+  const uniqueIds = [...new Set(ids)];
+
+  const rows = await db`
+    SELECT * FROM attendees
+    WHERE id = ANY(${uniqueIds}::uuid[])
+  `;
+
+  const result = new Map<string, Attendee>();
+  for (const row of rows) {
+    const attendee = rowToAttendee(row as Record<string, unknown>);
+    result.set(attendee.id, attendee);
+  }
+
+  return result;
+}
+
 export async function getAttendeeByIdForUser(id: string, userId: string) {
   if (!id || !userId) return null;
   const db = getDb();
@@ -573,6 +602,42 @@ export async function updateAttendeeQRToken(
     SET qr_token = ${token}, qr_expires_at = ${expiresAt}
     WHERE id = ${id}
   `;
+}
+
+/**
+ * ME-7: Batch update QR tokens for multiple attendees in a single query.
+ * Reduces N+1 queries from 2N+1 to just 2 queries total.
+ * 
+ * @param updates Array of {attendeeId, token, expiresAt} objects
+ * @returns Number of rows updated
+ */
+export async function bulkUpdateAttendeeQRTokens(
+  updates: Array<{ attendeeId: string; token: string; expiresAt: Date }>
+): Promise<number> {
+  if (updates.length === 0) return 0;
+  
+  const db = getDb();
+  
+  // Extract arrays for unnest
+  const ids = updates.map(u => u.attendeeId);
+  const tokens = updates.map(u => u.token);
+  const expiresAts = updates.map(u => u.expiresAt.toISOString());
+  
+  // Single batched UPDATE using unnest
+  const result = await db`
+    UPDATE attendees 
+    SET qr_token = v.token, 
+        qr_expires_at = v.expires_at::timestamp with time zone
+    FROM (
+      SELECT 
+        unnest(${ids}::uuid[]) as id,
+        unnest(${tokens}::text[]) as token,
+        unnest(${expiresAts}::text[]) as expires_at
+    ) AS v
+    WHERE attendees.id = v.id
+  `;
+  
+  return result.count || 0;
 }
 
 export async function findAttendeeByEventAndMicrositeId(

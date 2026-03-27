@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { getEnv } from './env';
+import { getEmailStatus } from '../pages/api/webhooks/resend';
 
 let resend: Resend | null = null;
 function getResend() {
@@ -122,6 +123,16 @@ export async function sendQRCodeEmail(
   qrCodeBase64: string,
   overrides?: { fromName?: string; eventName?: string }
 ) {
+  // ME-8: Check bounce/complaint status before sending
+  const emailStatus = await getEmailStatus(attendee.email);
+  if (!emailStatus.canSend) {
+    console.warn('[Email] Blocked send to bounced address:', attendee.email, '-', emailStatus.reason);
+    return {
+      success: false,
+      error: `Cannot send to this address: ${emailStatus.reason}`
+    };
+  }
+
   const { apiKey, fromEmail, fromName: defaultFromName } = getConfiguredEmailSender();
   if (!apiKey) {
     return { success: false as const, error: 'Email service not configured' };
