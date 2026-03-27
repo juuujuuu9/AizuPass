@@ -37,7 +37,6 @@ import {
   ArrowDown,
   ArrowUp,
   CheckCircle2,
-  Loader2,
   QrCode,
   Users,
   Search,
@@ -53,6 +52,7 @@ import type { Attendee } from '@/types/attendee';
 import { apiService } from '@/services/api';
 import { generateQRCodeBase64 } from '@/lib/qr-client';
 import { QRDisplay } from './QRDisplay';
+import { ButtonSpinner } from '@/components/ui/ButtonSpinner';
 import { ScanQrMark } from './ScanQrMark';
 
 function formatNameLastFirst(attendee: Attendee): string {
@@ -584,7 +584,7 @@ export function AdminDashboard({
                     disabled={bulkResendingQR}
                   >
                     {bulkResendingQR ? (
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      <ButtonSpinner className="h-4 w-4 mr-1" />
                     ) : (
                       <Mail className="h-4 w-4 mr-1" />
                     )}
@@ -681,7 +681,7 @@ export function AdminDashboard({
                     >
                       {checkingInId === attendee.id ? (
                         <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <ButtonSpinner className="mr-2 h-4 w-4" />
                           Checking in…
                         </>
                       ) : attendee.checkedIn ? (
@@ -793,7 +793,7 @@ export function AdminDashboard({
                           }
                         >
                           {checkingInId === attendee.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <ButtonSpinner className="h-4 w-4" />
                           ) : (
                             <UserCheck className="h-4 w-4" />
                           )}
@@ -814,7 +814,7 @@ export function AdminDashboard({
                           aria-label={`Email QR code to ${attendee.email}`}
                         >
                           {sendingEmailId === attendee.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <ButtonSpinner className="h-4 w-4" />
                           ) : (
                             <Mail className="h-4 w-4" />
                           )}
@@ -826,7 +826,7 @@ export function AdminDashboard({
                           disabled={deletingId === attendee.id}
                         >
                           {deletingId === attendee.id ? (
-                            <Loader2 className="h-4 w-4 text-red-600 animate-spin" />
+                            <ButtonSpinner className="h-4 w-4 text-red-600" />
                           ) : (
                             <Trash2 className="h-4 w-4 text-red-600" />
                           )}
@@ -946,7 +946,7 @@ export function AdminDashboard({
                 >
                   {checkingInId === mobileDetailAttendee.id ? (
                     <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      <ButtonSpinner className="mr-2 h-5 w-5" />
                       Checking in…
                     </>
                   ) : mobileDetailAttendee.checkedIn ? (
@@ -975,7 +975,7 @@ export function AdminDashboard({
                     aria-label={`Email QR code to ${mobileDetailAttendee.email}`}
                   >
                     {sendingEmailId === mobileDetailAttendee.id ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <ButtonSpinner className="h-5 w-5" />
                     ) : (
                       <Mail className="h-5 w-5" />
                     )}
@@ -991,7 +991,7 @@ export function AdminDashboard({
                     aria-label={`Delete ${formatNameLastFirst(mobileDetailAttendee)}`}
                   >
                     {deletingId === mobileDetailAttendee.id ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <ButtonSpinner className="h-5 w-5" />
                     ) : (
                       <Trash2 className="h-5 w-5" />
                     )}

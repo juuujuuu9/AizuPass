@@ -103,7 +103,7 @@ const mobileTabIdle =
   aria-label="Admin navigation"
 >
   <div
-    class="admin-sidebar-toolbar hidden shrink-0 border-b border-border bg-muted/25 md:flex md:items-center md:justify-end md:px-1"
+    class="admin-sidebar-toolbar hidden shrink-0 bg-muted/25 md:flex md:items-center md:justify-end md:px-1"
   >
     <button
       type="button"
@@ -113,23 +113,12 @@ const mobileTabIdle =
       aria-expanded="true"
       aria-label="Collapse sidebar"
     >
-      <svg
-        class="admin-sidebar-toggle-chevron h-3.5 w-3.5 transition-transform duration-200"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M12 19l-7-7 7-7M19 19l-7-7 7-7" />
-      </svg>
+      <svg class="admin-sidebar-toggle-chevron h-3.5 w-3.5 transition-transform duration-200" stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 448 512" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path d="M223.7 239l136-136c9.4-9.4 24.6-9.4 33.9 0l22.6 22.6c9.4 9.4 9.4 24.6 0 33.9L319.9 256l96.4 96.4c9.4 9.4 9.4 24.6 0 33.9L393.7 409c-9.4 9.4-24.6 9.4-33.9 0l-136-136c-9.5-9.4-9.5-24.6-.1-34zm-192 34l136 136c9.4 9.4 24.6 9.4 33.9 0l22.6-22.6c9.4-9.4 9.4-24.6 0-33.9L127.9 256l96.4-96.4c9.4-9.4 9.4-24.6 0-33.9L201.7 103c-9.4-9.4-24.6-9.4-33.9 0l-136 136c-9.5 9.4-9.5 24.6-.1 34z"></path></svg>
     </button>
   </div>
   <nav
     id="admin-sidebar-link-list"
-    class="admin-sidebar-links min-h-0 flex-1 space-y-1 overflow-y-auto p-4"
+    class="admin-sidebar-links min-h-0 flex-1 space-y-1 overflow-y-auto p-4 pt-0"
     aria-label="Section links"
   >
     {variant === 'organization' && (

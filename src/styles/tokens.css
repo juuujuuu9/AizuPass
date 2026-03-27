@@ -18,9 +18,9 @@
    ========================================================================== */
 
 :root {
-  /* Font Families — Body + Heading Pair */
-  --font-body: 'Spline Sans', sans-serif;
-  --font-heading: 'Quicksand', sans-serif;
+  /* Font Families — System fonts for reliability */
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-heading: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 
   /* Background / Canvas */
   --bg-app: var(--mauve-1);

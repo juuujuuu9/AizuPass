@@ -8,8 +8,9 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Camera, X, RotateCcw, CheckCircle2, QrCode, Copy, AlertCircle, LayoutDashboard, Search, Loader2, Flashlight, CalendarDays } from 'lucide-react';
+import { Camera, X, RotateCcw, CheckCircle2, QrCode, Copy, AlertCircle, LayoutDashboard, Search, Flashlight, CalendarDays } from 'lucide-react';
 import { EventCombobox } from '@/components/EventCombobox';
+import { ButtonSpinner } from '@/components/ui/ButtonSpinner';
 import type { EventOption } from '@/components/AdminPage';
 import { toast } from 'sonner';
 import type { CheckInResult } from '@/types/attendee';
@@ -621,7 +622,7 @@ export function CheckInScanner({
   const standalonePickerEl =
     standalone && !activeEventId && pickerLoading ? (
       <div className="flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <ButtonSpinner className="h-4 w-4" />
         Loading events…
       </div>
     ) : standalone && !activeEventId && !pickerLoading && pickerEvents.length > 1 ? (
@@ -692,7 +693,7 @@ export function CheckInScanner({
           )}
           {processing && (
             <span className="text-xs px-2 py-1 rounded-md bg-blue-500/20 text-blue-11 border border-blue-6 inline-flex items-center gap-1.5">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <ButtonSpinner className="h-3.5 w-3.5" />
               Processing scan...
             </span>
           )}
@@ -844,7 +845,7 @@ export function CheckInScanner({
       </div>
       {manualSearching && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <ButtonSpinner className="h-4 w-4" />
           Searching...
         </div>
       )}
@@ -870,7 +871,7 @@ export function CheckInScanner({
                 onClick={() => handleManualCheckIn(a)}
               >
                 {manualCheckingIn === a.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <ButtonSpinner className="h-4 w-4" />
                 ) : a.checkedIn ? (
                   'Checked in'
                 ) : (

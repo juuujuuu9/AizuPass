@@ -6,6 +6,7 @@ import { AdminDashboard } from '@/components/AdminDashboard';
 import { ScanQrMark } from '@/components/ScanQrMark';
 import { EventCombobox } from '@/components/EventCombobox';
 import { Toaster } from '@/components/ui/sonner';
+import { LoadingAnimation } from '@/components/ui/LoadingAnimation';
 
 export interface EventOption {
   id: string;
@@ -132,10 +133,7 @@ export function AdminPage({
         </div>
       )}
       {loading && (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-          <span className="ml-2 text-slate-600">Loading...</span>
-        </div>
+        <LoadingAnimation size="lg" className="py-8" />
       )}
       {error && (
         <div className="bg-[var(--red-2)] border border-[var(--red-6)] text-[var(--red-11)] px-4 py-3 rounded-lg mb-6">

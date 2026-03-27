@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-26 — Pricing finalized: Eventbrite-matching fees (3.5% + $1.79), payout speed as tier differentiator (Free=7 days, Pro=$39/48hr, Business=$99/daily). See [TICKETING-TYPES-PRICING-STRATEGY.md §4](TICKETING-TYPES-PRICING-STRATEGY.md) and [PRODUCT-STRATEGY.md](PRODUCT-STRATEGY.md).
+**Last updated:** 2026-03-27 — Added marketing ideas doc with Tapcart case study. See [MARKETING-IDEAS.md](MARKETING-IDEAS.md). Previous: Pricing finalized: Eventbrite-matching fees (3.5% + $1.79), payout speed as tier differentiator (Free=7 days, Pro=$39/48hr, Business=$99/daily).
 
 ---
 
@@ -350,6 +350,7 @@ Deferred / lower priority:
 | [form-microsite-hub-integration.mdc](form-microsite-hub-integration.mdc) | Portable Cursor rule: copy to new microsite’s `.cursor/rules/` for hub integration context. |
 | [EMAIL-SENDER-GO-LIVE-CHECKLIST.md](EMAIL-SENDER-GO-LIVE-CHECKLIST.md) | Production sender cutover checklist (Resend domain verify, `FROM_EMAIL=noreply@...`, modal preview + smoke test). |
 | [ui-modernization/](ui-modernization/) | UI Modernization: CURSOR-CHECKLIST, qr-ui-components, qr-ui-animations.css. Rule: `.cursor/rules/ui-modernization.mdc`. Radix Colors: `radix-colors-mapping.md`. |
+| [MARKETING-IDEAS.md](MARKETING-IDEAS.md) | Homepage case studies (Tapcart analysis) and evolved positioning options for AizuPass marketing. |
 | [qr-edge-cases.md](qr-edge-cases.md) | API edge-case tests, CSV import validation, critical manual paths. `scripts/test-edge-cases.mjs`, `scripts/generate-test-csvs.mjs`. |
 | [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md) | Item 2 + 12: Clerk auth setup, org/membership-based authorization, onboarding/invites. |
 | [TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md) | Future: paid ticketing — ticket type catalog, Eventbrite-matching fees (3.5% + $1.79), payout speed tiers (§4), Stripe alignment, fulfillment vs SaaS billing, idempotency, build sequencing. |

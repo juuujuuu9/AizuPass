@@ -25,12 +25,14 @@ export function initEventbriteIntegrationPage(): void {
   const eventId = data.eventId;
   const panel = document.getElementById('eventbrite-sync-panel');
   const btn = document.getElementById('eb-sync-btn') as HTMLButtonElement | null;
+  const btnLabel = document.getElementById('eb-sync-label');
+  const btnSpinner = document.getElementById('eb-sync-spinner');
   const eventIdInput = document.getElementById('eb-event-id') as HTMLInputElement | null;
   const tokenInput = document.getElementById('eb-private-token') as HTMLInputElement | null;
   const saveCb = document.getElementById('eb-save-credentials') as HTMLInputElement | null;
   const errEl = document.getElementById('eb-sync-error');
   const okEl = document.getElementById('eb-sync-success');
-  if (!panel || !btn || !eventIdInput || !tokenInput || !saveCb || !errEl || !okEl) return;
+  if (!panel || !btn || !btnLabel || !btnSpinner || !eventIdInput || !tokenInput || !saveCb || !errEl || !okEl) return;
 
   const eb = data.eventbrite;
   if (eb?.eventbriteEventId) {
@@ -52,6 +54,8 @@ export function initEventbriteIntegrationPage(): void {
       return;
     }
     btn.disabled = true;
+    btnLabel.textContent = 'Syncing...';
+    btnSpinner.classList.remove('hidden');
     try {
       const res = await fetch('/api/integrations/eventbrite/sync', {
         method: 'POST',
@@ -82,6 +86,8 @@ export function initEventbriteIntegrationPage(): void {
       errEl.classList.remove('hidden');
     } finally {
       btn.disabled = false;
+      btnLabel.textContent = 'Sync from Eventbrite';
+      btnSpinner.classList.add('hidden');
     }
   });
 }

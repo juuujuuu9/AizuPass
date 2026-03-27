@@ -1,4 +1,5 @@
-import { Users, Upload, Plus, Loader2 } from 'lucide-react';
+import { Users, Upload, Plus } from 'lucide-react';
+import { ButtonSpinner } from '@/components/ui/ButtonSpinner';
 
 interface EmptyStateProps {
   onAddAttendee: () => void;
@@ -35,7 +36,7 @@ export function EmptyState({ onAddAttendee, onImportCSV, importing, addButtonLab
             className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
           >
             {importing ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <ButtonSpinner className="w-4 h-4" />
             ) : (
               <Upload className="w-4 h-4" />
             )}
