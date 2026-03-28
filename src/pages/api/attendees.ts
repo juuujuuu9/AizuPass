@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { json, errorResponse } from '../../lib/api-response';
-import { requireUserId, requireEventAccess } from '../../lib/access';
+import { requireUserId, requireEventAccess, requireEventManage } from '../../lib/access';
 import { getClientIp } from '../../lib/rate-limit';
 import { searchAttendeesForUser, createAttendee } from '../../lib/db';
 import { checkRateLimit } from '../../lib/rate-limit';
@@ -39,7 +39,12 @@ export const GET: APIRoute = async (context) => {
   }
 };
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async (context) => {
+  // CR-1: Require authentication and event management permission
+  const userId = requireUserId(context);
+  if (userId instanceof Response) return userId;
+
+  const { request } = context;
   const ip = getClientIp(request);
   const rate = await checkRateLimit(`attendees:${ip}`, { maxAttempts: 20 });
   if (!rate.allowed) {
@@ -55,14 +60,16 @@ export const POST: APIRoute = async ({ request }) => {
   try {
     const body = await request.json();
 
-    // ME-12: Use Zod validation instead of manual checks
     const validation = validateRequestBody(attendeeCreationSchema, body);
     if (!validation.success) {
       return errorResponse(validation.error, 400);
     }
     const { firstName, lastName, email, phone, company, dietaryRestrictions, eventId } = validation.data;
 
-    // Create attendee (optional status in schema reserved for future use; DB has no status column yet)
+    // CR-1: Verify user has management access to this event
+    const manageCheck = await requireEventManage(context, eventId);
+    if (manageCheck instanceof Response) return manageCheck;
+
     const attendee = await createAttendee({
       firstName,
       lastName,

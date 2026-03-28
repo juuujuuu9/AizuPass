@@ -139,8 +139,6 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
     }
     return next();
   }
-  if (pathname === '/api/attendees' && request.method === 'POST') return next();
-
   // Everything else requires authentication
   if (!userId && !testBypass) {
     if (pathname.startsWith('/api/')) {

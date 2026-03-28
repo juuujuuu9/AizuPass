@@ -2,9 +2,11 @@ import type { APIRoute } from 'astro';
 import { json, errorResponse } from '../../../lib/api-response';
 import { getDb } from '../../../lib/db';
 import { getEnv } from '../../../lib/env';
+import crypto from 'crypto';
 
 /**
  * ME-8: Resend webhook endpoint for bounce and complaint handling.
+ * HI-1: Proper HMAC signature verification implemented.
  */
 
 function getWebhookSecret(): string {
@@ -12,9 +14,27 @@ function getWebhookSecret(): string {
 }
 
 function verifyWebhookSignature(payload: string, signature: string | null, secret: string): boolean {
-  if (!secret) return true;
+  // HI-1: Fail closed - reject if secret or signature missing
+  if (!secret) return false;
   if (!signature) return false;
-  return true; // TODO: Implement HMAC verification
+
+  // Resend uses HMAC-SHA256 with the secret as the key
+  // Signature format: base64-encoded HMAC
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(payload, 'utf8')
+    .digest('base64');
+
+  // Timing-safe comparison to prevent timing attacks
+  try {
+    const sigBuffer = Buffer.from(signature, 'base64');
+    const expectedBuffer = Buffer.from(expectedSignature, 'base64');
+
+    if (sigBuffer.length !== expectedBuffer.length) return false;
+    return crypto.timingSafeEqual(sigBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
 }
 
 async function recordEmailEvent(
@@ -102,7 +122,11 @@ export async function getEmailStatus(email: string): Promise<{
     return { canSend: true };
   } catch (err) {
     console.error('[Email Status] Error checking email status:', err);
-    return { canSend: true };
+    // ME-1: Fail closed - don't send if we can't verify status
+    return {
+      canSend: false,
+      reason: 'Unable to verify email status - service temporarily unavailable',
+    };
   }
 }
 
