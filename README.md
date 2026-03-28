@@ -1,6 +1,8 @@
 # AizuPass
 
-**AizuPass** is multi-event QR check-in for live venues: **organizations and staff** manage guestlists and scan at the door; **attendees** use camera-scanned codes with **no PII in the QR payload** (token-based v2 format). One **Astro** app hosts UI and API routes, deployed to **Vercel**, backed by **PostgreSQL** (e.g. Neon).
+**AizuPass** is a for-profit SaaS for QR check-in at live events — built for **crews & collectives**, **independent promoters**, and **agencies** running brand activations. Organizations and staff manage guest lists and scan at the door; attendees receive camera-scanned codes with **no PII in the QR payload** (token-based v2 format). Guest data stays in your account — not a platform's.
+
+One **Astro** app hosts marketing pages, UI, and API routes, deployed to **Vercel**, backed by **PostgreSQL** (e.g. Neon). The marketing site (`/`) and the product app (`app.*`) can run on separate hosts via `PUBLIC_MARKETING_HOSTS` / `PUBLIC_APP_HOST`.
 
 ---
 
@@ -68,6 +70,7 @@
 
 | Date | Milestone |
 |------|-----------|
+| 2026-03-28 | **Marketing homepage** — Combined crews/collectives + agencies landing page at `/`; standalone `/collectives` and `/agencies` variant pages; marketing/app host split (`PUBLIC_MARKETING_HOSTS` / `PUBLIC_APP_HOST`). |
 | 2026-03-26 | **Security audit remediation** — Fixed 5 critical issues: CSRF protection re-enabled, email HTML escaping, IDOR vulnerability patched, hardcoded RSVP data removed. See [`docs/audit/AUDIT-2026-03-21.md`](docs/audit/AUDIT-2026-03-21.md). |
 | 2026-03-26 | **Public RSVP page** — Added `/rsvp` route for unauthenticated event registration. |
 
@@ -158,7 +161,7 @@ CSV remains the **default** guestlist path for typical organizers; API and autom
    npm run dev
    ```
 
-5. Open `http://localhost:4321`, sign in, complete organization (and profile if applicable) onboarding, then create or select an event.
+5. Open `http://localhost:4321` — shows the **marketing homepage** in dev mode. The app (scanner/admin) is accessible at `http://app.localhost:4321` once `PUBLIC_APP_HOST=app.localhost` and `PUBLIC_MARKETING_HOSTS=localhost` are set in `.env`. Sign in, complete organization onboarding, then create or select an event.
 
 ---
 
@@ -166,8 +169,10 @@ CSV remains the **default** guestlist path for typical organizers; API and autom
 
 | Route | Purpose |
 |------|---------|
-| `/` | Scanner (standalone check-in experience) |
-| `/scanner` | Standalone scanner (same capability as `/`) |
+| `/` | Marketing homepage (crews/collectives + agencies; scanner on app host) |
+| `/collectives` | Marketing landing page for crews & independent promoters |
+| `/agencies` | Marketing landing page for agencies & brand activations |
+| `/scanner` | Standalone scanner (same capability as `/` on app host) |
 | `/rsvp` | Public event registration (unauthenticated) |
 | `/admin` | Organizer/staff dashboard |
 | `/admin/events` | Event list and management |
@@ -216,6 +221,8 @@ See `.env.example` for the canonical list. Main variables:
 - `APP_URL` (optional)
 - `PORT` (optional)
 - `QR_TOKEN_TTL_DAYS` (optional)
+- `PUBLIC_APP_HOST` (optional; e.g. `app.aizupass.com` — enables marketing/app host split)
+- `PUBLIC_MARKETING_HOSTS` (optional; comma-separated, e.g. `aizupass.com,www.aizupass.com`)
 - `ENABLE_DEMO_CODES` + `ENABLE_DEMO_CODES_IN_PRODUCTION` (optional; both required for demo QR codes in production)
 
 ---
