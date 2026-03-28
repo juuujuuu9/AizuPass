@@ -14,6 +14,7 @@ import {
 // Routes that never require authentication.
 // Everything else requires sign-in; org/event scope is enforced per page/API.
 const isPublicRoute = createRouteMatcher([
+  '/',
   '/login',
   '/signup',
   '/onboarding/verify-email',

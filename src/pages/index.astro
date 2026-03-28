@@ -7,7 +7,7 @@ import { getEventByIdForUser } from '../lib/db';
 import { getRequestHost, isMarketingHost } from '../lib/site-host';
 
 const host = getRequestHost(Astro.request);
-const showMarketingHome = isMarketingHost(host);
+const showMarketingHome = isMarketingHost(host) || (import.meta.env.DEV && !host.startsWith('app.'));
 
 const userId = Astro.locals.user?.id ?? '';
 const eventIdFromUrl = Astro.url.searchParams.get('event')?.trim() || undefined;
@@ -26,29 +26,459 @@ const linkSecondary =
 {
   showMarketingHome ? (
     <Layout
-      title="Fast QR check-in for live events"
-      description="AizuPass — QR check-in for venues with offline-safe queues and token-only QR codes."
+      title="Your door. Your data. Your event."
+      description="AizuPass — QR check-in for crews, collectives, and agencies. Fast setup, offline-safe, and your guest list never leaves your account."
     >
-      <main class="min-h-screen bg-background">
-        <div class="container mx-auto max-w-2xl px-4 py-20 text-center">
-          <h1 class="mb-4 text-4xl font-bold tracking-tight">AizuPass</h1>
-          <p class="mb-10 text-lg text-muted-foreground">
-            QR check-in built for live venues: fast scans, offline-safe queues, and token-only QR
-            payloads — so your door stays fast even when the network is not.
-          </p>
-          <div class="flex flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
-            <a href="/login" class={linkPrimary}>
-              Sign in
-            </a>
-            <a href="/signup" class={linkSecondary}>
-              Create account
-            </a>
-            <a href="/rsvp" class={linkSecondary}>
-              Event registration
-            </a>
+      <div class="min-h-screen bg-background text-foreground">
+
+        {/* Nav */}
+        <nav class="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-sm">
+          <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+            <span class="text-lg font-bold tracking-tight">AizuPass</span>
+            <div class="flex items-center gap-4">
+              <a href="#for-crews" class="hidden text-sm text-muted-foreground transition-colors hover:text-foreground sm:block">
+                For crews
+              </a>
+              <a href="#for-agencies" class="hidden text-sm text-muted-foreground transition-colors hover:text-foreground sm:block">
+                For agencies
+              </a>
+              <a href="/login" class="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                Sign in
+              </a>
+              <a href="/signup" class={linkPrimary}>
+                Start free
+              </a>
+            </div>
           </div>
-        </div>
-      </main>
+        </nav>
+
+        <main>
+
+          {/* ── HERO ── */}
+          <section class="mx-auto max-w-4xl px-6 pb-16 pt-20 text-center">
+            <h1 class="mb-6 text-5xl font-bold tracking-tight sm:text-6xl">
+              Your door.<br />Your data.<br />Your event.
+            </h1>
+            <p class="mx-auto mb-12 max-w-2xl text-xl text-muted-foreground">
+              QR check-in that works offline, respects your guest list, and never
+              markets to your crowd. Built for the people who actually run events.
+            </p>
+
+            {/* Audience split cards */}
+            <div class="grid gap-4 text-left sm:grid-cols-2">
+              <a
+                href="#for-crews"
+                class="group rounded-xl border border-border bg-muted/30 p-6 transition-colors hover:border-primary/50 hover:bg-primary/5"
+              >
+                <p class="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground group-hover:text-primary">
+                  For crews & collectives
+                </p>
+                <p class="mb-3 text-lg font-bold">Your door should feel like your show.</p>
+                <p class="text-sm text-muted-foreground">
+                  Independent promoters, scenes, and collectives who want fast check-in
+                  without a box office in the middle.
+                </p>
+                <p class="mt-4 text-sm font-medium text-primary">See how it works ↓</p>
+              </a>
+              <a
+                href="#for-agencies"
+                class="group rounded-xl border border-border bg-muted/30 p-6 transition-colors hover:border-primary/50 hover:bg-primary/5"
+              >
+                <p class="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground group-hover:text-primary">
+                  For agencies & brands
+                </p>
+                <p class="mb-3 text-lg font-bold">Invite-only check-in your client can put their name on.</p>
+                <p class="text-sm text-muted-foreground">
+                  Activations, popups, and private events — white-label ops
+                  with tiered access and post-event proof.
+                </p>
+                <p class="mt-4 text-sm font-medium text-primary">See agency features ↓</p>
+              </a>
+            </div>
+
+            <p class="mt-8 text-sm text-muted-foreground">Free for your first event · No credit card required</p>
+          </section>
+
+          {/* Tagline bar */}
+          <div class="border-y border-border bg-muted/40 py-5 text-center">
+            <p class="text-base font-medium tracking-wide text-foreground">
+              Fast door. Your list. No platform in between.
+            </p>
+          </div>
+
+          {/* ── SECTION: CREWS & COLLECTIVES ── */}
+          <section id="for-crews" class="scroll-mt-20 py-24">
+            <div class="mx-auto max-w-4xl px-6">
+
+              <div class="mb-16 text-center">
+                <p class="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">For crews & collectives</p>
+                <h2 class="mb-4 text-4xl font-bold tracking-tight">
+                  Run the door like<br />you run the night.
+                </h2>
+                <p class="mx-auto max-w-xl text-lg text-muted-foreground">
+                  No box office energy. No corporate ticketing UX. Just fast check-in
+                  that fits the show — and a guest list that stays yours.
+                </p>
+              </div>
+
+              {/* Problem / Solution */}
+              <div class="mb-16 grid gap-6 sm:grid-cols-2">
+                <div class="rounded-xl border border-border bg-muted/30 p-6">
+                  <p class="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">The old way</p>
+                  <ul class="space-y-3 text-sm text-muted-foreground">
+                    <li class="flex gap-2"><span class="mt-0.5 text-destructive">✗</span> Box office logo on your invites</li>
+                    <li class="flex gap-2"><span class="mt-0.5 text-destructive">✗</span> Platform emails your crowd about other shows</li>
+                    <li class="flex gap-2"><span class="mt-0.5 text-destructive">✗</span> Paid out 7 days after the event ends</li>
+                    <li class="flex gap-2"><span class="mt-0.5 text-destructive">✗</span> 20-minute setup for a 2-minute job</li>
+                  </ul>
+                </div>
+                <div class="rounded-xl border-2 border-primary bg-primary/5 p-6">
+                  <p class="mb-4 text-sm font-semibold uppercase tracking-wide text-primary">With AizuPass</p>
+                  <ul class="space-y-3 text-sm">
+                    <li class="flex gap-2"><span class="mt-0.5 text-primary">✓</span> Your branding, your domain</li>
+                    <li class="flex gap-2"><span class="mt-0.5 text-primary">✓</span> No discovery feed — your community stays yours</li>
+                    <li class="flex gap-2"><span class="mt-0.5 text-primary">✓</span> Get paid in 48 hours (Pro) or daily (Business)</li>
+                    <li class="flex gap-2"><span class="mt-0.5 text-primary">✓</span> CSV import → live in 2 minutes</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* How it works */}
+              <div class="mb-16">
+                <h3 class="mb-8 text-center text-2xl font-bold tracking-tight">Set up faster than a flyer</h3>
+                <div class="grid gap-6 sm:grid-cols-3">
+                  <div class="text-center">
+                    <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">1</div>
+                    <h4 class="mb-2 font-semibold">Import your list</h4>
+                    <p class="text-sm text-muted-foreground">Drop a CSV or sync from your form. No retyping names.</p>
+                  </div>
+                  <div class="text-center">
+                    <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">2</div>
+                    <h4 class="mb-2 font-semibold">Share the link</h4>
+                    <p class="text-sm text-muted-foreground">Guests get their QR by email. You keep the guest list.</p>
+                  </div>
+                  <div class="text-center">
+                    <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">3</div>
+                    <h4 class="mb-2 font-semibold">Scan at the door</h4>
+                    <p class="text-sm text-muted-foreground">Green for go, amber for already in, red for not on the list.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Feature trio */}
+              <div class="grid gap-8 sm:grid-cols-3">
+                <div>
+                  <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-xl">🚪</div>
+                  <h4 class="mb-2 font-semibold">The door, done.</h4>
+                  <p class="text-sm text-muted-foreground">
+                    QR scan → green. Already in → amber. Not on the list → red. Works offline
+                    in dead-zone venues. Name-search backup when a QR won't scan.
+                  </p>
+                </div>
+                <div>
+                  <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-xl">👥</div>
+                  <h4 class="mb-2 font-semibold">Your community is yours.</h4>
+                  <p class="text-sm text-muted-foreground">
+                    No discovery feed, no "related events." Your guest list lives in your account.
+                    Export anytime, take it anywhere.
+                  </p>
+                </div>
+                <div>
+                  <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-xl">💰</div>
+                  <h4 class="mb-2 font-semibold">Paid like you mean it.</h4>
+                  <p class="text-sm text-muted-foreground">
+                    Same fees as Eventbrite (3.5% + $1.79). Get paid 48 hours after sale on Pro,
+                    daily on Business. Not 7 days after the event ends.
+                  </p>
+                </div>
+              </div>
+
+              <div class="mt-12 text-center">
+                <a href="/signup" class={linkPrimary + ' px-8 py-3 text-base'}>Start your first drop</a>
+              </div>
+
+            </div>
+          </section>
+
+          {/* Section divider */}
+          <div class="border-t border-border" />
+
+          {/* ── SECTION: AGENCIES & BRANDS ── */}
+          <section id="for-agencies" class="scroll-mt-20 bg-muted/20 py-24">
+            <div class="mx-auto max-w-4xl px-6">
+
+              <div class="mb-16 text-center">
+                <p class="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">For agencies & brands</p>
+                <h2 class="mb-4 text-4xl font-bold tracking-tight">
+                  Invite-only check-in<br />your client can put their name on.
+                </h2>
+                <p class="mx-auto max-w-xl text-lg text-muted-foreground">
+                  Private RSVPs, tiered access, and door ops for activations, popups, and
+                  brand events. Their branding on every surface — no ticketing platform in the room.
+                </p>
+              </div>
+
+              {/* Agency feature blocks */}
+              <div class="mb-16 space-y-16">
+
+                <div class="grid items-center gap-8 sm:grid-cols-2">
+                  <div>
+                    <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-2xl">🎨</div>
+                    <h3 class="mb-3 text-2xl font-bold tracking-tight">Client-branded from invite to door.</h3>
+                    <p class="text-muted-foreground">
+                      Logo, colors, custom domain. The experience reads as their event —
+                      not a third-party tool. No platform branding anywhere a guest or client will see.
+                    </p>
+                  </div>
+                  <div class="rounded-xl border border-border bg-background p-6">
+                    <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">What guests see</p>
+                    <div class="space-y-2 text-sm">
+                      <div class="flex items-center gap-3 rounded-lg bg-muted/30 p-3">
+                        <span>📧</span>
+                        <span class="text-muted-foreground">Invite from <span class="font-semibold text-foreground">hello@clientbrand.com</span></span>
+                      </div>
+                      <div class="flex items-center gap-3 rounded-lg bg-muted/30 p-3">
+                        <span>📱</span>
+                        <span class="text-muted-foreground">Check-in at <span class="font-semibold text-foreground">rsvp.clientbrand.com</span></span>
+                      </div>
+                      <div class="flex items-center gap-3 rounded-lg bg-muted/30 p-3">
+                        <span>✅</span>
+                        <span class="text-muted-foreground">QR in their brand colors, not ours</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid items-center gap-8 sm:grid-cols-2">
+                  <div class="order-2 rounded-xl border border-border bg-background p-6 sm:order-1">
+                    <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tiered access</p>
+                    <div class="space-y-2 text-sm">
+                      {[['VIP Early Access', 'Opens 7 PM'], ['General Admission', 'Opens 8 PM'], ['Press & Media', 'All doors'], ['Staff & Production', 'All-access']].map(([tier, note]) => (
+                        <div class="flex items-center justify-between rounded-lg bg-muted/30 p-3">
+                          <span class="font-medium">{tier}</span>
+                          <span class="text-xs text-muted-foreground">{note}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div class="order-1 sm:order-2">
+                    <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-2xl">🎟️</div>
+                    <h3 class="mb-3 text-2xl font-bold tracking-tight">Control who gets in.</h3>
+                    <p class="text-muted-foreground">
+                      Tiered lists (VIP / GA / press / staff). Capacity caps. Plus-ones that
+                      follow rules. No public listing, ever. Unlisted by default.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="grid items-center gap-8 sm:grid-cols-2">
+                  <div>
+                    <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-2xl">📊</div>
+                    <h3 class="mb-3 text-2xl font-bold tracking-tight">Post-event proof for the recap.</h3>
+                    <p class="text-muted-foreground">
+                      Check-in timestamps, headcount, completion rate, tier breakdown.
+                      The numbers that belong in the deck — without manual counting.
+                    </p>
+                  </div>
+                  <div class="rounded-xl border border-border bg-background p-6">
+                    <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sample metrics</p>
+                    <div class="grid grid-cols-2 gap-3 text-center">
+                      {[['487', 'Check-ins'], ['94%', 'Completion'], ['1.8s', 'Median scan'], ['7:15 PM', 'Peak arrival']].map(([val, label]) => (
+                        <div class="rounded-lg bg-muted/30 p-4">
+                          <p class="text-2xl font-bold">{val}</p>
+                          <p class="text-xs text-muted-foreground">{label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Agency secondary features */}
+              <div class="grid gap-6 sm:grid-cols-2">
+                <div class="flex gap-4">
+                  <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xl">⚡</div>
+                  <div>
+                    <h4 class="mb-1 font-semibold">Offline when the venue isn't.</h4>
+                    <p class="text-sm text-muted-foreground">Basements. Rooftops. Converted warehouses. Scans queue locally, sync when connection returns.</p>
+                  </div>
+                </div>
+                <div class="flex gap-4">
+                  <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xl">👥</div>
+                  <div>
+                    <h4 class="mb-1 font-semibold">Multiple scanners, one door.</h4>
+                    <p class="text-sm text-muted-foreground">Assign staff to each entrance. Real-time sync across devices. No double entries, even with parallel scanners.</p>
+                  </div>
+                </div>
+                <div class="flex gap-4">
+                  <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xl">🔒</div>
+                  <div>
+                    <h4 class="mb-1 font-semibold">Client data in your account, not ours.</h4>
+                    <p class="text-sm text-muted-foreground">Guest lists export as clean CSVs. Move to your CRM. Nothing feeds a third-party marketing platform.</p>
+                  </div>
+                </div>
+                <div class="flex gap-4">
+                  <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xl">🔍</div>
+                  <div>
+                    <h4 class="mb-1 font-semibold">Manual fallback, always.</h4>
+                    <p class="text-sm text-muted-foreground">QR won't scan? Search by name. One tap to check in. Atomic operations prevent any double entries.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-12 text-center">
+                <a href="/signup" class={linkPrimary + ' px-8 py-3 text-base'}>Request access</a>
+              </div>
+
+            </div>
+          </section>
+
+          {/* ── VS. ALTERNATIVES ── */}
+          <section class="border-t border-border py-20">
+            <div class="mx-auto max-w-4xl px-6">
+              <h2 class="mb-3 text-center text-3xl font-bold tracking-tight">Same fees. A different deal.</h2>
+              <p class="mb-10 text-center text-muted-foreground">We match Eventbrite's ticket fees exactly. Everything else is better.</p>
+              <div class="overflow-hidden rounded-xl border border-border">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-border bg-muted/60">
+                      <th class="px-5 py-4 text-left font-semibold text-muted-foreground" />
+                      <th class="px-5 py-4 text-left font-semibold text-muted-foreground">Eventbrite</th>
+                      <th class="px-5 py-4 text-left font-semibold text-foreground">AizuPass</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-border">
+                    <tr>
+                      <td class="px-5 py-4 font-medium">Ticket fees</td>
+                      <td class="px-5 py-4 text-muted-foreground">3.5% + $1.79 + 2.9% processing</td>
+                      <td class="px-5 py-4 font-semibold text-primary">Same — we match exactly</td>
+                    </tr>
+                    <tr class="bg-muted/20">
+                      <td class="px-5 py-4 font-medium">Payout timing</td>
+                      <td class="px-5 py-4 text-muted-foreground">After the event ends</td>
+                      <td class="px-5 py-4 font-semibold text-primary">48 hrs (Pro) · Daily (Business)</td>
+                    </tr>
+                    <tr>
+                      <td class="px-5 py-4 font-medium">Guest data</td>
+                      <td class="px-5 py-4 text-muted-foreground">Platform's to market</td>
+                      <td class="px-5 py-4 font-semibold text-primary">Yours — export anytime</td>
+                    </tr>
+                    <tr class="bg-muted/20">
+                      <td class="px-5 py-4 font-medium">Discovery feed</td>
+                      <td class="px-5 py-4 text-muted-foreground">Competing events shown to your guests</td>
+                      <td class="px-5 py-4 font-semibold text-primary">No listing, ever</td>
+                    </tr>
+                    <tr>
+                      <td class="px-5 py-4 font-medium">Branding</td>
+                      <td class="px-5 py-4 text-muted-foreground">Platform logo, platform emails</td>
+                      <td class="px-5 py-4 font-semibold text-primary">Your logo, your domain</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          {/* ── PRICING ── */}
+          <section class="border-t border-border bg-muted/30 py-20">
+            <div class="mx-auto max-w-4xl px-6">
+              <h2 class="mb-3 text-center text-3xl font-bold tracking-tight">Simple pricing</h2>
+              <p class="mb-12 text-center text-muted-foreground">No "contact us." No per-attendee seat fees. No surprises.</p>
+              <div class="grid gap-6 sm:grid-cols-3">
+
+                <div class="rounded-xl border border-border bg-background p-6">
+                  <p class="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Free</p>
+                  <p class="mb-4 text-3xl font-bold">$0</p>
+                  <ul class="mb-6 space-y-2 text-sm text-muted-foreground">
+                    <li>✓ 1 event · up to 150 guests</li>
+                    <li>✓ QR check-in + offline mode</li>
+                    <li>✓ CSV import/export</li>
+                    <li>✓ 1 staff scanner</li>
+                    <li>✗ Payout: 7 days after event</li>
+                  </ul>
+                  <a href="/signup" class={linkSecondary + ' w-full justify-center'}>Get started</a>
+                </div>
+
+                <div class="relative rounded-xl border-2 border-primary bg-background p-6">
+                  <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">Most popular</span>
+                  <p class="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Pro</p>
+                  <p class="mb-4 text-3xl font-bold">$39<span class="text-lg font-normal text-muted-foreground">/mo</span></p>
+                  <ul class="mb-6 space-y-2 text-sm text-muted-foreground">
+                    <li>✓ Unlimited events + guests</li>
+                    <li>✓ Unlimited staff scanners</li>
+                    <li>✓ Custom logo + branding</li>
+                    <li>✓ Guest analytics</li>
+                    <li class="font-semibold text-foreground">✓ Payout: 48 hrs after sale</li>
+                  </ul>
+                  <a href="/signup" class={linkPrimary + ' w-full justify-center'}>Start Pro</a>
+                </div>
+
+                <div class="rounded-xl border border-border bg-background p-6">
+                  <p class="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Business</p>
+                  <p class="mb-4 text-3xl font-bold">$99<span class="text-lg font-normal text-muted-foreground">/mo</span></p>
+                  <ul class="mb-6 space-y-2 text-sm text-muted-foreground">
+                    <li>✓ Everything in Pro</li>
+                    <li>✓ White-label (custom domain + colors)</li>
+                    <li>✓ API access</li>
+                    <li>✓ Phone support</li>
+                    <li class="font-semibold text-foreground">✓ Payout: daily</li>
+                  </ul>
+                  <a href="/signup" class={linkSecondary + ' w-full justify-center'}>Start Business</a>
+                </div>
+
+              </div>
+            </div>
+          </section>
+
+          {/* ── FAQ ── */}
+          <section class="py-20">
+            <div class="mx-auto max-w-2xl px-6">
+              <h2 class="mb-10 text-center text-3xl font-bold tracking-tight">Common questions</h2>
+              <div class="space-y-8 text-sm">
+                <div>
+                  <p class="mb-2 font-semibold">Does it work when the venue Wi-Fi dies?</p>
+                  <p class="text-muted-foreground">Yes. Scans queue locally and sync when connection returns. Staff see a live queue count so they know what's pending.</p>
+                </div>
+                <div>
+                  <p class="mb-2 font-semibold">Can I bring my existing guest list?</p>
+                  <p class="text-muted-foreground">Import any CSV — we auto-detect delimiters, handle names and emails, and warn about rows with issues. Eventbrite sync pulls straight in too.</p>
+                </div>
+                <div>
+                  <p class="mb-2 font-semibold">What if someone tries to use a screenshot of someone else's QR?</p>
+                  <p class="text-muted-foreground">Scanner flags it immediately as "already checked in." Each QR is a single-use token with no personal data baked in.</p>
+                </div>
+                <div>
+                  <p class="mb-2 font-semibold">For agencies — can we fully white-label for a client?</p>
+                  <p class="text-muted-foreground">Yes, on the Business tier. Custom domain, logo, and colors throughout the UI and emails. No AizuPass branding visible anywhere.</p>
+                </div>
+                <div>
+                  <p class="mb-2 font-semibold">Can I cancel anytime?</p>
+                  <p class="text-muted-foreground">Yes. Export your data first (one click), then cancel. No lock-in periods, no calls.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ── FINAL CTA ── */}
+          <section class="border-t border-border bg-muted/30 py-20 text-center">
+            <div class="mx-auto max-w-2xl px-6">
+              <h2 class="mb-4 text-4xl font-bold tracking-tight">Ready to run the door?</h2>
+              <p class="mb-8 text-lg text-muted-foreground">Free for your first event. No credit card required.</p>
+              <div class="flex flex-col items-center justify-center gap-3 sm:flex-row">
+                <a href="/signup" class={linkPrimary + ' px-8 py-3 text-base'}>Start your first event</a>
+                <a href="/login" class={linkSecondary + ' px-8 py-3 text-base'}>Sign in</a>
+              </div>
+            </div>
+          </section>
+
+          {/* Footer */}
+          <footer class="border-t border-border py-8 text-center text-xs text-muted-foreground">
+            <p>© {new Date().getFullYear()} AizuPass. Your guest data stays yours.</p>
+          </footer>
+
+        </main>
+      </div>
     </Layout>
   ) : (
     <ScannerLayout>

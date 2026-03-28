@@ -1,0 +1,261 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const linkPrimary =
+  'inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground ring-offset-background transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
+const linkSecondary =
+  'inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
+---
+
+<Layout
+  title="Your door should feel like your event"
+  description="QR check-in built for shows — not box offices. Fast setup, offline-safe, your crowd not Eventbrite's."
+>
+  <div class="min-h-screen bg-background text-foreground">
+
+    {/* Nav */}
+    <nav class="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-sm">
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <div class="flex items-center gap-2">
+          <span class="text-lg font-bold tracking-tight">AizuPass</span>
+          <span class="text-xs text-muted-foreground">/ Collectives</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <a href="/login" class="text-sm text-muted-foreground transition-colors hover:text-foreground">
+            Sign in
+          </a>
+          <a href="/signup" class={linkPrimary}>
+            Start free
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <main>
+
+      {/* Hero */}
+      <section class="mx-auto max-w-4xl px-6 pb-16 pt-20 text-center">
+        <p class="mb-4 text-sm font-medium uppercase tracking-widest text-muted-foreground">
+          For independent collectives & promoters
+        </p>
+        <h1 class="mb-6 text-5xl font-bold tracking-tight sm:text-6xl">
+          Your door should feel<br />like your event.
+        </h1>
+        <p class="mx-auto mb-10 max-w-2xl text-xl text-muted-foreground">
+          QR check-in, RSVPs, and guest lists built for shows — not box offices.
+          Fast setup. Offline-safe. Your crowd, not Eventbrite's.
+        </p>
+        <div class="flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <a href="/signup" class={linkPrimary + ' px-8 py-3 text-base'}>
+            Start your first drop
+          </a>
+          <a href="#how-it-works" class={linkSecondary + ' px-8 py-3 text-base'}>
+            See how it works
+          </a>
+        </div>
+        <p class="mt-4 text-sm text-muted-foreground">Free for your first event · No credit card required</p>
+      </section>
+
+      {/* Tagline bar */}
+      <div class="border-y border-border bg-muted/40 py-5 text-center">
+        <p class="text-base font-medium tracking-wide text-foreground">
+          Fast door. Your list. No platform in between.
+        </p>
+      </div>
+
+      {/* Problem → Solution */}
+      <section class="mx-auto max-w-4xl px-6 py-20">
+        <h2 class="mb-12 text-center text-3xl font-bold tracking-tight">
+          You're not a venue.<br />Don't use venue software.
+        </h2>
+        <div class="grid gap-8 sm:grid-cols-2">
+          <div class="rounded-xl border border-border bg-muted/30 p-6">
+            <p class="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">The old way</p>
+            <ul class="space-y-3 text-sm text-muted-foreground">
+              <li class="flex gap-2"><span class="text-destructive">✗</span> Their logo on your invites</li>
+              <li class="flex gap-2"><span class="text-destructive">✗</span> Emails to your guests about competing shows</li>
+              <li class="flex gap-2"><span class="text-destructive">✗</span> 7 days to get paid after the event ends</li>
+              <li class="flex gap-2"><span class="text-destructive">✗</span> 20-minute setup, not 2</li>
+            </ul>
+          </div>
+          <div class="rounded-xl border-2 border-primary bg-primary/5 p-6">
+            <p class="mb-4 text-sm font-semibold uppercase tracking-wide text-primary">With AizuPass</p>
+            <ul class="space-y-3 text-sm text-foreground">
+              <li class="flex gap-2"><span class="text-primary">✓</span> Your branding, your domain</li>
+              <li class="flex gap-2"><span class="text-primary">✓</span> No discovery feed — your crowd stays yours</li>
+              <li class="flex gap-2"><span class="text-primary">✓</span> Get paid in 48 hours (Pro) or daily (Business)</li>
+              <li class="flex gap-2"><span class="text-primary">✓</span> CSV import → live in 2 minutes</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section id="how-it-works" class="border-t border-border bg-muted/30 py-20">
+        <div class="mx-auto max-w-4xl px-6">
+          <h2 class="mb-12 text-center text-3xl font-bold tracking-tight">Set up faster than a flyer</h2>
+          <div class="grid gap-6 sm:grid-cols-3">
+
+            <div class="text-center">
+              <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 mx-auto text-xl font-bold text-primary">
+                1
+              </div>
+              <h3 class="mb-2 font-semibold">Import your list</h3>
+              <p class="text-sm text-muted-foreground">Drop a CSV or sync from your form. No retyping names.</p>
+            </div>
+
+            <div class="text-center">
+              <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 mx-auto text-xl font-bold text-primary">
+                2
+              </div>
+              <h3 class="mb-2 font-semibold">Share the link</h3>
+              <p class="text-sm text-muted-foreground">Guests get their QR by email. You get the guest list.</p>
+            </div>
+
+            <div class="text-center">
+              <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 mx-auto text-xl font-bold text-primary">
+                3
+              </div>
+              <h3 class="mb-2 font-semibold">Scan at the door</h3>
+              <p class="text-sm text-muted-foreground">Green for go, amber for already in, red for not on the list.</p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* Feature blocks */}
+      <section class="mx-auto max-w-4xl px-6 py-20">
+        <div class="grid gap-10 sm:grid-cols-3">
+
+          <div>
+            <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-xl">
+              🚪
+            </div>
+            <h3 class="mb-2 text-lg font-semibold">The door, done.</h3>
+            <p class="text-sm text-muted-foreground">
+              QR scan → green. Already checked in → amber. Not on the list → red. Works offline in dead-zone venues. One tap backup when QR won't scan.
+            </p>
+          </div>
+
+          <div>
+            <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-xl">
+              👥
+            </div>
+            <h3 class="mb-2 text-lg font-semibold">Your crowd is yours.</h3>
+            <p class="text-sm text-muted-foreground">
+              No discovery feed. No "related events." Your attendee list lives in your account. Export anytime, take it to your next tool.
+            </p>
+          </div>
+
+          <div>
+            <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-xl">
+              💰
+            </div>
+            <h3 class="mb-2 text-lg font-semibold">Paid like you mean it.</h3>
+            <p class="text-sm text-muted-foreground">
+              Same fees as Eventbrite (3.5% + $1.79). Get paid 48 hours after ticket sale on Pro, daily on Business. Not 7 days after the event.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section class="border-t border-border bg-muted/30 py-20">
+        <div class="mx-auto max-w-4xl px-6">
+          <h2 class="mb-3 text-center text-3xl font-bold tracking-tight">Simple pricing</h2>
+          <p class="mb-12 text-center text-muted-foreground">No per-ticket fees beyond standard processing.</p>
+          <div class="grid gap-6 sm:grid-cols-3">
+
+            <div class="rounded-xl border border-border bg-background p-6">
+              <p class="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Free</p>
+              <p class="mb-4 text-3xl font-bold">$0</p>
+              <ul class="mb-6 space-y-2 text-sm text-muted-foreground">
+                <li>✓ 1 event · up to 150 guests</li>
+                <li>✓ QR check-in + offline mode</li>
+                <li>✓ CSV import/export</li>
+                <li>✓ 1 staff scanner</li>
+                <li>✗ Payout: 7 days after event</li>
+              </ul>
+              <a href="/signup" class={linkSecondary + ' w-full justify-center'}>Get started</a>
+            </div>
+
+            <div class="rounded-xl border-2 border-primary bg-background p-6 relative">
+              <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">Most popular</span>
+              <p class="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Pro</p>
+              <p class="mb-4 text-3xl font-bold">$39<span class="text-lg font-normal text-muted-foreground">/mo</span></p>
+              <ul class="mb-6 space-y-2 text-sm text-muted-foreground">
+                <li>✓ Unlimited events + guests</li>
+                <li>✓ Unlimited staff scanners</li>
+                <li>✓ Custom logo + branding</li>
+                <li>✓ Guest analytics</li>
+                <li class="font-semibold text-foreground">✓ Payout: 48 hrs after sale</li>
+              </ul>
+              <a href="/signup" class={linkPrimary + ' w-full justify-center'}>Start Pro</a>
+            </div>
+
+            <div class="rounded-xl border border-border bg-background p-6">
+              <p class="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Business</p>
+              <p class="mb-4 text-3xl font-bold">$99<span class="text-lg font-normal text-muted-foreground">/mo</span></p>
+              <ul class="mb-6 space-y-2 text-sm text-muted-foreground">
+                <li>✓ Everything in Pro</li>
+                <li>✓ White-label (custom domain + colors)</li>
+                <li>✓ API access</li>
+                <li>✓ Phone support</li>
+                <li class="font-semibold text-foreground">✓ Payout: daily</li>
+              </ul>
+              <a href="/signup" class={linkSecondary + ' w-full justify-center'}>Start Business</a>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section class="mx-auto max-w-2xl px-6 py-20">
+        <h2 class="mb-10 text-center text-3xl font-bold tracking-tight">Common questions</h2>
+        <div class="space-y-8 text-sm">
+          <div>
+            <p class="mb-2 font-semibold">Does it work when the venue Wi-Fi dies?</p>
+            <p class="text-muted-foreground">Yes. Scans queue locally and sync when connection returns. Your staff sees a live queue count so they know what's pending.</p>
+          </div>
+          <div>
+            <p class="mb-2 font-semibold">Can I bring my existing guest list?</p>
+            <p class="text-muted-foreground">Import any CSV. We auto-detect delimiters, handle UTF-8, and warn about problematic rows. Your list is live in seconds.</p>
+          </div>
+          <div>
+            <p class="mb-2 font-semibold">What if someone tries to use a screenshot of someone else's QR?</p>
+            <p class="text-muted-foreground">Scanner flags it immediately as "already checked in." Each QR is a single-use token — no personal data baked into the code.</p>
+          </div>
+          <div>
+            <p class="mb-2 font-semibold">Can I cancel anytime?</p>
+            <p class="text-muted-foreground">Yes. Export your data first (one click), then cancel. No lock-in periods.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section class="mx-auto max-w-3xl px-6 py-20 text-center">
+        <h2 class="mb-4 text-4xl font-bold tracking-tight">Ready to run the door?</h2>
+        <p class="mb-8 text-lg text-muted-foreground">
+          Free for your first event. No credit card required.
+        </p>
+        <div class="flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <a href="/signup" class={linkPrimary + ' px-8 py-3 text-base'}>
+            Start your first drop
+          </a>
+          <a href="/" class={linkSecondary + ' px-8 py-3 text-base'}>
+            Compare plans
+          </a>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer class="border-t border-border py-8 text-center text-xs text-muted-foreground">
+        <p>© {new Date().getFullYear()} AizuPass. Your guest data stays yours.</p>
+      </footer>
+
+    </main>
+  </div>
+</Layout>

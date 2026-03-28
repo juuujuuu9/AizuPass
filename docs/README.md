@@ -45,6 +45,7 @@ This folder contains user-facing documentation for the QR Check-In system.
 
 | Document | Purpose |
 |----------|---------|
+| [MARKETING-HOMEPAGE-ROUND-1.md](./MARKETING-HOMEPAGE-ROUND-1.md) | Round 1 homepage concepts: The Release Drop, The Activation, The Switcher |
 | [MARKETING-HOMEPAGE-CONTENT-MAP.md](./MARKETING-HOMEPAGE-CONTENT-MAP.md) | Homepage sections ↔ product capabilities |
 | [MARKETING-HOMEPAGE-PRINCIPLES.md](./MARKETING-HOMEPAGE-PRINCIPLES.md) | Messaging principles for the marketing site |
 | [visual-reference/LANDING-PAGE-NARRATIVE-FLOW.md](./visual-reference/LANDING-PAGE-NARRATIVE-FLOW.md) | Case for narrative, block-based landing flow + screenshot reference |
