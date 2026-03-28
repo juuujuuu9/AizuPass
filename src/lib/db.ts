@@ -25,19 +25,20 @@ import { getEnv } from './env';
 import { getDb, type SqlRow } from './db/client';
 import { rowToEvent, type EventRow } from './db/event-row';
 import { getOrganizationByOwnerUserId, getEventForOrganization } from './db/organizations';
+import {
+  getUserAccessSummaryFromCache,
+  setUserAccessSummaryCache,
+} from './db/user-access-cache';
 import type { Attendee } from '../types/attendee';
 
 export * from './db/organizations';
+export { invalidateUserAccessCache } from './db/user-access-cache';
 export type { EventRow } from './db/event-row';
 export { sanitizeEventSettings } from './db/event-row';
 export { getDb } from './db/client';
 
 const DEFAULT_EVENT_CACHE_TTL_MS = 60 * 60 * 1000; // 1h
 let defaultEventIdCache: { id: string; expiresAt: number } | null = null;
-
-// LO-5: Simple in-memory cache for user access summary to reduce DB load
-const USER_ACCESS_CACHE_TTL_MS = 5_000; // 5 seconds
-const userAccessCache = new Map<string, { data: { hasMembership: boolean; hasOrganizerRole: boolean; organizationCount: number; eventCount: number }; expiresAt: number }>();
 
 /** One row per Clerk user; display name for the account (all orgs). */
 export interface UserRow {
@@ -195,11 +196,8 @@ export async function getUserAccessSummary(userId: string): Promise<{
     return { hasMembership: false, hasOrganizerRole: false, organizationCount: 0, eventCount: 0 };
   }
 
-  // LO-5: Check cache first
-  const cached = userAccessCache.get(userId);
-  if (cached && Date.now() < cached.expiresAt) {
-    return cached.data;
-  }
+  const cached = getUserAccessSummaryFromCache(userId);
+  if (cached) return cached;
 
   const db = getDb();
   const rows = await db`
@@ -222,8 +220,7 @@ export async function getUserAccessSummary(userId: string): Promise<{
     eventCount,
   };
 
-  // LO-5: Store in cache
-  userAccessCache.set(userId, { data: result, expiresAt: Date.now() + USER_ACCESS_CACHE_TTL_MS });
+  setUserAccessSummaryCache(userId, result);
   return result;
 }
 

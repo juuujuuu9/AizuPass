@@ -3,7 +3,7 @@
 **Audience:** Product, engineering, and support.  
 **Scope:** How external tools (forms, ticketing, automation) feed the **guestlist** in this hub (QR Check-In).
 
-**Related:** [MASTER-PLAN.md](MASTER-PLAN.md) (roadmap + checklist), [STEP-2-CENTRAL-HUB.md](STEP-2-CENTRAL-HUB.md) (architecture, CSV, webhook), [FORM-MICROSITE-SETUP.md](FORM-MICROSITE-SETUP.md) (microsite + Cursor rule).
+**Related:** [MASTER-PLAN.md](MASTER-PLAN.md) (roadmap + checklist), [STEP-2-CENTRAL-HUB.md](STEP-2-CENTRAL-HUB.md) (architecture, CSV import).
 
 ---
 
@@ -22,11 +22,7 @@
 | Path | Role | Notes |
 |------|------|--------|
 | **CSV import** | Primary for most users | Dedupe by event + email; import modes and column mapping; see STEP-2 and admin UI. |
-| **`POST /api/ingest/entry`** | Real-time server-to-server | `Authorization: Bearer` + `MICROSITE_WEBHOOK_KEY`; idempotency via `micrositeEntryId`; optional QR + email. See [STEP-2-CENTRAL-HUB.md](STEP-2-CENTRAL-HUB.md). |
 | **Eventbrite (organizer)** | Pull guestlist into an event | Admin → **Integrations** (`/admin/events/integrations`): Eventbrite event ID + [private token](https://www.eventbrite.com/platform/docs/authentication); `POST /api/integrations/eventbrite/sync`; idempotency via `microsite_entry_id` prefix `eb:{attendeeId}`; optional “save credentials” stores token in `events.settings.eventbrite` (stripped from all `rowToEvent` responses). **Details, testing protocol, edge cases:** [EVENTBRITE-INTEGRATION.md](EVENTBRITE-INTEGRATION.md). |
-| **Portable Cursor rule** | Dev velocity in other repos | [form-microsite-hub-integration.mdc](form-microsite-hub-integration.mdc) — copy into a microsite’s `.cursor/rules/`; [FORM-MICROSITE-SETUP.md](FORM-MICROSITE-SETUP.md). |
-
-Per-event webhook keys (Option B in STEP-2) are documented; implement or tighten as integration usage grows.
 
 ---
 
@@ -52,7 +48,7 @@ Per-event webhook keys (Option B in STEP-2) are documented; implement or tighten
 ## Scalability and semantics
 
 - **Retries** — External systems (including Zapier) retry; **idempotency** (`micrositeEntryId` or equivalent) must be documented as mandatory for stable integrations.
-- **Bursts** — Ticketing on-sales can spike traffic; monitor DB and email side effects (`sendEmail` from webhook). Queue or backoff strategies belong on the roadmap if real pain appears.
+- **Bursts** — Ticketing on-sales can spike traffic; monitor DB and email side effects on bulk operations. Queue or backoff strategies belong on the roadmap if real pain appears.
 - **Business semantics** — “Order paid” ≠ one row; refunds and multi-ticket orders need explicit product rules or documented limitations (append-only guestlist vs sync).
 
 ---

@@ -386,5 +386,5 @@ export const POST: APIRoute = async ({ request }) => {
 
 - Current RSVP implementation: `src/components/RSVPForm.tsx`, `src/pages/api/attendees.ts`
 - Event settings pattern: `src/lib/db/event-row.ts` (see `sanitizeEventSettings`)
-- Microsite integration (external): `docs/FORM-MICROSITE-SETUP.md`
+- Guestlist from external tools: CSV import — `docs/STEP-2-CENTRAL-HUB.md`
 - Master plan/roadmap: `docs/MASTER-PLAN.md`

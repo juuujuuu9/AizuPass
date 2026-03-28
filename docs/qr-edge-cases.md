@@ -44,16 +44,14 @@ npm run test:generate-csvs
 | 7 | Bulk send: Empty attendee list | POST /api/attendees/send-bulk-qr | 400 |
 | 8 | Bulk send: Missing eventId | POST /api/attendees/send-bulk-qr | 400 |
 | 9 | Bulk send: Non-existent event | POST /api/attendees/send-bulk-qr | 404 |
-| 10 | Webhook: Missing auth | POST /api/ingest/entry | 401 |
-| 11 | Webhook: Wrong auth | POST /api/ingest/entry | 401 |
-| 12 | Refresh QR: Missing ID | POST /api/attendees/refresh-qr | 400 |
-| 13 | Refresh QR: Non-existent attendee | POST /api/attendees/refresh-qr | 404 |
-| 14 | Bulk refresh: Missing confirmation | POST /api/attendees/refresh-qr-bulk | 400 |
-| 15 | Import: Non-existent event | POST /api/attendees/import | 404 |
-| 16 | Import: Headers only (empty rows) | POST /api/attendees/import | 400 or 404 |
-| 17 | Import: Invalid eventId format | POST /api/attendees/import | 400, 404, or 500 |
-| 18 | Checkin: Malformed UUID in QR | POST /api/checkin | 400, 404, or 429 |
-| 19 | Checkin: Valid format but wrong token | POST /api/checkin | 400, 401, 404, or 429 |
+| 10 | Refresh QR: Missing ID | POST /api/attendees/refresh-qr | 400 |
+| 11 | Refresh QR: Non-existent attendee | POST /api/attendees/refresh-qr | 404 |
+| 12 | Bulk refresh: Missing confirmation | POST /api/attendees/refresh-qr-bulk | 400 |
+| 13 | Import: Non-existent event | POST /api/attendees/import | 404 |
+| 14 | Import: Headers only (empty rows) | POST /api/attendees/import | 400 or 404 |
+| 15 | Import: Invalid eventId format | POST /api/attendees/import | 400, 404, or 500 |
+| 16 | Checkin: Malformed UUID in QR | POST /api/checkin | 400, 404, or 429 |
+| 17 | Checkin: Valid format but wrong token | POST /api/checkin | 400, 401, 404, or 429 |
 
 ---
 

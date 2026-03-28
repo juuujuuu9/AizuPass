@@ -103,16 +103,54 @@ button,
     padding-right: 0.125rem;
   }
 
+  /* Narrow rail: every section link stays as an icon button; labels hidden via .admin-sidebar-link-label */
   html.admin-sidebar-collapsed .admin-sidebar-links {
-    flex-grow: 0;
-    flex-shrink: 0;
-    height: 0;
+    flex: 1 1 0;
     min-height: 0;
-    visibility: hidden;
+    padding: 0.5rem 0.25rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  html.admin-sidebar-collapsed .admin-sidebar-links > a {
+    position: relative;
+    justify-content: center;
+    gap: 0;
+    padding-left: 0.375rem;
+    padding-right: 0.375rem;
+  }
+
+  html.admin-sidebar-collapsed .admin-sidebar-link-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
     padding: 0;
-    margin: 0;
+    margin: -1px;
     overflow: hidden;
-    pointer-events: none;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  /* Full-bleed separator: cancel nav horizontal padding so the line spans the rail */
+  html.admin-sidebar-collapsed .admin-sidebar-links .border-t {
+    margin-left: -0.25rem;
+    margin-right: -0.25rem;
+    width: calc(100% + 0.5rem);
+    max-width: none;
+  }
+
+  html.admin-sidebar-collapsed .admin-sidebar-links > div.flex {
+    margin-top: 0.5rem !important;
+    gap: 0.5rem;
+  }
+
+  html.admin-sidebar-collapsed .admin-sidebar-links > div.flex > a {
+    position: relative;
+    justify-content: center;
+    gap: 0;
+    padding-left: 0.375rem;
+    padding-right: 0.375rem;
   }
 }
 

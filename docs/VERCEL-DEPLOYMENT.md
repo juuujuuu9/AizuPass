@@ -52,7 +52,6 @@ In your Vercel project dashboard, go to **Settings > Environment Variables** and
 
 | Variable | Value | Purpose |
 |----------|-------|---------|
-| `MICROSITE_WEBHOOK_KEY` | `openssl rand -hex 32` | Webhook security key |
 | `QR_TOKEN_TTL_DAYS` | `30` | QR validity (days) |
 | `DEFAULT_EVENT_SLUG` | `main-event` | Default event identifier |
 | `APP_URL` | `https://yourdomain.com` | Canonical site URL: staff invite links, organizer welcome email (`/onboarding/organization`). On Vercel, `VERCEL_URL` is a fallback if unset. |

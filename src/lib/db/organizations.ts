@@ -3,6 +3,7 @@
  * Split from `db.ts` (2026-03-22); see docs/DB-MODULE-LAYOUT.md.
  */
 import { getDb } from './client';
+import { invalidateUserAccessCache } from './user-access-cache';
 import { rowToEvent, type EventRow } from './event-row';
 
 export interface OrganizationRow {
@@ -307,6 +308,7 @@ export async function createOrganizationForOwner(ownerUserId: string, name: stri
     VALUES (${membershipId}, ${organizationId}, ${ownerUserId}, 'organizer', ${ownerUserId}, NOW())
     ON CONFLICT (organization_id, user_id) DO NOTHING
   `;
+  invalidateUserAccessCache(ownerUserId);
   return rowToOrganization(rows[0] as Record<string, unknown>);
 }
 
@@ -399,8 +401,12 @@ export async function removeOrganizationMembership(
     DELETE FROM organization_memberships
     WHERE id = ${membershipId}
       AND organization_id = ${organizationId}
-    RETURNING id
+    RETURNING id, user_id
   `;
+  if (rows.length > 0) {
+    const uid = (rows[0] as Record<string, unknown>).user_id as string;
+    if (uid) invalidateUserAccessCache(uid);
+  }
   return rows.length > 0;
 }
 
@@ -461,5 +467,6 @@ export async function acceptOrganizationInvitation(token: string, userId: string
     ON CONFLICT (organization_id, user_id) DO NOTHING
   `;
   await db`UPDATE organization_invitations SET status = 'accepted' WHERE id = ${invite.id}`;
+  invalidateUserAccessCache(userId);
   return { ok: true as const, organizationId: String(invite.organization_id) };
 }

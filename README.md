@@ -19,7 +19,6 @@
 - **CSV import** (primary path for most organizers): delimiter auto-detect, UTF-8, row warnings, skipped-row export, **add / merge / replace** modes, batched processing; identity rules (email + name columns). Extra columns map into `source_data`.
 - **CSV export**; bulk actions (select, delete, export).
 - **Public RSVP** via `POST /api/attendees` (rate-limited, Zod-validated) for unauthenticated registration when enabled by flow.
-- **Webhook ingestion** for external forms and servers: `POST /api/ingest/entry` with shared secret, optional idempotency via `micrositeEntryId`, optional QR generation and email.
 
 ### Scanner and check-in
 
@@ -27,7 +26,7 @@
 - **Manual check-in by name** (search by name/email); **atomic** manual path with **409** on duplicate check-in.
 - **Traffic-light** feedback (success / already checked in / error), **audio + haptic**, **aria-live**; distinct cues for “already checked in.”
 - **Offline**: IndexedDB cache of attendee payloads, **queued check-ins**, sync on reconnect with **retry/backoff**, **visible queue count**, **queue dedupe**; 409 treated as success on replay.
-- **Demo QR codes** for training in dev (`DEMO-*`); gated in production unless `ENABLE_DEMO_CODES` is set.
+- **Demo QR codes** for training in dev (`DEMO-*`); production requires `ENABLE_DEMO_CODES` and `ENABLE_DEMO_CODES_IN_PRODUCTION`.
 
 ### QR and email
 
@@ -199,7 +198,6 @@ CSV remains the **default** guestlist path for typical organizers; API and autom
 | `POST /api/attendees/send-bulk-qr` | Bulk QR email |
 | `POST /api/attendees/refresh-qr` | Single attendee QR refresh |
 | `GET/POST /api/events`, `GET/DELETE /api/events/:id` | List/create events; get/delete one event |
-| `POST /api/ingest/entry` | External guestlist / microsite webhook |
 | `GET /api/health` | Health check |
 
 ---
@@ -214,12 +212,11 @@ See `.env.example` for the canonical list. Main variables:
 - `RESEND_API_KEY`
 - `FROM_EMAIL`
 - `FROM_NAME`
-- `MICROSITE_WEBHOOK_KEY` (webhook ingestion)
 - `DEFAULT_EVENT_SLUG`
 - `APP_URL` (optional)
 - `PORT` (optional)
 - `QR_TOKEN_TTL_DAYS` (optional)
-- `ENABLE_DEMO_CODES` (optional; demo QR codes in production for training)
+- `ENABLE_DEMO_CODES` + `ENABLE_DEMO_CODES_IN_PRODUCTION` (optional; both required for demo QR codes in production)
 
 ---
 
@@ -254,9 +251,8 @@ See `.env.example` for the canonical list. Main variables:
 | [`docs/README.md`](docs/README.md) | User-facing docs index (guides, FAQ) |
 | [`docs/VERCEL-DEPLOYMENT.md`](docs/VERCEL-DEPLOYMENT.md) | Production deployment |
 | [`docs/AUTH-CLERK-SETUP.md`](docs/AUTH-CLERK-SETUP.md) | Clerk + org/membership |
-| [`docs/STEP-2-CENTRAL-HUB.md`](docs/STEP-2-CENTRAL-HUB.md) | Central hub, CSV, webhook |
+| [`docs/STEP-2-CENTRAL-HUB.md`](docs/STEP-2-CENTRAL-HUB.md) | Central hub, CSV import |
 | [`docs/EMAIL-SENDER-GO-LIVE-CHECKLIST.md`](docs/EMAIL-SENDER-GO-LIVE-CHECKLIST.md) | Resend domain go-live |
-| [`docs/FORM-MICROSITE-SETUP.md`](docs/FORM-MICROSITE-SETUP.md) | External form ↔ hub |
 
 ---
 

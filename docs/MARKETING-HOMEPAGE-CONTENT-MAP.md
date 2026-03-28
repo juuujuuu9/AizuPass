@@ -16,7 +16,7 @@ Use these as headline/sub-head raw material; refine with ICP (conference, gym, c
 | Accuracy & abuse | Shared screenshots, wrong person | Token-based QR (no PII in payload) + clear "already checked in" handling |
 | Ops reality | Bad Wi‑Fi, crowded lobby | Offline queue + sync when back online |
 | Organizer workflow | Spreadsheets everywhere | CSV import/export, event-scoped lists, admin dashboard |
-| Builders / LC-NC | Custom forms, other tools | Webhook ingestion + optional automation path (CSV still default) |
+| Builders / LC-NC | Custom forms, other tools | CSV import/export + future Zapier/Make parity (CSV still default) |
 
 **Constraint to phrase carefully (product model today):** README notes **one organization per organizer** and **one event per organization** — homepage language should not imply unlimited parallel orgs/events per account unless that changes. "Central hub" in dev docs refers to architecture (event-scoped data, APIs), not necessarily unlimited events per customer.
 
@@ -52,7 +52,7 @@ Use these as headline/sub-head raw material; refine with ICP (conference, gym, c
 | "Is this the right person?" / duplicate entry | Traffic-light UI; **409** = already checked in; distinct audio/haptic; manual search by name/email |
 | Wi‑Fi dead zones | IndexedDB cache, offline check-in queue, dedupe, retry/backoff, queue count visible to staff |
 | Guestlist in Excel/Sheets | CSV import with delimiter detect, UTF-8 guidance, merge/replace modes, row warnings + skipped-row export |
-| Another system collects signups | `POST /api/ingest/entry` with shared secret, idempotency key, optional QR email refresh |
+| Another system collects signups | CSV import (primary); automation integrations on roadmap |
 | Staff need simple tools | Dedicated `/scanner` vs `/admin`; Clerk auth; org memberships + invitations |
 
 ---

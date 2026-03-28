@@ -125,11 +125,13 @@ export const POST: APIRoute = async (context) => {
     const { qrData, scannerEventId, scannerDeviceId } = validation.data;
 
     // Demo codes: canned responses for staff testing (never touch DB).
-    // Disabled in production by default to prevent forged check-ins.
-    // Set ENABLE_DEMO_CODES=true to enable on production for staff training.
+    // ME-5: In production require both ENABLE_DEMO_CODES and ENABLE_DEMO_CODES_IN_PRODUCTION.
     const normalized = qrData.replace(/\uFEFF/g, '').trim();
     const isProduction = import.meta.env.PROD || process.env.NODE_ENV === 'production';
-    const demoCodesEnabled = !isProduction || process.env.ENABLE_DEMO_CODES === 'true';
+    const demoCodesEnabled =
+      !isProduction ||
+      (process.env.ENABLE_DEMO_CODES === 'true' &&
+        process.env.ENABLE_DEMO_CODES_IN_PRODUCTION === 'true');
     if (demoCodesEnabled) {
       const demoResponses: Record<string, { body: object; status?: number }> = {
         'DEMO-SUCCESS': {
@@ -156,7 +158,11 @@ export const POST: APIRoute = async (context) => {
       };
       const demo = demoResponses[normalized];
       if (demo) {
-        console.log('[Demo Check-In]', normalized, isProduction ? '- triggered (ENABLE_DEMO_CODES override)' : '- triggered in dev environment');
+        console.log(
+          '[Demo Check-In]',
+          normalized,
+          isProduction ? '- triggered (demo codes enabled for production)' : '- triggered in dev environment'
+        );
         logCheckInAttempt({ ip, outcome: `demo_${normalized.toLowerCase().replace('demo-', '')}` as any });
         return json(demo.body, demo.status ?? 200);
       }

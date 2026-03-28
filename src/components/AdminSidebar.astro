@@ -39,9 +39,10 @@ const {
   showEventImport = true,
 } = Astro.props;
 
-const linkActive = 'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md bg-primary/10 text-primary';
+const linkActive =
+  'admin-sidebar-nav-link flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md bg-primary/10 text-primary';
 const linkIdle =
-  'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors';
+  'admin-sidebar-nav-link flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors';
 
 const mobileTabActive =
   'shrink-0 whitespace-nowrap border-b-[3px] border-foreground py-3 px-1 -mb-px text-sm font-medium text-foreground';
@@ -123,43 +124,59 @@ const mobileTabIdle =
   >
     {variant === 'organization' && (
       <>
-        <a href={`/admin/organization${organizationNavQuery}`} class={active === 'overview' ? linkActive : linkIdle}>
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <a
+          href={`/admin/organization${organizationNavQuery}`}
+          class={active === 'overview' ? linkActive : linkIdle}
+          title="Overview"
+        >
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
           </svg>
-          Overview
+          <span class="admin-sidebar-link-label">Overview</span>
         </a>
-        <a href={`/admin/organization/staff${organizationNavQuery}`} class={active === 'staff' ? linkActive : linkIdle}>
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <a
+          href={`/admin/organization/staff${organizationNavQuery}`}
+          class={active === 'staff' ? linkActive : linkIdle}
+          title="Staff"
+        >
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
           </svg>
-          Staff
+          <span class="admin-sidebar-link-label">Staff</span>
         </a>
         {showOrganizationBilling && (
-          <a href={`/admin/organization/billing${organizationNavQuery}`} class={active === 'billing' ? linkActive : linkIdle}>
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <a
+            href={`/admin/organization/billing${organizationNavQuery}`}
+            class={active === 'billing' ? linkActive : linkIdle}
+            title="Billing"
+          >
+            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
             </svg>
-            Billing
+            <span class="admin-sidebar-link-label">Billing</span>
           </a>
         )}
-        <a href={`/admin/organization/settings${organizationNavQuery}`} class={active === 'settings' ? linkActive : linkIdle}>
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <a
+          href={`/admin/organization/settings${organizationNavQuery}`}
+          class={active === 'settings' ? linkActive : linkIdle}
+          title="Settings"
+        >
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-          Settings
+          <span class="admin-sidebar-link-label">Settings</span>
         </a>
         {showBackToOrganizations && (
           <div class="!mt-3 flex w-full flex-col gap-3">
             <div class="w-full shrink-0 border-t border-border" aria-hidden="true" />
-            <a href="/admin" class={`${linkIdle} text-xs font-normal`}>
+            <a href="/admin" class={`${linkIdle} text-xs font-normal`} title="Manage Organizations">
               <svg class="h-[0.67rem] w-[0.67rem] shrink-0" viewBox="0 0 96.154 96.154" aria-hidden="true" fill="currentColor">
                 <path
                   d="M75.183.561 17.578 46.513c-.951.76-.951 2.367 0 3.126l57.608 45.955c.689.547 1.717.709 2.61.414c.186-.061.33-.129.436-.186c.65-.351 1.057-1.025 1.057-1.765V2.093c0-.736-.405-1.414-1.057-1.762c-.108-.059-.253-.127-.426-.184C76.903-.15 75.874.011 75.183.561z"
                 />
               </svg>
-              Manage Organizations
+              <span class="admin-sidebar-link-label">Manage Organizations</span>
             </a>
           </div>
         )}
@@ -167,29 +184,33 @@ const mobileTabIdle =
     )}
     {variant === 'event' && eventId && (
       <>
-        <a href={`/admin?event=${eventId}`} class={active === 'attendees' ? linkActive : linkIdle}>
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <a href={`/admin?event=${eventId}`} class={active === 'attendees' ? linkActive : linkIdle} title="Attendees">
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
           </svg>
-          Attendees
+          <span class="admin-sidebar-link-label">Attendees</span>
         </a>
         {showEventImport && (
-          <a href={`/admin/events/import?event=${eventId}`} class={active === 'import' ? linkActive : linkIdle}>
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <a href={`/admin/events/import?event=${eventId}`} class={active === 'import' ? linkActive : linkIdle} title="Import">
+            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
-            Import
+            <span class="admin-sidebar-link-label">Import</span>
           </a>
         )}
-        <a href={`/api/attendees/export?eventId=${eventId}`} class={active === 'export' ? linkActive : linkIdle}>
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <a href={`/api/attendees/export?eventId=${eventId}`} class={active === 'export' ? linkActive : linkIdle} title="Export">
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
-          Export
+          <span class="admin-sidebar-link-label">Export</span>
         </a>
         {showEventImport && (
-          <a href={`/admin/events/integrations?event=${eventId}`} class={active === 'integrations' ? linkActive : linkIdle}>
+          <a
+            href={`/admin/events/integrations?event=${eventId}`}
+            class={active === 'integrations' ? linkActive : linkIdle}
+            title="Integrations"
+          >
             <svg class="h-4 w-4 shrink-0" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path
                 fill="currentColor"
@@ -200,15 +221,15 @@ const mobileTabIdle =
                 d="M42,40H12V33.7A8,8,0,0,0,18,26V22a2,2,0,0,0-2-2H15V16a2,2,0,0,0-4,0v4H9V16a2,2,0,0,0-4,0v4H4a2,2,0,0,0-2,2v4a8,8,0,0,0,6,7.7V40a4,4,0,0,0,4,4H42a2,2,0,0,0,0-4Z"
               />
             </svg>
-            Integrations
+            <span class="admin-sidebar-link-label">Integrations</span>
           </a>
         )}
-        <a href={`/admin/events/edit?event=${eventId}`} class={active === 'settings' ? linkActive : linkIdle}>
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <a href={`/admin/events/edit?event=${eventId}`} class={active === 'settings' ? linkActive : linkIdle} title="Settings">
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-          Settings
+          <span class="admin-sidebar-link-label">Settings</span>
         </a>
         {eventWorkspaceOrganizationId && (
           <div class="!mt-3 flex w-full flex-col gap-3">
@@ -216,13 +237,14 @@ const mobileTabIdle =
             <a
               href={`/admin/organization?id=${eventWorkspaceOrganizationId}`}
               class={`${linkIdle} text-xs font-normal`}
+              title="Manage Events"
             >
               <svg class="h-[0.67rem] w-[0.67rem] shrink-0" viewBox="0 0 96.154 96.154" aria-hidden="true" fill="currentColor">
                 <path
                   d="M75.183.561 17.578 46.513c-.951.76-.951 2.367 0 3.126l57.608 45.955c.689.547 1.717.709 2.61.414c.186-.061.33-.129.436-.186c.65-.351 1.057-1.025 1.057-1.765V2.093c0-.736-.405-1.414-1.057-1.762c-.108-.059-.253-.127-.426-.184C76.903-.15 75.874.011 75.183.561z"
                 />
               </svg>
-              Manage Events
+              <span class="admin-sidebar-link-label">Manage Events</span>
             </a>
           </div>
         )}
@@ -239,16 +261,11 @@ const mobileTabIdle =
     function sync() {
       var collapsed = root.classList.contains('admin-sidebar-collapsed');
       var btn = document.getElementById('admin-sidebar-toggle');
-      var links = document.querySelector('.admin-sidebar-links');
       if (btn) {
         btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
         btn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
         var icon = btn.querySelector('.admin-sidebar-toggle-chevron');
         if (icon) icon.classList.toggle('rotate-180', collapsed);
-      }
-      if (links) {
-        if (collapsed) links.setAttribute('inert', '');
-        else links.removeAttribute('inert');
       }
     }
 

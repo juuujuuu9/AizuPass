@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-27 — Added marketing ideas doc with Tapcart case study. See [MARKETING-IDEAS.md](MARKETING-IDEAS.md). Previous: Pricing finalized: Eventbrite-matching fees (3.5% + $1.79), payout speed as tier differentiator (Free=7 days, Pro=$39/48hr, Business=$99/daily).
+**Last updated:** 2026-03-28 — Removed microsite server webhook (`POST /api/ingest/entry`) and related docs to reduce surface area; CSV + Eventbrite remain. Previous: marketing ideas doc with Tapcart case study ([MARKETING-IDEAS.md](MARKETING-IDEAS.md)).
 
 ---
 
@@ -75,7 +75,7 @@
 | PWA / native store apps | Reference | Web-first; PWA then optional hybrid (e.g. Capacitor) or full native later—same API/offline semantics. See [Client platforms](#client-platforms-web-first-pwa-native). |
 | Offline sync resilience (backoff/idempotency/queue visibility) | **Done** | Added queue dedupe, retry-with-backoff sync, and scanner-visible queue count. |
 | Event-day scale / cache warm-up / load verification | Reference | Stress lens + prioritized hardening (verify-first): [EVENT-DAY-STRESS-HARDENING.md](EVENT-DAY-STRESS-HARDENING.md). |
-| Multi-event / central hub | **Done** | Events table, event-scoped attendees; guestlist ingestion: **CSV primary** for most users; `POST /api/ingest/entry` for automation; **Eventbrite** pull sync on **Integrations** (private token); Zapier/Make first-class TBD — see [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md). |
+| Multi-event / central hub | **Done** | Events table, event-scoped attendees; guestlist: **CSV primary**; **Eventbrite** pull sync on **Integrations** (private token); Zapier/Make first-class TBD — see [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md). |
 | Event-scoped scanner/manual override hardening | Partial | Event scoping exists broadly; scanner entry path/manual UX still needs stricter guardrails. |
 | Persistent event selection | **Done** | staff_preferences table; last_selected_event_id survives logout/login, works across devices. |
 | Attendance export with operational presets | Partial | Export with timestamps exists; dedicated checked-in/no-show presets pending. |
@@ -83,7 +83,7 @@
 | Real-time check-in counter dashboard | Partial | 30s polling exists; near real-time organizer dashboard still limited. |
 | Add to Wallet / Group / Capacity / Analytics | Not implemented | Optional; prioritize later. |
 | Paid ticketing (Stripe, ticket types, inventory) | Not implemented | Fourth attendee path: Checkout → webhook → attendee + payment metadata; catalog vs fulfillment split. Platform processing fee matches Eventbrite (3.5% + $1.79, attendee pays). Payout speed tiered: 7 days (Free) → 48hr (Pro $39) → Daily (Business $99). See [TICKETING-TYPES-PRICING-STRATEGY.md §4](TICKETING-TYPES-PRICING-STRATEGY.md). |
-| Rate limiting on RSVP/webhook | **Done** | `lib/rate-limit.ts`; 20/min attendees, 60/min webhook; checkin unchanged (5/min). |
+| Rate limiting on RSVP/APIs | **Done** | `lib/rate-limit.ts`; attendees, check-in, sync, etc.; distributed KV optional in production. |
 | Scanner debounce (150ms→500ms) | **Done** | `config/qr.ts` debounceMs: 500; CheckInScanner uses it. |
 | QR error correction H | **Done** | `config/qr.ts`; webhook email uses QR_GENERATION. |
 | db.ts split | **Partial** | First slice done (2026-03-22): `client.ts`, `event-row.ts`, `organizations.ts`; `db.ts` re-exports. Remaining: attendees/check-in/events-in-root as future slices. [DB-MODULE-LAYOUT.md](DB-MODULE-LAYOUT.md). |
@@ -109,7 +109,7 @@ Follow this order; check off and date as you complete each item.
 
 - [x] **Done.** Schema: `events` table, `attendees` extended with `event_id`, `microsite_entry_id`, `source_data`; migration `npm run migrate-events` (with `--dry-run`); default event backfill.
 - [x] **Done.** QR format: `eventId:entryId:token` (v2); encode/decode in `src/lib/qr.ts`; v1-legacy (2 parts) supported during transition.
-- [x] **Done.** Webhook: `POST /api/ingest/entry` with `MICROSITE_WEBHOOK_KEY`; idempotency by `event_id` + `microsite_entry_id`; optional QR refresh. Option B (per-event keys) doc’d in STEP-2.
+- [x] **Removed (2026-03).** Server webhook `POST /api/ingest/entry` (microsite automation) removed to reduce attack surface; `microsite_entry_id` column remains for Eventbrite sync (`eb:…` ids).
 - [x] **Done.** Admin: event selector, filter attendees/stats by event; `GET /api/events`, `GET /api/attendees?eventId=`; `/admin/events`, `/admin/events/new`.
 - [x] **Done.** Scanner: event name shown in success result when present.
 - [x] **Done.** CSV import: Admin → select event → Import CSV; map columns to attendees; dedupe by event+email; `source_data` for import metadata. See [STEP-2-CENTRAL-HUB.md](STEP-2-CENTRAL-HUB.md).
@@ -241,7 +241,7 @@ Follow this order; check off and date as you complete each item.
 
 ### 14. Public OpenAPI (developer surface)
 
-**Purpose:** Document and expand the public API for third-party integrations, ticketing platforms, custom scanner apps, and low-code tools. Build on existing `/api/ingest/entry` foundation.
+**Purpose:** Document and expand the public API for third-party integrations, ticketing platforms, custom scanner apps, and low-code tools. Build on existing CSV import and org-scoped APIs.
 
 **Strategy:** Start with OpenAPI v3 spec for existing webhook, add per-event API keys (scoped security), then expand CRUD surface. Target: developers and agencies building event integrations.
 
@@ -343,11 +343,9 @@ Deferred / lower priority:
 |-----|--------|
 | [PARTIFUL-KILLER.md](PARTIFUL-KILLER.md) | Strategy: vs Partiful wedges, phased roadmap, integration cross-rules, epic slugs; not a dev checklist until merged here. |
 | [STEP-1-QR-SECURITY-PLAN.md](STEP-1-QR-SECURITY-PLAN.md) | Item 1: UUID, token-only QR, rate limit, audit, migration. |
-| [STEP-2-CENTRAL-HUB.md](STEP-2-CENTRAL-HUB.md) | Item 3: Central hub, events, CSV import (primary), webhook optional. |
+| [STEP-2-CENTRAL-HUB.md](STEP-2-CENTRAL-HUB.md) | Item 3: Central hub, events, CSV import (primary). |
 | [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md) | Guestlist integrations: CSV-first for typical users; API + Zapier/Make as equal-weight automation paths; security/scalability notes. |
 | [EVENTBRITE-INTEGRATION.md](EVENTBRITE-INTEGRATION.md) | Eventbrite pull sync: setup, API, credentials, testing protocol, edge cases / support. |
-| [FORM-MICROSITE-SETUP.md](FORM-MICROSITE-SETUP.md) | Linking a form microsite to the hub; copying Cursor rule into new projects. |
-| [form-microsite-hub-integration.mdc](form-microsite-hub-integration.mdc) | Portable Cursor rule: copy to new microsite’s `.cursor/rules/` for hub integration context. |
 | [EMAIL-SENDER-GO-LIVE-CHECKLIST.md](EMAIL-SENDER-GO-LIVE-CHECKLIST.md) | Production sender cutover checklist (Resend domain verify, `FROM_EMAIL=noreply@...`, modal preview + smoke test). |
 | [ui-modernization/](ui-modernization/) | UI Modernization: CURSOR-CHECKLIST, qr-ui-components, qr-ui-animations.css. Rule: `.cursor/rules/ui-modernization.mdc`. Radix Colors: `radix-colors-mapping.md`. |
 | [MARKETING-IDEAS.md](MARKETING-IDEAS.md) | Homepage case studies (Tapcart analysis) and evolved positioning options for AizuPass marketing. |

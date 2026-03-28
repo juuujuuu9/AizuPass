@@ -12,7 +12,6 @@ const isPublicRoute = createRouteMatcher([
   '/onboarding/verify-email',
   '/invite/accept',
   '/api/clerk/welcome',
-  '/api/ingest/entry',
   '/api/health',
   '/api/auth/(.*)',
   '/_astro/(.*)',

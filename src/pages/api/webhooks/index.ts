@@ -1,8 +1,16 @@
 import type { APIRoute } from 'astro';
-import { json } from '../../../lib/api-response';
+import { json, errorResponse } from '../../../lib/api-response';
 import { getEnv } from '../../../lib/env';
+import { requireUserId } from '../../../lib/access';
 
-export const GET: APIRoute = () => {
+/** ME-4: Webhook URLs are setup hints — organizers only (not public reconnaissance). */
+export const GET: APIRoute = async (context) => {
+  const userId = requireUserId(context);
+  if (userId instanceof Response) return userId;
+  if (!context.locals.isAdmin) {
+    return errorResponse('Forbidden', 403);
+  }
+
   const baseUrl = getEnv('PUBLIC_APP_URL') || 'https://your-domain.com';
 
   return json({

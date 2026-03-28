@@ -1,13 +1,13 @@
 # Ticket types & pricing — implementation strategy
 
-**Purpose:** Future reference for paid ticketing: data model, Stripe alignment, and how it fits the existing hub (RSVP, CSV import, webhooks, QR email). Not an implementation spec; update this doc when decisions change.
+**Purpose:** Future reference for paid ticketing: data model, Stripe alignment, and how it fits the existing hub (RSVP, CSV import, QR email). Not an implementation spec; update this doc when decisions change.
 
 **Master plan:** [MASTER-PLAN.md](MASTER-PLAN.md)
 
 **Context in this codebase**
 
 - **Tenancy:** `organizations` → `events` (`organization_id`) → `attendees` (`event_id`). See `src/lib/db.ts`, org flows in [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md).
-- **Attendee entry paths today:** public `POST /api/attendees` (RSVP), CSV import, `POST /api/ingest/entry` with idempotency on `(event_id, microsite_entry_id)`. See [STEP-2-CENTRAL-HUB.md](STEP-2-CENTRAL-HUB.md).
+- **Attendee entry paths today:** RSVP (see app flows), CSV import, Eventbrite sync (uses `microsite_entry_id` with `eb:` prefix). See [STEP-2-CENTRAL-HUB.md](STEP-2-CENTRAL-HUB.md).
 - **Uniqueness:** Per-event email uniqueness (`UNIQUE(event_id, email)`) for RSVP-style registration.
 - **QR:** Payload `eventId:entryId:token`; generation and email reuse after attendee exists.
 - **SaaS vs ticket charges:** `/admin/organization/billing` is the natural home for **your product’s** subscription (organizers pay you). **Per-event ticket sales** are a separate Stripe surface (Connect or simple charges + metadata); do not conflate the two in one webhook handler without explicit routing.

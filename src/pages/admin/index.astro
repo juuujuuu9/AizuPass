@@ -41,7 +41,10 @@ if (eventIdParam) {
   eventOptions = events.map((e) => ({ id: e.id, name: e.name, slug: e.slug }));
 
   organization = ev.organizationId ? await getOrganizationById(ev.organizationId) : null;
-  const dbAttendees = userId ? await getAllAttendeesForUser(userId, eventIdParam) : [];
+  const attendeesPage = userId
+    ? await getAllAttendeesForUser(userId, eventIdParam, { limit: 100, offset: 0 })
+    : null;
+  const dbAttendees = attendeesPage?.data ?? [];
 
   initialAttendees = dbAttendees.map((a) => ({
     id: a.id,

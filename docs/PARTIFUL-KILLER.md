@@ -30,7 +30,7 @@ Use these slugs when filing work; fold into [MASTER-PLAN.md](MASTER-PLAN.md) whe
 |--------|--------|
 | `tenancy-multi-event` | Multi-event per org; remove `UNIQUE(events.organization_id)`; clone/template MVP |
 | `per-guest-rsvp-tokens` | Personal RSVP URLs (`/r/{token}`), bulk invite, revoke, rate limits |
-| `privacy-modes` | `events.settings.privacy`; enforce on public RSVP + ingest + sync + future Zapier |
+| `privacy-modes` | `events.settings.privacy`; enforce on public RSVP + sync + future Zapier |
 | `stripe-ticketing` | Ticket catalog + Checkout + webhook → attendee + QR email ([TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md)) |
 | `white-label-tier` | Org email/RSVP branding; optional BYO sending domain |
 | `sms-channel` | SMS delivery for invite/check-in links; compliance copy |
@@ -48,7 +48,7 @@ Use these slugs when filing work; fold into [MASTER-PLAN.md](MASTER-PLAN.md) whe
 | Design | Trending templates; samey layouts | **AI-generated** or highly customizable creative; escape template hell |
 | Branding | Strong Partiful / playful UI | **White-label**; custom domains later; client-owned presentation |
 | Privacy | Public / social-by-default feel | **Unlisted events**, invite-only gates, **no public guest list** on attendee surfaces; QR already token-only ([STEP-1-QR-SECURITY-PLAN.md](STEP-1-QR-SECURITY-PLAN.md)) |
-| Data collection | Basic RSVP / limited questions | **Rich `source_data`**, CSV, **`POST /api/ingest/entry`**; multi-step / conditional (hub or external forms + Zapier) |
+| Data collection | Basic RSVP / limited questions | **Rich `source_data`**, CSV, automation (Zapier/Make when shipped); multi-step / conditional |
 | Payments | Venmo / Cash App / PayPal links | **Native Stripe**; ticket types, inventory, professional checkout ([TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md)) |
 | Recurring / power users | Weak cloning | **Clone events**, templates — **blocked until multi-event per org** |
 | Delivery | Text-message centric | **Email + SMS**, host chooses channel; no forced “text blast” tone |
@@ -59,7 +59,7 @@ Use these slugs when filing work; fold into [MASTER-PLAN.md](MASTER-PLAN.md) whe
 
 - **Browser-first registration:** Public `POST /api/attendees`, rate-limited; see codebase `src/pages/api/attendees.ts`, `RSVPForm`.
 - **Door-grade ops:** Offline queue, atomic check-in, scanner UX — core moat vs. invite-only competitors.
-- **Integrations hub:** CSV-first, server webhook, Eventbrite pull sync — see below.
+- **Integrations hub:** CSV-first, Eventbrite pull sync — see below.
 
 ---
 
@@ -72,20 +72,18 @@ Canonical detail: [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md), [STEP-2-
 | Path | Role |
 |------|------|
 | CSV import | Primary for many organizers; column mapping → `source_data` |
-| `POST /api/ingest/entry` | Server-to-server create/update; `micrositeEntryId` idempotency; optional QR + email |
 | Eventbrite sync | `POST /api/integrations/eventbrite/sync`; see [EVENTBRITE-INTEGRATION.md](EVENTBRITE-INTEGRATION.md) |
 | Public RSVP API | First-party form; must stay consistent with future **privacy modes** |
-| Microsite pattern | [FORM-MICROSITE-SETUP.md](FORM-MICROSITE-SETUP.md) — optional landing + ingest |
 
 **Planned / backlog**
 
 - **Zapier / Make** — first-class parity with HTTP guestlist behavior ([MASTER-PLAN.md](MASTER-PLAN.md) §10).
-- **Per-event webhook keys** — documented as Option B in STEP-2; tighten as usage grows.
+- **Per-event API keys** — see [MASTER-PLAN.md](MASTER-PLAN.md) §14 OpenAPI.
 - **OpenAPI-oriented docs** — same tier as Zapier for builders.
 
 **Cross-cutting rules**
 
-1. **Idempotency** on all new write paths (Stripe webhooks, invitation APIs) like ingest and Eventbrite `eb:{attendeeId}`.
+1. **Idempotency** on all new write paths (Stripe webhooks, invitation APIs) like Eventbrite `eb:{attendeeId}`.
 2. **Privacy** applies to **every entry path**; document exceptions (e.g. trusted automation with bearer key) explicitly.
 3. **Bursts** — ticketing/on-sales spikes; queue or backoff for email/QR side effects if needed.
 4. **Clone / template** — copy `events.settings` (including integration config) safely when multi-event lands.
@@ -140,8 +138,8 @@ flowchart LR
 1. **Personalized browser RSVP** — `rsvp_tokens` table; `GET/POST` `/r/{token}`; organizer bulk + revoke; extend rate limits (`src/lib/rate-limit.ts`).
 2. **AI / unique creative** — Path A: microsite kit + generated assets in `events.settings`; Path B: first-party `events.slug` public pages.
 3. **White-label** — org-level email HTML, colors, logo; BYO domain for email; later Vercel-style mapping for public pages.
-4. **Privacy** — `events.settings.privacy`: visibility, RSVP mode, admin approval; audit ingest + sync + future Zapier.
-5. **Data collection** — short term: CSV + ingest + docs; medium term: hub form builder **or** double down on integrations.
+4. **Privacy** — `events.settings.privacy`: visibility, RSVP mode, admin approval; audit RSVP + sync + future Zapier.
+5. **Data collection** — short term: CSV + docs; medium term: hub form builder **or** double down on integrations.
 6. **Ticketing** — Checkout → webhook → attendee + payment fields → existing QR email; separate SaaS billing from ticket Stripe account.
 7. **Cloning** — after multi-event: duplicate event without guests by default; optional template library.
 8. **SMS** — provider integration; tie to same invitation tokens; TCPA-aware defaults.
@@ -174,5 +172,5 @@ flowchart LR
 | [PRODUCT-STRATEGY.md](PRODUCT-STRATEGY.md) | ICP, tiers, general positioning |
 | [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md) | CSV / API / automation principles |
 | [TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md) | Stripe and ticket model |
-| [STEP-2-CENTRAL-HUB.md](STEP-2-CENTRAL-HUB.md) | Hub architecture, ingest contract |
+| [STEP-2-CENTRAL-HUB.md](STEP-2-CENTRAL-HUB.md) | Hub architecture, CSV import |
 | [.cursor/plans/partiful-killer_roadmap_f7562ea3.plan.md](../.cursor/plans/partiful-killer_roadmap_f7562ea3.plan.md) | Long-form Cursor plan (if present in clone) |

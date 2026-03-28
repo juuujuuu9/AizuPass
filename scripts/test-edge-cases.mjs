@@ -322,27 +322,7 @@ async function runTests() {
     }
   });
 
-  // 10. Webhook: Missing auth
-  await test('Webhook: Missing authorization', async () => {
-    const { status, data } = await post('/api/ingest/entry', { eventSlug: 'test' });
-    if (status !== 401) {
-      throw new Error(`Expected 401, got ${status}: ${JSON.stringify(data)}`);
-    }
-  });
-
-  // 11. Webhook: Wrong auth
-  await test('Webhook: Wrong authorization', async () => {
-    const { status, data } = await post(
-      '/api/ingest/entry',
-      { eventSlug: 'test' },
-      { Authorization: 'Bearer wrong-key' }
-    );
-    if (status !== 401) {
-      throw new Error(`Expected 401, got ${status}: ${JSON.stringify(data)}`);
-    }
-  });
-
-  // 12. Refresh QR: Missing ID
+  // 10. Refresh QR: Missing ID
   await test('Refresh QR: Missing attendee ID', async () => {
     const { status, data } = await post('/api/attendees/refresh-qr', {});
     if (status !== 400) {
@@ -350,7 +330,7 @@ async function runTests() {
     }
   });
 
-  // 13. Refresh QR: Non-existent attendee
+  // 11. Refresh QR: Non-existent attendee
   await test('Refresh QR: Non-existent attendee', async () => {
     const { status, data } = await post('/api/attendees/refresh-qr', {
       id: '00000000-0000-0000-0000-000000000000',
@@ -360,7 +340,7 @@ async function runTests() {
     }
   });
 
-  // 14. Bulk refresh: Missing confirmation
+  // 12. Bulk refresh: Missing confirmation
   await test('Bulk refresh: Missing confirmation', async () => {
     const { status, data } = await post('/api/attendees/refresh-qr-bulk', {
       eventId: 'test',
@@ -370,7 +350,7 @@ async function runTests() {
     }
   });
 
-  // 15. Import: Non-existent event
+  // 13. Import: Non-existent event
   await test('Import: Non-existent event', async () => {
     const formData = new FormData();
     formData.append('eventId', '00000000-0000-0000-0000-000000000000');
@@ -381,7 +361,7 @@ async function runTests() {
     }
   });
 
-  // 16. Import: Headers only (empty rows)
+  // 14. Import: Headers only (empty rows)
   await test('Import: Headers only (empty rows)', async () => {
     const { status: eventsStatus, data: eventsData } = await get('/api/events');
     const eventId = eventsStatus === 200 && Array.isArray(eventsData) && eventsData.length > 0
@@ -400,7 +380,7 @@ async function runTests() {
     }
   });
 
-  // 17. Import: Invalid eventId format (use non-UUID; API may 400, 404, or 500)
+  // 15. Import: Invalid eventId format (use non-UUID; API may 400, 404, or 500)
   await test('Import: Invalid eventId format', async () => {
     const formData = new FormData();
     formData.append('eventId', 'not-a-uuid');
@@ -411,7 +391,7 @@ async function runTests() {
     }
   });
 
-  // 18. Checkin: Malformed UUID in QR
+  // 16. Checkin: Malformed UUID in QR
   await test('Checkin: Malformed UUID in QR', async () => {
     const { status } = await post('/api/checkin', {
       qrData: 'not-a-uuid:also-not:token',
@@ -422,7 +402,7 @@ async function runTests() {
     }
   });
 
-  // 19. Checkin: Valid format but wrong token (valid UUIDs, invalid token)
+  // 17. Checkin: Valid format but wrong token (valid UUIDs, invalid token)
   await test('Checkin: Valid format but wrong token', async () => {
     const fakePayload = `${FAKE_QR_EVENT}:00000000-0000-0000-0000-000000000002:invalid-token-12345`;
     const { status } = await post('/api/checkin', {
@@ -434,7 +414,7 @@ async function runTests() {
     }
   });
 
-  // 20. Checkin: Concurrent manual check-ins should be one success + one conflict
+  // 18. Checkin: Concurrent manual check-ins should be one success + one conflict
   await test('Checkin: Concurrent manual check-in race', async () => {
     const eventId = EDGE_CASE_EVENT_ID || (await getDefaultEventId());
     if (!eventId) {
