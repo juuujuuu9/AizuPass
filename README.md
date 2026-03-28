@@ -11,7 +11,7 @@
 - **Clerk** authentication (multiple IdPs supported via Clerk).
 - **App-managed organizations**, memberships, and **email invitations** (replaces env-based allowlists).
 - Constraints aligned with a future paywall: **one organization per organizer**, **one event per organization** (see [`docs/AUTH-CLERK-SETUP.md`](docs/AUTH-CLERK-SETUP.md)).
-- Flows: `/onboarding/organization`, `/onboarding/profile` (display name), `/invite/accept`, `/admin/organization` (+ staff, settings, billing pages).
+- Flows: `/onboarding/organization`, `/onboarding/profile` (display name), `/invite/accept`, `/admin/organization` (+ staff, settings, finance pages).
 
 ### Events and guestlist
 
@@ -176,7 +176,7 @@ CSV remains the **default** guestlist path for typical organizers; API and autom
 | `/admin/organization` | Organization settings + invitations |
 | `/admin/organization/staff` | Staff management |
 | `/admin/organization/settings` | Organization settings |
-| `/admin/organization/billing` | Billing placeholder |
+| `/admin/organization/finance` | Finance / subscription placeholder |
 | `/login` | Sign-in |
 | `/signup` | Sign-up (Clerk) |
 | `/invite/accept` | Invitation acceptance |

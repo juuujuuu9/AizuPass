@@ -22,9 +22,8 @@ if (resolved.status === 'redirect') {
 
 const organization = resolved.status === 'ok' ? resolved.organization : null;
 const orgNavQuery = resolved.status === 'ok' ? resolved.orgNavQuery : '';
-const showBackToOrganizations = orgNavQuery !== '';
 const isOrganizerUser = Astro.locals.isAdmin;
-const showOrganizationBilling = organization
+const showOrganizationFinance = organization
   ? await isUserOrganizerForOrganization(userId, organization)
   : false;
 ---
@@ -52,8 +51,7 @@ const showOrganizationBilling = organization
           variant="organization"
           active="settings"
           organizationNavQuery={orgNavQuery}
-          showBackToOrganizations={showBackToOrganizations}
-          showOrganizationBilling={showOrganizationBilling}
+          showOrganizationFinance={showOrganizationFinance}
         />
       )}
 

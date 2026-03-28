@@ -63,7 +63,7 @@ const fromEmail = getEnv('FROM_EMAIL') || 'onboarding@resend.dev';
           variant="event"
           eventId={event.id}
           active="import"
-          eventWorkspaceOrganizationId={organization?.id}
+          eventWorkspaceOrganizationId={organization?.id ?? event?.organizationId ?? ''}
           showEventImport={showEventImport}
         />
       )}

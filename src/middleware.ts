@@ -3,6 +3,13 @@ import { isPrimaryEmailVerifiedByClerk } from './lib/clerk-primary-email-verifie
 import { hasEmailOnboardingPendingCookie } from './lib/onboarding-email-cookie';
 import { ensureUserRow, getUserAccessSummary, getUserById } from './lib/db';
 import { scheduleWelcomeEmailIfPending } from './lib/welcome-email-followup';
+import {
+  getAppOrigin,
+  getRequestHost,
+  isAppOnlyDocumentPath,
+  isMarketingHost,
+  siteHostSplitEnabled,
+} from './lib/site-host';
 
 // Routes that never require authentication.
 // Everything else requires sign-in; org/event scope is enforced per page/API.
@@ -11,6 +18,7 @@ const isPublicRoute = createRouteMatcher([
   '/signup',
   '/onboarding/verify-email',
   '/invite/accept',
+  '/rsvp',
   '/api/clerk/welcome',
   '/api/health',
   '/api/auth/(.*)',
@@ -20,10 +28,34 @@ const isPublicRoute = createRouteMatcher([
   '/favicon.svg',
 ]);
 
+function isUnauthenticatedAllowed(request: Request, pathname: string): boolean {
+  if (isPublicRoute(request)) return true;
+  if (
+    pathname === '/' &&
+    siteHostSplitEnabled() &&
+    isMarketingHost(getRequestHost(request))
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export const onRequest = clerkMiddleware(async (auth, context, next) => {
   const { userId, sessionClaims } = auth();
   const { url, request, redirect, locals } = context;
   const pathname = url.pathname;
+
+  if (siteHostSplitEnabled()) {
+    const host = getRequestHost(request);
+    if (isMarketingHost(host) && isAppOnlyDocumentPath(pathname)) {
+      const target = `${getAppOrigin(request)}${pathname}${url.search}`;
+      return Response.redirect(target, 308);
+    }
+  }
+
+  if (pathname === '/admin/organization/billing') {
+    return redirect(`/admin/organization/finance${url.search}`);
+  }
 
   // Get email from session claims (provider-dependent key naming)
   let email =
@@ -124,8 +156,8 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
   }
   locals.profileComplete = testBypass ? true : profileComplete;
 
-  // Public routes + RSVP POST (unauthenticated form submission)
-  if (isPublicRoute(context.request)) {
+  // Public routes + marketing `/` on apex (see site-host.ts)
+  if (isUnauthenticatedAllowed(request, pathname)) {
     if (uidForProfile && !testBypass && !profileComplete && pathname.startsWith('/invite/accept')) {
       const returnTo = encodeURIComponent(pathname + url.search);
       const emailOk = await isPrimaryEmailVerifiedByClerk(context, uidForProfile);

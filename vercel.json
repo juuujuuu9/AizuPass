@@ -23,6 +23,13 @@
       ]
     }
   ],
+  "redirects": [
+    {
+      "source": "/admin/organization/billing",
+      "destination": "/admin/organization/finance",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/health", "destination": "/api/health" }
   ],

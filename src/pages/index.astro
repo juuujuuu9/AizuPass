@@ -1,28 +1,68 @@
 ---
 import ScannerLayout from '../layouts/ScannerLayout.astro';
+import Layout from '../layouts/Layout.astro';
 import { CheckInScanner } from '../components/CheckInScanner';
 import { Toaster } from '../components/ui/sonner';
 import { getEventByIdForUser } from '../lib/db';
+import { getRequestHost, isMarketingHost } from '../lib/site-host';
+
+const host = getRequestHost(Astro.request);
+const showMarketingHome = isMarketingHost(host);
 
 const userId = Astro.locals.user?.id ?? '';
 const eventIdFromUrl = Astro.url.searchParams.get('event')?.trim() || undefined;
 let scannerEventName: string | undefined;
-if (eventIdFromUrl && userId) {
+if (!showMarketingHome && eventIdFromUrl && userId) {
   const ev = await getEventByIdForUser(eventIdFromUrl, userId);
   scannerEventName = ev?.name ?? undefined;
 }
+
+const linkPrimary =
+  'inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground ring-offset-background transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
+const linkSecondary =
+  'inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 ---
 
-<ScannerLayout>
-  <div class="min-h-screen bg-background relative">
-    <main class="min-h-screen">
-      <CheckInScanner
-        client:load
-        standalone={true}
-        eventId={eventIdFromUrl}
-        eventName={scannerEventName}
-      />
-    </main>
-    <Toaster client:load position="top-center" richColors />
-  </div>
-</ScannerLayout>
+{
+  showMarketingHome ? (
+    <Layout
+      title="Fast QR check-in for live events"
+      description="AizuPass — QR check-in for venues with offline-safe queues and token-only QR codes."
+    >
+      <main class="min-h-screen bg-background">
+        <div class="container mx-auto max-w-2xl px-4 py-20 text-center">
+          <h1 class="mb-4 text-4xl font-bold tracking-tight">AizuPass</h1>
+          <p class="mb-10 text-lg text-muted-foreground">
+            QR check-in built for live venues: fast scans, offline-safe queues, and token-only QR
+            payloads — so your door stays fast even when the network is not.
+          </p>
+          <div class="flex flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
+            <a href="/login" class={linkPrimary}>
+              Sign in
+            </a>
+            <a href="/signup" class={linkSecondary}>
+              Create account
+            </a>
+            <a href="/rsvp" class={linkSecondary}>
+              Event registration
+            </a>
+          </div>
+        </div>
+      </main>
+    </Layout>
+  ) : (
+    <ScannerLayout>
+      <div class="min-h-screen bg-background relative">
+        <main class="min-h-screen">
+          <CheckInScanner
+            client:load
+            standalone={true}
+            eventId={eventIdFromUrl}
+            eventName={scannerEventName}
+          />
+        </main>
+        <Toaster client:load position="top-center" richColors />
+      </div>
+    </ScannerLayout>
+  )
+}

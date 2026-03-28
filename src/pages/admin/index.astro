@@ -126,7 +126,7 @@ const pageTitle = showEventDashboard && event ? `${event.name} | Attendees` : 'E
           variant="event"
           eventId={event.id}
           active="attendees"
-          eventWorkspaceOrganizationId={organization?.id}
+          eventWorkspaceOrganizationId={organization?.id ?? event.organizationId ?? ''}
           showEventImport={showEventImport}
         />
 

@@ -153,7 +153,7 @@ export async function canUserAccessOrganization(
   return m !== null;
 }
 
-/** Billing and other organizer-only controls for a specific organization. */
+/** Finance / subscription and other organizer-only controls for a specific organization. */
 export async function isUserOrganizerForOrganization(
   userId: string,
   organization: OrganizationRow

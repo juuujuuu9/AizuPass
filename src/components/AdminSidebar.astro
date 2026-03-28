@@ -1,7 +1,7 @@
 ---
 /**
  * Shared admin nav: organization settings area vs per-event workspace.
- * variant=organization — active: overview | staff | billing | settings
+ * variant=organization — active: overview | staff | finance | settings
  * variant=event — eventId required; active: attendees | import | export | integrations | settings (import/integrations optional via showEventImport)
  */
 export interface Props {
@@ -9,7 +9,7 @@ export interface Props {
   active:
     | 'overview'
     | 'staff'
-    | 'billing'
+    | 'finance'
     | 'settings'
     | 'attendees'
     | 'import'
@@ -18,12 +18,10 @@ export interface Props {
   eventId?: string;
   /** Appended to organization admin links (e.g. `?id=…` for staff). */
   organizationNavQuery?: string;
-  /** True when opened from /admin with ?id= (organization picker). Shows "Manage Organizations" → /admin. */
-  showBackToOrganizations?: boolean;
-  /** On event workspace (?event=): org id for "Manage Events" → `/admin/organization?id=…` */
+  /** On event workspace (?event=): org id for "Manage Events" → `/admin/organization?id=…`; falls back to `/admin` if missing. */
   eventWorkspaceOrganizationId?: string;
-  /** Staff members should not see Billing; set from `isUserOrganizerForOrganization`. Default true. */
-  showOrganizationBilling?: boolean;
+  /** Staff members should not see Finance; set from `isUserOrganizerForOrganization`. Default true. */
+  showOrganizationFinance?: boolean;
   /** Staff members should not see Import; set from `isUserOrganizerForOrganization` for the event's org. Default true. */
   showEventImport?: boolean;
 }
@@ -33,9 +31,8 @@ const {
   active,
   eventId = '',
   organizationNavQuery = '',
-  showBackToOrganizations = false,
   eventWorkspaceOrganizationId = '',
-  showOrganizationBilling = true,
+  showOrganizationFinance = true,
   showEventImport = true,
 } = Astro.props;
 
@@ -63,13 +60,11 @@ const mobileTabIdle =
           <>
             <a href={`/admin/organization${organizationNavQuery}`} class={active === 'overview' ? mobileTabActive : mobileTabIdle}>Overview</a>
             <a href={`/admin/organization/staff${organizationNavQuery}`} class={active === 'staff' ? mobileTabActive : mobileTabIdle}>Staff</a>
-            {showOrganizationBilling && (
-              <a href={`/admin/organization/billing${organizationNavQuery}`} class={active === 'billing' ? mobileTabActive : mobileTabIdle}>Billing</a>
+            {showOrganizationFinance && (
+              <a href={`/admin/organization/finance${organizationNavQuery}`} class={active === 'finance' ? mobileTabActive : mobileTabIdle}>Finance</a>
             )}
             <a href={`/admin/organization/settings${organizationNavQuery}`} class={active === 'settings' ? mobileTabActive : mobileTabIdle}>Settings</a>
-            {showBackToOrganizations && (
-              <a href="/admin" class={mobileTabIdle}>Manage Organizations</a>
-            )}
+            <a href="/admin" class={mobileTabIdle}>Manage Organizations</a>
           </>
         )}
         {variant === 'event' && eventId && (
@@ -83,9 +78,12 @@ const mobileTabIdle =
               <a href={`/admin/events/integrations?event=${eventId}`} class={active === 'integrations' ? mobileTabActive : mobileTabIdle}>Integrations</a>
             )}
             <a href={`/admin/events/edit?event=${eventId}`} class={active === 'settings' ? mobileTabActive : mobileTabIdle}>Settings</a>
-            {eventWorkspaceOrganizationId && (
-              <a href={`/admin/organization?id=${eventWorkspaceOrganizationId}`} class={mobileTabIdle}>Manage Events</a>
-            )}
+            <a
+              href={eventWorkspaceOrganizationId ? `/admin/organization?id=${eventWorkspaceOrganizationId}` : '/admin'}
+              class={mobileTabIdle}
+            >
+              Manage Events
+            </a>
           </>
         )}
       </div>
@@ -144,16 +142,21 @@ const mobileTabIdle =
           </svg>
           <span class="admin-sidebar-link-label">Staff</span>
         </a>
-        {showOrganizationBilling && (
+        {showOrganizationFinance && (
           <a
-            href={`/admin/organization/billing${organizationNavQuery}`}
-            class={active === 'billing' ? linkActive : linkIdle}
-            title="Billing"
+            href={`/admin/organization/finance${organizationNavQuery}`}
+            class={active === 'finance' ? linkActive : linkIdle}
+            title="Finance"
           >
             <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
-            <span class="admin-sidebar-link-label">Billing</span>
+            <span class="admin-sidebar-link-label">Finance</span>
           </a>
         )}
         <a
@@ -167,19 +170,17 @@ const mobileTabIdle =
           </svg>
           <span class="admin-sidebar-link-label">Settings</span>
         </a>
-        {showBackToOrganizations && (
-          <div class="!mt-3 flex w-full flex-col gap-3">
-            <div class="w-full shrink-0 border-t border-border" aria-hidden="true" />
-            <a href="/admin" class={`${linkIdle} text-xs font-normal`} title="Manage Organizations">
-              <svg class="h-[0.67rem] w-[0.67rem] shrink-0" viewBox="0 0 96.154 96.154" aria-hidden="true" fill="currentColor">
-                <path
-                  d="M75.183.561 17.578 46.513c-.951.76-.951 2.367 0 3.126l57.608 45.955c.689.547 1.717.709 2.61.414c.186-.061.33-.129.436-.186c.65-.351 1.057-1.025 1.057-1.765V2.093c0-.736-.405-1.414-1.057-1.762c-.108-.059-.253-.127-.426-.184C76.903-.15 75.874.011 75.183.561z"
-                />
-              </svg>
-              <span class="admin-sidebar-link-label">Manage Organizations</span>
-            </a>
-          </div>
-        )}
+        <div class="!mt-3 flex w-full flex-col gap-3">
+          <div class="w-full shrink-0 border-t border-border" aria-hidden="true" />
+          <a href="/admin" class={`${linkIdle} text-xs font-normal`} title="Manage Organizations">
+            <svg class="h-[0.67rem] w-[0.67rem] shrink-0" viewBox="0 0 96.154 96.154" aria-hidden="true" fill="currentColor">
+              <path
+                d="M75.183.561 17.578 46.513c-.951.76-.951 2.367 0 3.126l57.608 45.955c.689.547 1.717.709 2.61.414c.186-.061.33-.129.436-.186c.65-.351 1.057-1.025 1.057-1.765V2.093c0-.736-.405-1.414-1.057-1.762c-.108-.059-.253-.127-.426-.184C76.903-.15 75.874.011 75.183.561z"
+              />
+            </svg>
+            <span class="admin-sidebar-link-label">Manage Organizations</span>
+          </a>
+        </div>
       </>
     )}
     {variant === 'event' && eventId && (
@@ -231,23 +232,21 @@ const mobileTabIdle =
           </svg>
           <span class="admin-sidebar-link-label">Settings</span>
         </a>
-        {eventWorkspaceOrganizationId && (
-          <div class="!mt-3 flex w-full flex-col gap-3">
-            <div class="w-full shrink-0 border-t border-border" aria-hidden="true" />
-            <a
-              href={`/admin/organization?id=${eventWorkspaceOrganizationId}`}
-              class={`${linkIdle} text-xs font-normal`}
-              title="Manage Events"
-            >
-              <svg class="h-[0.67rem] w-[0.67rem] shrink-0" viewBox="0 0 96.154 96.154" aria-hidden="true" fill="currentColor">
-                <path
-                  d="M75.183.561 17.578 46.513c-.951.76-.951 2.367 0 3.126l57.608 45.955c.689.547 1.717.709 2.61.414c.186-.061.33-.129.436-.186c.65-.351 1.057-1.025 1.057-1.765V2.093c0-.736-.405-1.414-1.057-1.762c-.108-.059-.253-.127-.426-.184C76.903-.15 75.874.011 75.183.561z"
-                />
-              </svg>
-              <span class="admin-sidebar-link-label">Manage Events</span>
-            </a>
-          </div>
-        )}
+        <div class="!mt-3 flex w-full flex-col gap-3">
+          <div class="w-full shrink-0 border-t border-border" aria-hidden="true" />
+          <a
+            href={eventWorkspaceOrganizationId ? `/admin/organization?id=${eventWorkspaceOrganizationId}` : '/admin'}
+            class={`${linkIdle} text-xs font-normal`}
+            title="Manage Events"
+          >
+            <svg class="h-[0.67rem] w-[0.67rem] shrink-0" viewBox="0 0 96.154 96.154" aria-hidden="true" fill="currentColor">
+              <path
+                d="M75.183.561 17.578 46.513c-.951.76-.951 2.367 0 3.126l57.608 45.955c.689.547 1.717.709 2.61.414c.186-.061.33-.129.436-.186c.65-.351 1.057-1.025 1.057-1.765V2.093c0-.736-.405-1.414-1.057-1.762c-.108-.059-.253-.127-.426-.184C76.903-.15 75.874.011 75.183.561z"
+              />
+            </svg>
+            <span class="admin-sidebar-link-label">Manage Events</span>
+          </a>
+        </div>
       </>
     )}
   </nav>

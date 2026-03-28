@@ -26,11 +26,10 @@ if (resolved.status === 'redirect') {
 
 const organization = resolved.status === 'ok' ? resolved.organization : null;
 const orgNavQuery = resolved.status === 'ok' ? resolved.orgNavQuery : '';
-const showBackToOrganizations = orgNavQuery !== '';
 
 const events = organization ? await getEventsForOrganization(organization.id) : [];
 const isOrganizerUser = Astro.locals.isAdmin;
-const showOrganizationBilling = organization
+const showOrganizationFinance = organization
   ? await isUserOrganizerForOrganization(userId, organization)
   : false;
 ---
@@ -58,8 +57,7 @@ const showOrganizationBilling = organization
           variant="organization"
           active="overview"
           organizationNavQuery={orgNavQuery}
-          showBackToOrganizations={showBackToOrganizations}
-          showOrganizationBilling={showOrganizationBilling}
+          showOrganizationFinance={showOrganizationFinance}
         />
       )}
 
@@ -165,7 +163,7 @@ const showOrganizationBilling = organization
                           </svg>
                           View
                         </a>
-                        {showOrganizationBilling && (
+                        {showOrganizationFinance && (
                           <a
                             href={`/admin/events/import?event=${event.id}`}
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground bg-muted rounded-full"
@@ -252,7 +250,7 @@ const showOrganizationBilling = organization
                               </svg>
                               View
                             </a>
-                            {showOrganizationBilling && (
+                            {showOrganizationFinance && (
                               <a
                                 href={`/admin/events/import?event=${event.id}`}
                                 class="inline-flex items-center gap-1.5 px-2 py-1.5 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded"

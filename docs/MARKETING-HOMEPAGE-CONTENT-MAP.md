@@ -93,7 +93,7 @@ Use these as headline/sub-head raw material; refine with ICP (conference, gym, c
 
 ## Pricing / plans
 
-- **Billing placeholder:** `/admin/organization/billing` exists; ticketing/Stripe not implemented ([TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md)).
+- **Finance placeholder:** `/admin/organization/finance` exists; ticketing/Stripe not implemented ([TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md)).
 - Homepage should separate **SaaS subscription** story from **future ticket fees** if both are on the roadmap.
 - Until numbers are real: "Pricing" section might be "Contact us" or "Starts at …" only after you have a number.
 

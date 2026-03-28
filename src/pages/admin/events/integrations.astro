@@ -69,7 +69,7 @@ const eventbritePageState = {
           variant="event"
           eventId={event.id}
           active="integrations"
-          eventWorkspaceOrganizationId={organization?.id}
+          eventWorkspaceOrganizationId={organization?.id ?? event?.organizationId ?? ''}
           showEventImport={showEventImport}
         />
       )}
