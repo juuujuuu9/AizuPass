@@ -73,6 +73,7 @@ One **Astro** app hosts marketing pages, UI, and API routes, deployed to **Verce
 | 2026-03-28 | **Marketing homepage** — Combined crews/collectives + agencies landing page at `/`; standalone `/collectives` and `/agencies` variant pages; marketing/app host split (`PUBLIC_MARKETING_HOSTS` / `PUBLIC_APP_HOST`). |
 | 2026-03-26 | **Security audit remediation** — Fixed 5 critical issues: CSRF protection re-enabled, email HTML escaping, IDOR vulnerability patched, hardcoded RSVP data removed. See [`docs/audit/AUDIT-2026-03-21.md`](docs/audit/AUDIT-2026-03-21.md). |
 | 2026-03-26 | **Public RSVP page** — Added `/rsvp` route for unauthenticated event registration. |
+| 2026-03-31 | **Documentation audit** — Inventory of docs vs shipped work: [`docs/DOCUMENTATION-AUDIT-2026-03-31.md`](docs/DOCUMENTATION-AUDIT-2026-03-31.md). |
 
 ---
 
@@ -83,14 +84,14 @@ The **single source of truth** for checkboxes, ordering, and concern audit is **
 ### Phase 1: Launch readiness
 | Priority | Area | Status |
 |----------|------|--------|
-| **P0** | Production **Resend domain** and `FROM_EMAIL` on owned domain | In progress — [`docs/EMAIL-SENDER-GO-LIVE-CHECKLIST.md`](docs/EMAIL-SENDER-GO-LIVE-CHECKLIST.md) |
-| **P0** | Security hardening (audit follow-up) | ✅ Critical issues resolved |
+| **P0** | Production **Resend domain** and `FROM_EMAIL` on owned domain | ✅ Done (2026-03) — [`docs/EMAIL-SENDER-GO-LIVE-CHECKLIST.md`](docs/EMAIL-SENDER-GO-LIVE-CHECKLIST.md); see [`docs/MASTER-PLAN.md`](docs/MASTER-PLAN.md) §13 |
+| **P0** | Security hardening (audit follow-up) | ✅ Critical issues from [2026-03-21 audit](docs/audit/AUDIT-2026-03-21.md) addressed; follow-up findings in [`docs/audit/AUDIT-2026-03-27.md`](docs/audit/AUDIT-2026-03-27.md) |
 | **P1** | **Zapier / Make** as first-class alongside the HTTP API — [`docs/INTEGRATIONS-STRATEGY.md`](docs/INTEGRATIONS-STRATEGY.md) |
 
 ### Phase 2: Door operations & scale
 | Priority | Area |
 |----------|------|
-| **P1** | Hardware **keyboard-wedge** scanner input; offline duplicate protection |
+| **P1** | Hardware **keyboard-wedge** scanner input |
 | **P1** | Bulk **QR ZIP** export; **print/badge** layouts; duplicate-name disambiguation |
 | **P2** | **No-shows** reporting; live check-in counter (polling vs SSE) |
 | **P2** | Pagination on attendee APIs; Neon transaction support for multi-step ops |
@@ -251,6 +252,7 @@ See `.env.example` for the canonical list. Main variables:
 | Doc | Purpose |
 |-----|---------|
 | [`docs/MASTER-PLAN.md`](docs/MASTER-PLAN.md) | Roadmap, dev checklist, concern audit |
+| [`docs/DOCUMENTATION-AUDIT-2026-03-31.md`](docs/DOCUMENTATION-AUDIT-2026-03-31.md) | Docs inventory: shipped vs planned vs strategy |
 | [`docs/ROADMAP-EVENT-RSVP.md`](docs/ROADMAP-EVENT-RSVP.md) | Event-specific RSVP: form builder, theming, custom domains |
 | [`docs/INTEGRATIONS-STRATEGY.md`](docs/INTEGRATIONS-STRATEGY.md) | CSV vs API vs Zapier/Make |
 | [`docs/audit/AUDIT-2026-03-21.md`](docs/audit/AUDIT-2026-03-21.md) | Security audit findings and remediation |
