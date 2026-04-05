@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { json, errorResponse } from '../../lib/api-response';
-import { getAttendeeByIdForUser } from '../../lib/db';
+import { getAttendeeByIdForUser, getEventById, getOrganizationById } from '../../lib/db';
 import { sendQRCodeEmail } from '../../lib/email';
 import { requireEventManage, requireUserId } from '../../lib/access';
 import { getEnv } from '../../lib/env';
@@ -60,7 +60,16 @@ export const POST: APIRoute = async (context) => {
     }
     const manage = await requireEventManage(context, String(attendee.eventId));
     if (manage instanceof Response) return manage;
-    const result = await sendQRCodeEmail(attendee, qrCodeBase64);
+    const eventRow = await getEventById(String(attendee.eventId));
+    const organization = eventRow?.organizationId
+      ? await getOrganizationById(eventRow.organizationId)
+      : null;
+    const orgDisplayName = organization?.name?.trim();
+    const result = await sendQRCodeEmail(attendee, qrCodeBase64, {
+      eventName: eventRow?.name,
+      // Match bulk-send default: organization display name over env FROM_NAME ("Event Check-In").
+      fromName: orgDisplayName || undefined,
+    });
     if (result.success) {
       return json({ success: true });
     }

@@ -19,6 +19,10 @@ export default defineConfig({
 
   vite: {
     plugins: [tailwindcss()],
+    // Reduces flaky "504 (Outdated Optimize Dep)" + failed island hydration when the optimizer cache churns.
+    optimizeDeps: {
+      include: ['sonner', 'html5-qrcode', 'lucide-react', '@clerk/astro/react'],
+    },
     ssr: {
       // React’s main entry is CJS; Vite’s SSR runner is ESM. Externalize so Node loads them in CJS context.
       external: ['react', 'react-dom'],

@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-03-28 — Removed microsite server webhook (`POST /api/ingest/entry`) and related docs to reduce surface area; CSV + Eventbrite remain. Previous: marketing ideas doc with Tapcart case study ([MARKETING-IDEAS.md](MARKETING-IDEAS.md)).
+**Last updated:** 2026-04-04 — **QR print + scannability:** `QR_PRINT` + `profile: 'print'` in `qr-client`; Admin **Print badges** (dialog + `@media print`), bulk **QR ZIP** uses print profile; CSV **Attendee ID** + duplicate-name short id in table/mobile; `docs/qr-scannability-matrix.md`. Previous: Bulk QR ZIP API; scanner session ergonomics.
 
 ---
 
@@ -42,17 +42,17 @@
 | Unique identifier | **Done** | UUID + short-lived token; see STEP-1. |
 | QR gen + email | Done | `src/lib/email.ts`, RSVPForm |
 | Production sender domain (`FROM_EMAIL`) | **Done** | Resend: `aizupass.com` verified, Pro. Production `FROM_EMAIL`/`FROM_NAME` set on deploy; bulk-email modal reads server `FROM_EMAIL` (`import.astro`). Smoke: `npm run smoke:email` (2026-03-23). |
-| QR download (single + bulk ZIP) | Missing | CSV export exists; no QR PNG download/ZIP flow yet. |
-| Print-ready QR badges (name below code) | Missing | No print stylesheet or badge layout currently. |
-| QR minimum size thresholds | Partial | QR width is set in config, but no explicit print-size enforcement/tests. |
-| Duplicate-name disambiguation | Missing | Canonical IDs are unique; print/search/export disambiguators are not implemented. |
+| QR download (single + bulk ZIP) | **Done** | Single PNG: `QRDisplay`. **Bulk ZIP:** print profile PNGs (`AdminDashboard`, `jszip`). |
+| Print-ready QR badges (name below code) | **Done** | `BadgePrintDialog` + `window.print()` + `global.css` `badge-print-mode`; name + short id under QR. |
+| QR minimum size thresholds | **Done** | Config split `QR_GENERATION` vs `QR_PRINT`; pass/fail matrix in `docs/qr-scannability-matrix.md` (manual QA). |
+| Duplicate-name disambiguation | **Done** | Short id when first+last collide: admin table/mobile/sheet; CSV **Attendee ID** column; ZIP filenames already id-suffixed when needed (`bulk-qr-zip.ts`). |
 | Scanner + validation | Done | CheckInScanner, `api/checkin` with 409 for duplicate |
-| Low-light / damaged QR fallback UX | Partial | Manual name check-in exists; no dedicated degraded-scan mode/test matrix enforcement. |
-| Scanning speed / perceived latency | Partial | Debounce + preload implemented; no explicit p95 budget instrumentation/loading-state SLA. |
+| Low-light / damaged QR fallback UX | **Done** | Torch + check in by name; consecutive invalid-scan banner (2026-04-04); optional degraded-scan test matrix still future work. |
+| Scanning speed / perceived latency | **Done** | Immediate processing UI + check-in request on first decode (`QR_SCANNER.debounceMs` = duplicate window only); sounds preloaded; in-memory round-trip stats + dev console / `__aizuScanMetrics`; `targetRoundTripMs` in `config/qr.ts`. |
 | PII in QR | **Done** | QR is `id:qr_token` only; no email in payload. |
 | Staff login (Clerk) | **Done** | Clerk authentication + app-managed org membership authorization (`organizations`, `organization_memberships`, `organization_invitations`). |
 | Scanner role vs admin ACL | **Done** | Access is org/event scoped: organizer manages org/event; staff scans and works inside assigned org events only. |
-| Session timeout + fast re-entry | Partial | Clerk session; scanner: 401/403 handling, `/api/me/profile` ping on focus, sign-in / onboarding links (`CheckInScanner`). |
+| Session timeout + fast re-entry | **Done** | Clerk `getToken({ skipCache: true })` then `GET /api/me/profile` on mount, visibility, window focus, `online`, and every 5 min while tab visible; banner **Refresh session** + toasts (`CheckInScanner.tsx`, 2026-04-04). |
 | Manual override (search by name) | **Done** | CheckInScanner "Check in by name" search; GET /api/attendees?q=; POST /api/checkin { attendeeId }. |
 | Manual check-in race safety | **Done** | Manual attendee path now uses conditional atomic update and returns 409 on duplicate check-in. |
 | Traffic light UI (Green/Yellow/Red) | Done | Green/amber/red; 409 = yellow (already checked in). CheckInScanner + api/checkin. |
@@ -84,7 +84,7 @@
 | Add to Wallet / Group / Capacity / Analytics | Not implemented | Optional; prioritize later. |
 | Paid ticketing (Stripe, ticket types, inventory) | Not implemented | Fourth attendee path: Checkout → webhook → attendee + payment metadata; catalog vs fulfillment split. Platform processing fee matches Eventbrite (3.5% + $1.79, attendee pays). Payout speed tiered: 7 days (Free) → 48hr (Pro $39) → Daily (Business $99). See [TICKETING-TYPES-PRICING-STRATEGY.md §4](TICKETING-TYPES-PRICING-STRATEGY.md). |
 | Rate limiting on RSVP/APIs | **Done** | `lib/rate-limit.ts`; attendees, check-in, sync, etc.; distributed KV optional in production. |
-| Scanner debounce (150ms→500ms) | **Done** | `config/qr.ts` debounceMs: 500; CheckInScanner uses it. |
+| Scanner duplicate suppression (was debounce) | **Done** | `config/qr.ts` debounceMs: 500 — same-payload suppression window; first decode not delayed (2026-04-04). |
 | QR error correction H | **Done** | `config/qr.ts`; webhook email uses QR_GENERATION. |
 | db.ts split | **Partial** | First slice done (2026-03-22): `client.ts`, `event-row.ts`, `organizations.ts`; `db.ts` re-exports. Remaining: attendees/check-in/events-in-root as future slices. [DB-MODULE-LAYOUT.md](DB-MODULE-LAYOUT.md). |
 | Real-time sync (multi-staff) | Backlog | Two staff don't see each other's check-ins; optional polling/SSE for admin. |
@@ -153,25 +153,25 @@ Follow this order; check off and date as you complete each item.
 
 ### 11. Edge-case hardening (operational)
 
-- [ ] **QR delivery + print**
+- [x] **QR delivery + print**
   - Single QR PNG download in attendee/admin QR surfaces. **Done (2026-03-18):** Added `Download QR` action in `QRDisplay` (normal + fullscreen modes).
-  - Bulk QR ZIP export by event/selection.
-  - Print-friendly badge layout with guest name visible below QR.
-  - Duplicate-name disambiguation for print/export/search (short ID suffix).
-- [ ] **QR scannability safeguards**
-  - Explicit print vs screen QR profiles in config.
-  - Minimum physical size threshold with documented pass/fail test matrix.
-- [ ] **Door-operations resilience**
-  - Low-light/damaged-code fallback UX improvements. **Partial (2026-03-23):** while scanning, explicit fallback to torch + check-in by name (`CheckInScanner.tsx`).
-  - Sub-second perceived feedback target with measurable latency budget.
+  - Bulk QR ZIP export by event/selection. **Done (2026-04-04):** `POST /api/attendees/qr-export-payloads`, `getQRPayloadForExport` in `qr-token.ts`, **QR ZIP** when rows selected; PNGs use **print** profile (2026-04-04). Organizer-only (`requireEventManage`).
+  - Print-friendly badge layout with guest name visible below QR. **Done (2026-04-04):** **Print badges** → `BadgePrintDialog`, `profile: 'print'`, `@media print` + `badge-print-mode` in `global.css`.
+  - Duplicate-name disambiguation for print/export/search (short ID suffix). **Done (2026-04-04):** `attendee-disambig.ts`; CSV **Attendee ID**; table/mobile/sheet; ZIP filenames unchanged.
+- [x] **QR scannability safeguards**
+  - Explicit print vs screen QR profiles in config. **Done (2026-04-04):** `QR_GENERATION`, `QR_PRINT`, `generateQRCodeBase64(..., { profile })` in `qr-client.ts`.
+  - Minimum physical size threshold with documented pass/fail test matrix. **Done (2026-04-04):** `docs/qr-scannability-matrix.md` (300 DPI sizing + manual pass/fail table).
+- [x] **Door-operations resilience**
+  - Low-light/damaged-code fallback UX. **Done (2026-04-04):** torch + name search; after two consecutive invalid scans, amber banner with steady-hands / brightness / torch / name copy; turning torch on clears the banner (`CheckInScanner.tsx`).
+  - Sub-second perceived feedback + measurable latency. **Done (2026-04-04):** first decode triggers check-in immediately (duplicate suppression window only); `recordCheckInRoundTripMs` + `getScanRoundTripStats`, dev logs + `window.__aizuScanMetrics`; `QR_SCANNER.targetRoundTripMs` (1000 ms ops target).
   - Clear re-scan copy and differentiated already-checked-in cues. **Done (2026-03-18):** explicit ID-check guidance + distinct warning-state feedback in scanner (`src/components/CheckInScanner.tsx`, `src/lib/feedback.ts`).
 - [ ] **Offline + multi-station correctness**
   - Sync retry/backoff and queue visibility for operators. **Done (2026-03-18):** retry-with-backoff + live queued count (`src/lib/offline.ts`, `src/components/CheckInScanner.tsx`).
   - Manual check-in path made atomic/idempotent (409 on duplicate). **Done (2026-03-18):** conditional DB update + 409 replay behavior (`src/lib/db.ts`, `src/pages/api/checkin.ts`).
   - Duplicate submission protection for offline replay. **Done (2026-03-23):** single-transaction dedupe in `addToQueue`; `syncQueue` runs serialized; initial online mount drains queue; 401/403 stops sync without dropping rows (`src/lib/offline.ts`, `CheckInScanner.tsx`).
-- [ ] **Roles + session ergonomics**
+- [x] **Roles + session ergonomics**
   - Enforce scanner vs admin route/API boundaries in middleware. **Done (2026-03-18):** middleware/API boundaries enforced, now org/membership scoped.
-  - Tighten scanner-device re-auth/session-expiry flow. **Partial (2026-03-23):** `GET /api/me/profile` session probe, tab visibility refresh, inline banner + toasts on 401/403 for scan, manual check-in, cache fetch, and queue sync (`src/pages/api/me/profile.ts`, `CheckInScanner.tsx`).
+  - Tighten scanner-device re-auth/session-expiry flow. **Done (2026-04-04):** Clerk token refresh (`getToken({ skipCache: true })`) before session probe; probe on mount, `visibilitychange`, `window` `focus`, `online`, and **5 min** interval while tab visible; session banner **Refresh session** button with loading state + helper copy (`CheckInScanner.tsx`). **Earlier (2026-03-23):** `GET /api/me/profile` probe, tab visibility, banner + toasts on 401/403 for scan, manual check-in, cache, queue sync.
 - [ ] **Post-event reporting**
   - Dedicated no-shows report/filter + export.
   - Enhanced live counter (`checked-in / total`) with tighter update cadence.
@@ -350,6 +350,9 @@ Deferred / lower priority:
 | [ui-modernization/](ui-modernization/) | UI Modernization: CURSOR-CHECKLIST, qr-ui-components, qr-ui-animations.css. Rule: `.cursor/rules/ui-modernization.mdc`. Radix Colors: `radix-colors-mapping.md`. |
 | [MARKETING-IDEAS.md](MARKETING-IDEAS.md) | Homepage case studies (Tapcart analysis) and evolved positioning options for AizuPass marketing. |
 | [qr-edge-cases.md](qr-edge-cases.md) | API edge-case tests, CSV import validation, critical manual paths. `scripts/test-edge-cases.mjs`, `scripts/generate-test-csvs.mjs`. |
+| [PILOT-MANUAL-TEST-CHECKLIST.md](PILOT-MANUAL-TEST-CHECKLIST.md) | Pre-pilot manual QA: env prerequisites, org/events, CSV/Eventbrite, email, scanner (including door-ops), offline, session, admin, device matrix, sign-off. |
+| [TESTING-AND-QUALITY-WORKFLOW.md](TESTING-AND-QUALITY-WORKFLOW.md) | How roadmap completion ties to edge-case docs, automation, manual lists, and [TEST-RESULTS-LOG.md](TEST-RESULTS-LOG.md). Rule: `.cursor/rules/quality-and-testing.mdc`. |
+| [TEST-RESULTS-LOG.md](TEST-RESULTS-LOG.md) | Append-only verification log (dates, scope, automated vs manual, PR links). |
 | [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md) | Item 2 + 12: Clerk auth setup, org/membership-based authorization, onboarding/invites. |
 | [TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md) | Future: paid ticketing — ticket type catalog, Eventbrite-matching fees (3.5% + $1.79), payout speed tiers (§4), Stripe alignment, fulfillment vs SaaS billing, idempotency, build sequencing. |
 | [PRODUCT-STRATEGY.md](PRODUCT-STRATEGY.md) | ICPs, tier pricing ($39/$99), competitive positioning vs Eventbrite, payout speed differentiation, customization philosophy. |
@@ -364,3 +367,4 @@ Deferred / lower priority:
 2. When you **complete** an item: set `[x]`, add a one-line "Done" note and key files/PR if useful, and update **Last updated** at the top.
 3. If the **concern audit** table changes (new concern or status change): update the table and any new implementation row.
 4. When adding **new docs** that implement an item: add them under [Related docs](#related-docs).
+5. When **completing** an item: follow [TESTING-AND-QUALITY-WORKFLOW.md](TESTING-AND-QUALITY-WORKFLOW.md) — update edge-case coverage, run/extend automated tests as appropriate, refresh manual pilot requirements, append [TEST-RESULTS-LOG.md](TEST-RESULTS-LOG.md) with **verifiable proof of passing** ([§2.1](TESTING-AND-QUALITY-WORKFLOW.md#21-proof-of-work-and-proof-of-passing-required)).

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -45,15 +45,29 @@ import {
   RotateCcw,
   Trash2,
   UserCheck,
+  FolderArchive,
+  Printer,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Fuse from 'fuse.js';
 import type { Attendee } from '@/types/attendee';
 import { apiService } from '@/services/api';
 import { generateQRCodeBase64 } from '@/lib/qr-client';
+import JSZip from 'jszip';
+import {
+  attendeeQrPngFilename,
+  dataUrlToUint8Array,
+  MAX_QR_EXPORT_ATTENDEE_IDS,
+} from '@/lib/bulk-qr-zip';
 import { QRDisplay } from './QRDisplay';
 import { ButtonSpinner } from '@/components/ui/ButtonSpinner';
 import { ScanQrMark } from './ScanQrMark';
+import { BadgePrintDialog } from './BadgePrintDialog';
+import {
+  attendeeNameKey,
+  attendeeShortId,
+  duplicateNameKeys,
+} from '@/lib/attendee-disambig';
 
 function formatNameLastFirst(attendee: Attendee): string {
   return `${attendee.lastName}, ${attendee.firstName}`;
@@ -105,13 +119,26 @@ export function AdminDashboard({
   });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkResendingQR, setBulkResendingQR] = useState(false);
+  const [bulkZippingQR, setBulkZippingQR] = useState(false);
   /** Mobile: attendee id for bottom-sheet details (null = closed). */
   const [mobileDetailId, setMobileDetailId] = useState<string | null>(null);
+  const [badgePrintOpen, setBadgePrintOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const duplicateNameKeySet = useMemo(
+    () => duplicateNameKeys(attendees),
+    [attendees]
+  );
+
+  /** Stable array identity when selection unchanged — avoids refetch loops in `BadgePrintDialog`. */
+  const selectedAttendeeIdsForBulk = useMemo(
+    () => Array.from(selectedIds),
+    [selectedIds]
+  );
 
   const fuse = useRef(
     new Fuse<Attendee>([], {
-      keys: ['firstName', 'lastName', 'email', 'company'],
+      keys: ['firstName', 'lastName', 'email', 'company', 'id'],
       threshold: 0.3,
     })
   ).current;
@@ -187,11 +214,33 @@ export function AdminDashboard({
   const handleBulkExport = () => {
     const toExport = sortedAttendees.filter((a) => selectedIds.has(a.id));
     if (toExport.length === 0) return;
-    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Company', 'Dietary Restrictions', 'Checked In', 'Check-in Time', 'Registration Date'];
+    const headers = [
+      'Attendee ID',
+      'First Name',
+      'Last Name',
+      'Email',
+      'Phone',
+      'Company',
+      'Dietary Restrictions',
+      'Checked In',
+      'Check-in Time',
+      'Registration Date',
+    ];
     const csvContent = [
       headers.map(escapeCsvField).join(','),
       ...toExport.map((a) =>
-        [a.firstName, a.lastName, a.email, a.phone ?? '', a.company ?? '', a.dietaryRestrictions ?? '', a.checkedIn ? 'Yes' : 'No', a.checkedInAt ? new Date(a.checkedInAt).toLocaleString() : '', new Date(a.rsvpAt).toLocaleDateString()]
+        [
+          a.id,
+          a.firstName,
+          a.lastName,
+          a.email,
+          a.phone ?? '',
+          a.company ?? '',
+          a.dietaryRestrictions ?? '',
+          a.checkedIn ? 'Yes' : 'No',
+          a.checkedInAt ? new Date(a.checkedInAt).toLocaleString() : '',
+          new Date(a.rsvpAt).toLocaleDateString(),
+        ]
           .map(escapeCsvField)
           .join(',')
       ),
@@ -206,6 +255,58 @@ export function AdminDashboard({
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     toast.success(`Exported ${toExport.length} attendee(s)`);
+  };
+
+  const handleBulkQrZip = async () => {
+    if (!eventId || selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    if (ids.length > MAX_QR_EXPORT_ATTENDEE_IDS) {
+      toast.error(
+        `Select at most ${MAX_QR_EXPORT_ATTENDEE_IDS} attendees for one ZIP`
+      );
+      return;
+    }
+    setBulkZippingQR(true);
+    try {
+      const items = await apiService.getQRExportPayloads(eventId, ids);
+      if (items.length === 0) {
+        toast.error('No QR data returned for the selection');
+        return;
+      }
+      const zip = new JSZip();
+      const used = new Set<string>();
+      for (const item of items) {
+        const dataUrl = await generateQRCodeBase64(item.qrPayload, {
+          profile: 'print',
+        });
+        const bytes = dataUrlToUint8Array(dataUrl);
+        let fname = attendeeQrPngFilename(item.firstName, item.lastName, item.attendeeId);
+        if (used.has(fname)) {
+          fname = fname.replace(/\.png$/, '') + `-${item.attendeeId.slice(0, 8)}.png`;
+        }
+        used.add(fname);
+        zip.file(fname, bytes);
+      }
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeEv = (eventName ?? 'event')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 48) || 'event';
+      a.download = `${safeEv}-qr-codes-${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`Downloaded ZIP with ${items.length} QR code(s)`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to build ZIP');
+    } finally {
+      setBulkZippingQR(false);
+    }
   };
 
   const handleBulkResendQR = async () => {
@@ -588,6 +689,49 @@ export function AdminDashboard({
                   <Download className="h-4 w-4 mr-1" />
                   Export
                 </Button>
+                {eventId && canImportCsv && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        if (selectedIds.size > MAX_QR_EXPORT_ATTENDEE_IDS) {
+                          toast.error(
+                            `Select at most ${MAX_QR_EXPORT_ATTENDEE_IDS} attendees for print badges`
+                          );
+                          return;
+                        }
+                        setBadgePrintOpen(true);
+                      }}
+                      disabled={
+                        selectedIds.size === 0 ||
+                        selectedIds.size > MAX_QR_EXPORT_ATTENDEE_IDS
+                      }
+                      title={
+                        selectedIds.size > MAX_QR_EXPORT_ATTENDEE_IDS
+                          ? `Select at most ${MAX_QR_EXPORT_ATTENDEE_IDS} guests for one print run.`
+                          : 'Print-ready badges (name + id under QR) for selected guests. Organizers only.'
+                      }
+                    >
+                      <Printer className="h-4 w-4 mr-1" />
+                      Print badges
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void handleBulkQrZip()}
+                      disabled={bulkZippingQR}
+                      title="PNG QR codes for selected guests (does not rotate existing valid codes). Organizers only."
+                    >
+                      {bulkZippingQR ? (
+                        <ButtonSpinner className="h-4 w-4 mr-1" />
+                      ) : (
+                        <FolderArchive className="h-4 w-4 mr-1" />
+                      )}
+                      QR ZIP
+                    </Button>
+                  </>
+                )}
                 {eventId && (
                   <Button
                     size="sm"
@@ -667,6 +811,11 @@ export function AdminDashboard({
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="font-medium text-foreground">
                               {formatNameLastFirst(attendee)}
+                              {duplicateNameKeySet.has(attendeeNameKey(attendee)) ? (
+                                <span className="ml-1.5 font-mono text-xs font-normal text-muted-foreground">
+                                  {attendeeShortId(attendee.id)}
+                                </span>
+                              ) : null}
                             </span>
                             <StatusBadge
                               status={attendee.checkedIn ? 'checked-in' : 'pending'}
@@ -761,11 +910,18 @@ export function AdminDashboard({
                       />
                     </TableCell>
                     <TableCell className={`font-medium py-1 ${density === 'comfortable' ? 'sm:py-3' : ''}`}>
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium shrink-0">
-                          {getInitials(attendee)}
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium shrink-0">
+                            {getInitials(attendee)}
+                          </div>
+                          <span>{formatNameLastFirst(attendee)}</span>
                         </div>
-                        {formatNameLastFirst(attendee)}
+                        {duplicateNameKeySet.has(attendeeNameKey(attendee)) ? (
+                          <span className="pl-12 font-mono text-xs font-normal text-muted-foreground">
+                            {attendeeShortId(attendee.id)}
+                          </span>
+                        ) : null}
                       </div>
                     </TableCell>
                     <TableCell className={`py-1 ${density === 'comfortable' ? 'sm:py-3' : ''}`}>{attendee.email}</TableCell>
@@ -871,6 +1027,11 @@ export function AdminDashboard({
                   </div>
                   <span className="min-w-0 leading-tight">
                     {formatNameLastFirst(mobileDetailAttendee)}
+                    {duplicateNameKeySet.has(attendeeNameKey(mobileDetailAttendee)) ? (
+                      <span className="mt-0.5 block font-mono text-xs font-normal text-muted-foreground">
+                        {attendeeShortId(mobileDetailAttendee.id)}
+                      </span>
+                    ) : null}
                   </span>
                 </SheetTitle>
                 <SheetDescription className="sr-only">
@@ -1014,6 +1175,16 @@ export function AdminDashboard({
           )}
         </SheetContent>
       </Sheet>
+
+      {eventId && canImportCsv ? (
+        <BadgePrintDialog
+          open={badgePrintOpen}
+          onOpenChange={setBadgePrintOpen}
+          eventId={eventId}
+          eventName={eventName}
+          attendeeIds={selectedAttendeeIdsForBulk}
+        />
+      ) : null}
 
       <Dialog open={showQR} onOpenChange={setShowQR}>
         <DialogContent className="max-w-lg">

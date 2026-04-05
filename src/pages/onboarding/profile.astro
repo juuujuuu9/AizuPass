@@ -135,7 +135,7 @@ if (await isUserProfileComplete(userId)) {
           }
           return;
         }
-        window.location.href = afterProfileHref;
+        window.location.href = `/onboarding/preferences?returnTo=${encodeURIComponent(afterProfileHref)}`;
       } catch {
         if (errorEl) {
           errorEl.textContent = 'Failed to save profile';

@@ -21,6 +21,8 @@ declare namespace App {
     hasEvent: boolean;
     /** False until first/last name saved in `users` (see /onboarding/profile). */
     profileComplete?: boolean;
+    /** False until `/onboarding/preferences` saved (`users.onboarding_comms_completed_at`). */
+    onboardingCommsComplete?: boolean;
     /** True when profile check failed due to DB error (fail-closed). See HI-5. */
     profileCheckError?: boolean;
   }

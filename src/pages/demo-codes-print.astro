@@ -5,8 +5,8 @@ const DEMO_SUCCESS = 'DEMO-SUCCESS';
 const DEMO_ALREADY = 'DEMO-ALREADY';
 const DEMO_INVALID = 'DEMO-INVALID';
 
-// Larger QR codes for print clarity
-const printQrOpts = { width: 280, margin: 4, errorCorrectionLevel: 'M' as const };
+// Align with app print profile: QR_PRINT + error correction H (see src/config/qr.ts)
+const printQrOpts = { profile: 'print' as const };
 const successDataUrl = await generateQRCodeBase64(DEMO_SUCCESS, printQrOpts);
 const alreadyDataUrl = await generateQRCodeBase64(DEMO_ALREADY, printQrOpts);
 const invalidDataUrl = await generateQRCodeBase64(DEMO_INVALID, printQrOpts);

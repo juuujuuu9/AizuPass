@@ -1,5 +1,6 @@
 import { randomBytes } from 'crypto';
 import { getAttendeeById, updateAttendeeQRToken, bulkUpdateAttendeeQRTokens, getDefaultEventId } from './db';
+import { getDb } from './db/client';
 import { encodeQR } from './qr';
 import { getEnv } from './env';
 
@@ -25,6 +26,36 @@ export async function getOrCreateQRPayload(
 
   const qrPayload = encodeQR(resolvedEventId, attendeeId, token);
   return { qrPayload, expiresAt };
+}
+
+/**
+ * Payload for print/export (e.g. bulk ZIP): use existing token if still valid — do **not** rotate.
+ * Only calls `getOrCreateQRPayload` when token is missing or expired.
+ */
+export async function getQRPayloadForExport(
+  attendeeId: string,
+  eventId: string
+): Promise<{ qrPayload: string; expiresAt: Date } | null> {
+  const db = getDb();
+  const rows = await db`
+    SELECT qr_token, qr_expires_at, event_id FROM attendees WHERE id = ${attendeeId}
+  `;
+  if (!rows.length) return null;
+  const row = rows[0] as {
+    qr_token: string | null;
+    qr_expires_at: string | null;
+    event_id: string | null;
+  };
+  if (row.event_id !== eventId) return null;
+
+  const exp = row.qr_expires_at ? new Date(row.qr_expires_at) : null;
+  const token = row.qr_token;
+  const now = new Date();
+
+  if (token && exp && exp > now) {
+    return { qrPayload: encodeQR(eventId, attendeeId, token), expiresAt: exp };
+  }
+  return getOrCreateQRPayload(attendeeId, eventId);
 }
 
 /**

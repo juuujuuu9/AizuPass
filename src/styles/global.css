@@ -507,3 +507,33 @@ button:active:not(:disabled) {
   right: -4px;
   border-width: 0 3px 3px 0;
 }
+
+/* Admin: print badges dialog — hide app chrome when printing from the dialog */
+@media print {
+  html.badge-print-mode body * {
+    visibility: hidden;
+  }
+
+  html.badge-print-mode .badge-print-dialog,
+  html.badge-print-mode .badge-print-dialog * {
+    visibility: visible;
+  }
+
+  html.badge-print-mode .badge-print-dialog {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    min-height: 100%;
+    margin: 0;
+    max-width: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
+
+  html.badge-print-mode .no-print {
+    display: none !important;
+  }
+}

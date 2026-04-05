@@ -7,9 +7,11 @@ import { getEventByIdForUser } from '../lib/db';
 import { getRequestHost, isMarketingHost } from '../lib/site-host';
 
 const host = getRequestHost(Astro.request);
-const showMarketingHome = isMarketingHost(host) || (import.meta.env.DEV && !host.startsWith('app.'));
-
 const userId = Astro.locals.user?.id ?? '';
+/** Logged-in users need `/` + `?event=` to open the scanner (dev uses marketing host unless `app.*`). */
+const showMarketingHome =
+  !userId && (isMarketingHost(host) || (import.meta.env.DEV && !host.startsWith('app.')));
+
 const eventIdFromUrl = Astro.url.searchParams.get('event')?.trim() || undefined;
 let scannerEventName: string | undefined;
 if (!showMarketingHome && eventIdFromUrl && userId) {

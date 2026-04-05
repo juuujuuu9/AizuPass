@@ -1,0 +1,193 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getUserById, isOnboardingCommsComplete, isUserProfileComplete } from '../../lib/db';
+
+const userId = Astro.locals.user?.id ?? '';
+
+if (!userId) {
+  return Astro.redirect('/login');
+}
+
+const returnToRaw = Astro.url.searchParams.get('returnTo');
+let safeReturnTo =
+  returnToRaw && returnToRaw.startsWith('/') && !returnToRaw.startsWith('//')
+    ? returnToRaw
+    : '/admin';
+if (safeReturnTo.split('?')[0] === '/') {
+  safeReturnTo = '/admin';
+}
+
+if (!(await isUserProfileComplete(userId))) {
+  return Astro.redirect(
+    `/onboarding/profile?returnTo=${encodeURIComponent(`/onboarding/preferences?returnTo=${encodeURIComponent(safeReturnTo)}`)}`
+  );
+}
+
+if (await isOnboardingCommsComplete(userId)) {
+  return Astro.redirect(safeReturnTo);
+}
+
+const u = await getUserById(userId);
+const productDefault = u?.emailProductUpdates !== false;
+const marketingDefault = u?.emailMarketing === true;
+
+const X_URL = 'https://x.com/aizupass';
+---
+
+<Layout title="Stay in the loop">
+  <div class="flex min-h-screen flex-col justify-center bg-background px-4 py-10">
+    <main class="mx-auto w-full max-w-xl">
+      <h1 class="text-center text-2xl font-bold text-foreground">Stay in the loop</h1>
+      <p class="mx-auto mt-2 max-w-md text-center text-sm text-muted-foreground">
+        AizuPass keeps improving. Choose what you want to hear about—you can change this anytime.
+      </p>
+
+      <form id="prefs-form" class="mt-8">
+        <div class="overflow-hidden rounded-lg border border-border bg-card">
+          <div class="divide-y divide-border">
+          <div class="flex gap-4 px-5 py-5 sm:items-center sm:justify-between">
+            <div class="min-w-0 flex-1">
+              <p class="font-medium text-foreground">Product updates</p>
+              <p class="mt-1 text-sm text-muted-foreground">
+                Occasional emails about new features, fixes, and improvements.
+              </p>
+            </div>
+            <button
+              type="button"
+              id="toggle-product"
+              role="switch"
+              class="toggle-switch relative h-8 w-[3.25rem] shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              aria-checked={productDefault ? 'true' : 'false'}
+              data-on={productDefault ? 'true' : 'false'}
+            >
+              <span
+                class="toggle-knob pointer-events-none absolute top-1 left-1 h-6 w-6 rounded-full bg-white shadow transition-transform duration-200 ease-out"
+              ></span>
+            </button>
+          </div>
+
+          <div class="flex gap-4 px-5 py-5 sm:items-center sm:justify-between">
+            <div class="min-w-0 flex-1">
+              <p class="font-medium text-foreground">Tips & onboarding</p>
+              <p class="mt-1 text-sm text-muted-foreground">
+                Help getting the most out of check-in, events, and your team setup.
+              </p>
+            </div>
+            <button
+              type="button"
+              id="toggle-marketing"
+              role="switch"
+              class="toggle-switch relative h-8 w-[3.25rem] shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              aria-checked={marketingDefault ? 'true' : 'false'}
+              data-on={marketingDefault ? 'true' : 'false'}
+            >
+              <span
+                class="toggle-knob pointer-events-none absolute top-1 left-1 h-6 w-6 rounded-full bg-white shadow transition-transform duration-200 ease-out"
+              ></span>
+            </button>
+          </div>
+
+          <div class="flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <div class="min-w-0 flex-1">
+              <p class="font-medium text-foreground">Follow us on X</p>
+              <p class="mt-1 text-sm text-muted-foreground">
+                Product news and best practices for running smooth events.
+              </p>
+            </div>
+            <a
+              href={X_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-secondary px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary/80"
+            >
+              <svg class="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+              @aizupass
+            </a>
+          </div>
+          </div>
+        </div>
+
+        <p id="error" class="mt-4 hidden text-center text-sm text-[var(--red-11)]" role="alert"></p>
+
+        <div class="mt-6 flex justify-center">
+          <button
+            type="submit"
+            class="min-w-[200px] rounded-md bg-primary px-8 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Continue
+          </button>
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <script define:vars={{ safeReturnTo }}>
+    function syncToggle(btn) {
+      const on = btn.getAttribute('data-on') === 'true';
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
+      btn.classList.toggle('bg-primary', on);
+      btn.classList.toggle('bg-muted', !on);
+      const knob = btn.querySelector('.toggle-knob');
+      if (knob) {
+        knob.classList.toggle('translate-x-[1.35rem]', on);
+        knob.classList.toggle('translate-x-0', !on);
+      }
+    }
+
+    const tp = document.getElementById('toggle-product');
+    const tm = document.getElementById('toggle-marketing');
+    if (tp) {
+      tp.addEventListener('click', () => {
+        tp.setAttribute('data-on', tp.getAttribute('data-on') === 'true' ? 'false' : 'true');
+        syncToggle(tp);
+      });
+      syncToggle(tp);
+    }
+    if (tm) {
+      tm.addEventListener('click', () => {
+        tm.setAttribute('data-on', tm.getAttribute('data-on') === 'true' ? 'false' : 'true');
+        syncToggle(tm);
+      });
+      syncToggle(tm);
+    }
+
+    const form = document.getElementById('prefs-form');
+    const errorEl = document.getElementById('error');
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const product = tp?.getAttribute('data-on') === 'true';
+      const marketing = tm?.getAttribute('data-on') === 'true';
+      if (errorEl) errorEl.classList.add('hidden');
+      const submitBtn = form?.querySelector('button[type="submit"]');
+      if (submitBtn instanceof HTMLButtonElement) submitBtn.disabled = true;
+      try {
+        const res = await fetch('/api/me/onboarding-comms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            emailProductUpdates: product,
+            emailMarketing: marketing,
+          }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (errorEl) {
+            errorEl.textContent = body.error || `Error ${res.status}`;
+            errorEl.classList.remove('hidden');
+          }
+          return;
+        }
+        window.location.href = safeReturnTo;
+      } catch {
+        if (errorEl) {
+          errorEl.textContent = 'Failed to save preferences';
+          errorEl.classList.remove('hidden');
+        }
+      } finally {
+        if (submitBtn instanceof HTMLButtonElement) submitBtn.disabled = false;
+      }
+    });
+  </script>
+</Layout>

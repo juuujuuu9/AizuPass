@@ -42,6 +42,17 @@ const showEventImport = organization
 const showIntegrationsHint = importableEvents.length > 0;
 const organizationName = organization?.name ?? '';
 const fromEmail = getEnv('FROM_EMAIL') || 'onboarding@resend.dev';
+
+const importPagePayload = event
+  ? {
+      eventId: event.id,
+      eventName: event.name ?? '',
+      organizationName,
+      fromEmail,
+    }
+  : null;
+/** Embed JSON safely inside HTML (raw `</script>` in a string would close the tag). */
+const importPagePayloadJson = JSON.stringify(importPagePayload).replace(/</g, '\\u003c');
 ---
 
 <Layout title="Import CSV">
@@ -428,7 +439,7 @@ const fromEmail = getEnv('FROM_EMAIL') || 'onboarding@resend.dev';
     }
   </style>
 
-  <script type="application/json" id="import-page-data" set:html={JSON.stringify({ eventId: event?.id, eventName: event?.name ?? '', organizationName, fromEmail })} />
+  <script type="application/json" id="import-page-data" set:html={importPagePayloadJson} />
   <script>
     import { initImportPage } from '../../../scripts/import-page';
     initImportPage();

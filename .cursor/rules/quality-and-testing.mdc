@@ -1,0 +1,20 @@
+---
+description: Roadmap completion must update tests, edge-case docs, and test results log
+alwaysApply: true
+---
+
+# Quality & testing (roadmap-driven)
+
+When completing work that matches or advances [docs/MASTER-PLAN.md](docs/MASTER-PLAN.md), follow [docs/TESTING-AND-QUALITY-WORKFLOW.md](docs/TESTING-AND-QUALITY-WORKFLOW.md).
+
+**Minimum bar for a “done” roadmap item:**
+
+1. **MASTER-PLAN** — Checkbox, Done note, **Last updated** date.
+2. **Edge cases** — Extend [docs/qr-edge-cases.md](docs/qr-edge-cases.md) with new scenarios and expected behavior (creative coverage: auth, concurrency, offline, malformed input, idempotency, degraded UX).
+3. **Automation** — Add or extend `scripts/test-edge-cases.mjs` (or other automated tests) when behavior is API-stable; run **`pnpm exec tsc --noEmit`** and **`pnpm build`** locally for substantive changes.
+4. **Manual** — Update [docs/PILOT-MANUAL-TEST-CHECKLIST.md](docs/PILOT-MANUAL-TEST-CHECKLIST.md) when pilot-facing flows or failure modes change.
+5. **Results** — Append a row to [docs/TEST-RESULTS-LOG.md](docs/TEST-RESULTS-LOG.md) with date, scope, **proof of passing** for each category run ([workflow §2.1](docs/TESTING-AND-QUALITY-WORKFLOW.md#21-proof-of-work-and-proof-of-passing-required)): e.g. **CI run URL** (green), or **commands + exit 0 / success output** pasted in PR or log; for manual steps, **checklist section IDs + date + device + tester**. Rows that only say “tested” without verifiable proof are not acceptable.
+
+**When you run tests in this environment:** Include in your response the **commands**, **exit codes or success lines**, and (for CI) **links** so the user has immediate proof; mirror the same into the PR description or [TEST-RESULTS-LOG.md](docs/TEST-RESULTS-LOG.md) when completing roadmap work.
+
+If something is manual-only or N/A, say so explicitly in the Done note or log—do not skip documentation silently.

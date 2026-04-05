@@ -178,6 +178,33 @@ class ApiService {
     return (res as { ok: true; data: { qrPayload: string; expiresAt: string } }).data;
   }
 
+  /** Non-rotating payloads when token still valid — for bulk QR ZIP export. */
+  async getQRExportPayloads(
+    eventId: string,
+    attendeeIds: string[]
+  ): Promise<
+    Array<{
+      attendeeId: string;
+      firstName: string;
+      lastName: string;
+      qrPayload: string;
+      expiresAt: string;
+    }>
+  > {
+    const res = await this.fetchWithError('/api/attendees/qr-export-payloads', {
+      method: 'POST',
+      body: JSON.stringify({ eventId, attendeeIds }),
+    });
+    const data = (res as { ok: true; data: { items?: Array<{
+      attendeeId: string;
+      firstName: string;
+      lastName: string;
+      qrPayload: string;
+      expiresAt: string;
+    }> } }).data;
+    return data?.items ?? [];
+  }
+
   async importAttendeesCSV(
     eventId: string,
     file: File

@@ -112,6 +112,11 @@ export const profileUpdateSchema = z.object({
   lastName: nameSchema,
 });
 
+export const onboardingCommsSchema = z.object({
+  emailProductUpdates: z.boolean(),
+  emailMarketing: z.boolean(),
+});
+
 // Organization creation schema
 export const organizationCreationSchema = z.object({
   name: z.string().min(1, 'Organization name is required').max(255, 'Organization name is too long').transform((s) => s.trim()),
@@ -153,6 +158,7 @@ export type OrganizationCreationData = z.infer<typeof organizationCreationSchema
 export type InvitationCreationData = z.infer<typeof invitationCreationSchema>;
 export type InvitationAcceptData = z.infer<typeof invitationAcceptSchema>;
 export type StaffPreferenceData = z.infer<typeof staffPreferenceSchema>;
+export type OnboardingCommsData = z.infer<typeof onboardingCommsSchema>;
 
 // Validation helper functions
 export function validateRSVPForm(data: unknown): { success: true; data: RSVPFormData } | { success: false; errors: string[] } {

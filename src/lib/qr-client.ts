@@ -1,5 +1,7 @@
 import QRCode from 'qrcode';
-import { QR_GENERATION } from '../config/qr';
+import { QR_GENERATION, QR_PRINT } from '../config/qr';
+
+export type QRRenderProfile = 'screen' | 'print';
 
 interface QRCodeOptions {
   width?: number;
@@ -9,6 +11,8 @@ interface QRCodeOptions {
     dark?: string;
     light?: string;
   };
+  /** `screen` = QR_GENERATION (default); `print` = QR_PRINT for badges / physical output. */
+  profile?: QRRenderProfile;
 }
 
 /**
@@ -20,11 +24,26 @@ export async function generateQRCodeBase64(
   payload: string,
   options: QRCodeOptions = {}
 ): Promise<string> {
+  const { profile, ...rest } = options;
+  const base =
+    profile === 'print'
+      ? {
+          width: QR_PRINT.width,
+          margin: QR_PRINT.margin,
+          errorCorrectionLevel: QR_PRINT.errorCorrectionLevel,
+          color: QR_PRINT.color,
+        }
+      : {
+          width: QR_GENERATION.width,
+          margin: QR_GENERATION.margin,
+          errorCorrectionLevel: QR_GENERATION.errorCorrectionLevel,
+          color: QR_GENERATION.color,
+        };
   return QRCode.toDataURL(payload, {
-    width: options.width ?? QR_GENERATION.width,
-    margin: options.margin ?? QR_GENERATION.margin,
-    errorCorrectionLevel: options.errorCorrectionLevel ?? QR_GENERATION.errorCorrectionLevel,
-    color: options.color ?? QR_GENERATION.color,
+    width: rest.width ?? base.width,
+    margin: rest.margin ?? base.margin,
+    errorCorrectionLevel: rest.errorCorrectionLevel ?? base.errorCorrectionLevel,
+    color: rest.color ?? base.color,
     type: 'image/png',
   });
 }

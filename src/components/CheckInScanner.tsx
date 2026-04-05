@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useAuth } from '@clerk/astro/react';
 import {
   Card,
   CardContent,
@@ -30,6 +31,10 @@ import {
   syncQueue,
   isOnline,
 } from '@/lib/offline';
+import { recordCheckInRoundTripMs } from '@/lib/scan-metrics';
+
+/** Proactive session probe while the tab is visible (long-shift door ops). */
+const SESSION_PROBE_INTERVAL_MS = 5 * 60 * 1000;
 
 function isNetworkError(err: unknown): boolean {
   if (err instanceof TypeError && err.message === 'Failed to fetch') return true;
@@ -79,6 +84,8 @@ function feedbackTypeFromResult(result: CheckInResult): FeedbackType {
   return 'error';
 }
 
+type SessionProbeResult = 'ok' | '401' | '403' | 'offline' | 'error';
+
 export function CheckInScanner({
   onCheckIn,
   standalone = false,
@@ -101,7 +108,14 @@ export function CheckInScanner({
   const [pendingQueueCount, setPendingQueueCount] = useState(0);
   /** 401 → sign in again; 403 → profile/onboarding (middleware) */
   const [sessionBlock, setSessionBlock] = useState<null | 'signin' | 'profile'>(null);
+  /** After repeated invalid QR check-ins, show door-ops fallback copy (torch / name search). */
+  const [doorResilienceHint, setDoorResilienceHint] = useState(false);
+  const [sessionRefreshBusy, setSessionRefreshBusy] = useState(false);
   const processingRef = useRef(false);
+  const { isLoaded, isSignedIn, getToken } = useAuth();
+  /** Suppress duplicate html5-qrcode decodes of the same payload (see QR_SCANNER.debounceMs). */
+  const lastDecodeRef = useRef<{ text: string; at: number } | null>(null);
+  const consecutiveInvalidScanRef = useRef(0);
   const scannerRef = useRef<HTMLDivElement>(null);
   const html5QrCodeRef = useRef<{ stop: () => Promise<void> } | null>(null);
 
@@ -118,6 +132,73 @@ export function CheckInScanner({
     typeof window !== 'undefined'
       ? encodeURIComponent(`${window.location.pathname}${window.location.search}`)
       : '';
+
+  const commitScannerEvent = useCallback((id: string, name: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('event', id);
+    window.history.replaceState({}, '', url.toString());
+    setPickedEventId(id);
+    setPickedEventName(name);
+  }, []);
+
+  const updateDoorResilienceAfterResult = useCallback((result: CheckInResult) => {
+    if (!result.success && !result.alreadyCheckedIn) {
+      const n = consecutiveInvalidScanRef.current + 1;
+      consecutiveInvalidScanRef.current = n;
+      setDoorResilienceHint(n >= 2);
+    } else {
+      consecutiveInvalidScanRef.current = 0;
+      setDoorResilienceHint(false);
+    }
+  }, []);
+
+  /** Clerk: refresh JWT before probing — fixes many tab-background / long-session cookie mismatches. */
+  const refreshSessionAndProbe = useCallback(async (): Promise<SessionProbeResult> => {
+    if (!isOnline()) return 'offline';
+    try {
+      if (isLoaded && isSignedIn && getToken) {
+        await getToken({ skipCache: true });
+      }
+    } catch {
+      /* still probe; server is source of truth */
+    }
+    try {
+      const r = await apiService.pingSession();
+      if (r.ok) {
+        setSessionBlock(null);
+        return 'ok';
+      }
+      if (r.status === 401) {
+        setSessionBlock('signin');
+        return '401';
+      }
+      if (r.status === 403) {
+        setSessionBlock('profile');
+        return '403';
+      }
+    } catch {
+      return 'error';
+    }
+    return 'error';
+  }, [isLoaded, isSignedIn, getToken]);
+
+  const handleRetrySessionFromBanner = useCallback(async () => {
+    setSessionRefreshBusy(true);
+    try {
+      const result = await refreshSessionAndProbe();
+      if (result === 'ok') {
+        toast.success('Session restored — you can scan again.');
+      } else if (result === '401') {
+        toast.error('Still signed out — use Sign in below.');
+      } else if (result === '403') {
+        toast.error('Account setup still required — use the link below.');
+      } else if (result === 'offline') {
+        toast.error('You are offline — connect to refresh session.');
+      }
+    } finally {
+      setSessionRefreshBusy(false);
+    }
+  }, [refreshSessionAndProbe]);
 
   const sessionBannerEl =
     sessionBlock != null ? (
@@ -152,16 +233,30 @@ export function CheckInScanner({
             </p>
           </>
         )}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={sessionRefreshBusy}
+            onClick={() => void handleRetrySessionFromBanner()}
+            className="gap-1.5"
+          >
+            {sessionRefreshBusy ? (
+              <>
+                <ButtonSpinner className="h-3.5 w-3.5" />
+                Refreshing…
+              </>
+            ) : (
+              'Refresh session'
+            )}
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Tries a fresh Clerk token, then reconnects to the server.
+          </span>
+        </div>
       </div>
     ) : null;
-
-  const commitScannerEvent = useCallback((id: string, name: string) => {
-    const url = new URL(window.location.href);
-    url.searchParams.set('event', id);
-    window.history.replaceState({}, '', url.toString());
-    setPickedEventId(id);
-    setPickedEventName(name);
-  }, []);
 
   useEffect(() => {
     if (!standalone) return;
@@ -229,27 +324,27 @@ export function CheckInScanner({
   }, []);
 
   useEffect(() => {
-    const probeSession = async () => {
-      if (!isOnline()) return;
-      try {
-        const r = await apiService.pingSession();
-        if (r.ok) {
-          setSessionBlock(null);
-          return;
-        }
-        if (r.status === 401) setSessionBlock('signin');
-        else if (r.status === 403) setSessionBlock('profile');
-      } catch {
-        /* ignore */
+    const runWhenVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      void refreshSessionAndProbe();
+    };
+    void refreshSessionAndProbe();
+    document.addEventListener('visibilitychange', runWhenVisible);
+    window.addEventListener('focus', runWhenVisible);
+    const onOnline = () => runWhenVisible();
+    window.addEventListener('online', onOnline);
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === 'visible' && isOnline()) {
+        void refreshSessionAndProbe();
       }
+    }, SESSION_PROBE_INTERVAL_MS);
+    return () => {
+      document.removeEventListener('visibilitychange', runWhenVisible);
+      window.removeEventListener('focus', runWhenVisible);
+      window.removeEventListener('online', onOnline);
+      window.clearInterval(intervalId);
     };
-    probeSession();
-    const onVis = () => {
-      if (document.visibilityState === 'visible') probeSession();
-    };
-    document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
-  }, []);
+  }, [refreshSessionAndProbe]);
 
   // Cache guest list when online; sync queue when coming back online
   useEffect(() => {
@@ -324,6 +419,9 @@ export function CheckInScanner({
       setScanning(true);
       setCameraError(null);
       setScanResult(null);
+      setDoorResilienceHint(false);
+      consecutiveInvalidScanRef.current = 0;
+      lastDecodeRef.current = null;
 
       const Html5Qrcode = await import('html5-qrcode');
       const html5QrCode = new Html5Qrcode.Html5Qrcode('reader');
@@ -341,15 +439,26 @@ export function CheckInScanner({
         config,
         (decodedText: string) => {
           if (processingRef.current) return;
-          setTimeout(async () => {
-            if (processingRef.current) return;
-            processingRef.current = true;
-            if (!standalone) stopScanning();
+          const now = Date.now();
+          const prev = lastDecodeRef.current;
+          if (
+            prev &&
+            prev.text === decodedText &&
+            now - prev.at < QR_SCANNER.debounceMs
+          ) {
+            return;
+          }
+          lastDecodeRef.current = { text: decodedText, at: now };
 
+          processingRef.current = true;
+          setProcessing(true);
+          const t0 = performance.now();
+          if (!standalone) stopScanning();
+
+          void (async () => {
             try {
               let result: CheckInResult;
               try {
-                setProcessing(true);
                 result = await apiService.checkInAttendee(decodedText, activeEventId);
               } catch (err) {
                 if (isNetworkError(err) && !isOnline()) {
@@ -375,7 +484,9 @@ export function CheckInScanner({
                   }
                 }
               }
+              recordCheckInRoundTripMs(performance.now() - t0);
               setScanResult(result);
+              updateDoorResilienceAfterResult(result);
               const ftype = feedbackTypeFromResult(result);
               provideFeedback(ftype, result.message, setAnnouncement);
 
@@ -389,17 +500,20 @@ export function CheckInScanner({
               }
             } catch (error) {
               console.error('Check-in error:', error);
+              recordCheckInRoundTripMs(performance.now() - t0);
               provideFeedback('error', 'Check-in failed', setAnnouncement);
-              setScanResult({
+              const failed: CheckInResult = {
                 success: false,
                 message: 'Check-in failed',
-              });
+              };
+              setScanResult(failed);
+              updateDoorResilienceAfterResult(failed);
               toast.error('Check-in failed');
             } finally {
               setProcessing(false);
               if (!standalone) processingRef.current = false;
             }
-          }, QR_SCANNER.debounceMs);
+          })();
         },
         () => {}
       );
@@ -436,6 +550,10 @@ export function CheckInScanner({
       const next = !torchOn;
       await torch.apply(next);
       setTorchOn(torch.value() ?? next);
+      if (next) {
+        consecutiveInvalidScanRef.current = 0;
+        setDoorResilienceHint(false);
+      }
     } catch (err) {
       console.error('Torch toggle failed:', err);
       toast.error('Could not switch torch');
@@ -541,6 +659,7 @@ export function CheckInScanner({
   const handleManualCheckIn = async (attendee: SearchAttendee) => {
     if (!activeEventId) return;
     setManualCheckingIn(attendee.id);
+    const t0 = performance.now();
     try {
       let result: CheckInResult;
       try {
@@ -570,7 +689,9 @@ export function CheckInScanner({
           }
         }
       }
+      recordCheckInRoundTripMs(performance.now() - t0);
       setScanResult(result);
+      updateDoorResilienceAfterResult(result);
       const ftype = feedbackTypeFromResult(result);
       provideFeedback(ftype, result.message, setAnnouncement);
       if (result.success) {
@@ -590,6 +711,7 @@ export function CheckInScanner({
       }
     } catch (err) {
       console.error('Manual check-in error:', err);
+      recordCheckInRoundTripMs(performance.now() - t0);
       provideFeedback('error', 'Check-in failed', setAnnouncement);
       toast.error('Check-in failed');
     } finally {
@@ -671,7 +793,7 @@ export function CheckInScanner({
           <div className="text-center text-sm text-muted-foreground space-y-1" aria-live="polite">
             <p><strong>Phone-to-phone scanning:</strong></p>
             <ul className="text-xs space-y-0.5">
-              <li>• Hold phones 4-6 inches apart</li>
+              <li>• Hold phones 6–10 inches apart</li>
               <li>• Ask attendee to max their brightness</li>
               <li>• Avoid glare — tilt either phone if you see reflections</li>
             </ul>
@@ -681,6 +803,18 @@ export function CheckInScanner({
               {!standalone && ' (below)'}.
             </p>
           </div>
+          {doorResilienceHint && (
+            <div
+              role="status"
+              className="w-full max-w-md rounded-lg border border-[var(--amber-6)] bg-[var(--amber-2)] px-3 py-2.5 text-[var(--amber-11)]"
+            >
+              <p className="text-sm font-medium">Invalid code again?</p>
+              <p className="text-xs mt-1 opacity-95">
+                Try the torch, ask the guest to brighten their screen, or use check in by name
+                {!standalone && ' below'}. Hold phones about 6–10 inches apart with steady hands.
+              </p>
+            </div>
+          )}
           {offlineMode && (
             <span className="text-xs px-2 py-1 rounded-md bg-amber-500/20 text-amber-11 border border-amber-6">
               Offline — will sync when connected
@@ -850,7 +984,7 @@ export function CheckInScanner({
         </div>
       )}
       {manualResults.length > 0 && (
-        <ul className="space-y-2 max-h-48 overflow-y-auto rounded-md border border-border bg-muted/50 p-2 max-md:mb-8">
+        <ul className="space-y-2 max-h-48 overflow-y-auto rounded-md border border-border bg-muted/50 p-2">
           {manualResults.map((a) => (
             <li
               key={a.id}
@@ -936,7 +1070,7 @@ export function CheckInScanner({
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         {ariaLiveEl}
-        <div className="w-full max-w-md space-y-4 px-4">
+        <div className="w-full max-w-md space-y-4 px-4 py-4">
           {sessionBannerEl}
           {standalonePickerEl}
           {eventContextBanner}

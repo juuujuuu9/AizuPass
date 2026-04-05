@@ -50,6 +50,12 @@ export interface UserRow {
   updatedAt?: string;
   /** Set when organizer welcome email (Clerk user.created → POST /api/clerk/welcome) was sent successfully. */
   organizerWelcomeSentAt?: string | null;
+  /** Product / changelog-style updates (default true). */
+  emailProductUpdates?: boolean;
+  /** Marketing & onboarding tips (default false). */
+  emailMarketing?: boolean;
+  /** Set when user finishes `/onboarding/preferences` (email toggles). */
+  onboardingCommsCompletedAt?: string | null;
 }
 
 function rowToUser(row: Record<string, unknown>): UserRow {
@@ -61,6 +67,16 @@ function rowToUser(row: Record<string, unknown>): UserRow {
     createdAt: row.created_at as string | undefined,
     updatedAt: row.updated_at as string | undefined,
     organizerWelcomeSentAt: (row.organizer_welcome_sent_at as string | null) ?? null,
+    emailProductUpdates:
+      row.email_product_updates === undefined || row.email_product_updates === null
+        ? true
+        : Boolean(row.email_product_updates),
+    emailMarketing:
+      row.email_marketing === undefined || row.email_marketing === null
+        ? false
+        : Boolean(row.email_marketing),
+    onboardingCommsCompletedAt:
+      (row.onboarding_comms_completed_at as string | null) ?? null,
   };
 }
 
@@ -129,6 +145,28 @@ export async function updateUserProfile(
     UPDATE users
     SET first_name = ${firstName},
         last_name = ${lastName},
+        updated_at = NOW()
+    WHERE id = ${userId}
+  `;
+}
+
+export async function isOnboardingCommsComplete(userId: string): Promise<boolean> {
+  const u = await getUserById(userId);
+  return Boolean(u?.onboardingCommsCompletedAt);
+}
+
+export async function updateUserOnboardingComms(
+  userId: string,
+  data: { emailProductUpdates: boolean; emailMarketing: boolean }
+): Promise<void> {
+  if (!userId) return;
+  await ensureUserRow(userId, null);
+  const db = getDb();
+  await db`
+    UPDATE users
+    SET email_product_updates = ${data.emailProductUpdates},
+        email_marketing = ${data.emailMarketing},
+        onboarding_comms_completed_at = NOW(),
         updated_at = NOW()
     WHERE id = ${userId}
   `;

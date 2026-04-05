@@ -1,7 +1,7 @@
 import { create as createFilePond } from 'filepond';
 import 'filepond/dist/filepond.min.css';
 
-interface ImportPageData {
+export interface ImportPageData {
   eventId: string | undefined;
   eventName: string;
   organizationName: string;
@@ -17,16 +17,20 @@ interface CustomMappingRow {
 
 function getPageData(): ImportPageData | null {
   const el = document.getElementById('import-page-data');
-  if (!el?.textContent) return null;
+  const raw = el?.textContent?.trim();
+  if (!raw) return null;
   try {
-    return JSON.parse(el.textContent);
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed === null || typeof parsed !== 'object') return null;
+    return parsed as ImportPageData;
   } catch {
     return null;
   }
 }
 
-export function initImportPage(): void {
-  const data = getPageData();
+/** Optional overrides for tests; production reads `#import-page-data` (see import.astro). */
+export function initImportPage(overrides?: ImportPageData | null): void {
+  const data = overrides ?? getPageData();
   if (!data) return;
 
   const { eventId, eventName, organizationName, fromEmail } = data;

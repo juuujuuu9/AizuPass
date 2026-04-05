@@ -1,3 +1,7 @@
+/**
+ * **Screen / email** — phone-to-phone and RSVP email embeds.
+ * See `QR_PRINT` for badge sheets and bulk ZIP intended for physical printing.
+ */
 export const QR_GENERATION = {
   /**
    * Optimized for phone-to-phone scanning.
@@ -28,11 +32,32 @@ export const QR_GENERATION = {
   },
 };
 
+/**
+ * **Print / sticker** — higher module count for paper; same H error correction.
+ * Use with `generateQRCodeBase64(payload, { profile: 'print' })`.
+ * Physical minimums: see docs/qr-scannability-matrix.md.
+ */
+export const QR_PRINT = {
+  /** 512px bitmap ≈ 1.35" square at 300 DPI when printed at native pixel size; scale in CSS/layout as needed. */
+  width: 512,
+  margin: 4,
+  errorCorrectionLevel: 'H' as const,
+  color: {
+    dark: '#000000',
+    light: '#FFFFFF',
+  },
+};
+
 export const QR_SCANNER = {
   fps: 10,
   qrbox: { width: 250, height: 250 },
   aspectRatio: 1.0,
   showTorchButtonIfSupported: true,
-  /** Debounce between scans in continuous mode (ms). Higher reduces false positives. */
+  /**
+   * Duplicate suppression: ignore repeat decodes of the same payload within this window (ms).
+   * The first decode is processed immediately (no artificial delay before the check-in request).
+   */
   debounceMs: 500,
+  /** Soft target for decode → API response (ms); documented for ops / future slow-network UX. */
+  targetRoundTripMs: 1000,
 };

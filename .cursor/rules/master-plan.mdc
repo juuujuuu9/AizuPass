@@ -9,3 +9,4 @@ alwaysApply: true
 - **When completing work** that matches a checklist item: update [docs/MASTER-PLAN.md](docs/MASTER-PLAN.md) — set the item to `[x]`, add a brief Done note if useful, and update the **Last updated** date at the top.
 - **When adding or changing** implementation steps that affect the roadmap: update the master plan (concern audit table and/or implementation order) so it stays accurate.
 - **Other docs** (e.g. STEP-1-QR-SECURITY-PLAN.md) implement specific items; they should reference the master plan for overall order and next steps.
+- **Quality gate:** Completing checklist items also follows [docs/TESTING-AND-QUALITY-WORKFLOW.md](docs/TESTING-AND-QUALITY-WORKFLOW.md) (edge-case docs, automation, manual pilot list, [TEST-RESULTS-LOG.md](docs/TEST-RESULTS-LOG.md)). See `.cursor/rules/quality-and-testing.mdc`.

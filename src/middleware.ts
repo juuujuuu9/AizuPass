@@ -113,6 +113,7 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
   }
 
   let profileComplete = true;
+  let onboardingCommsComplete = true;
   let profileFirstName: string | null = null;
   let profileLastName: string | null = null;
   const uidForProfile = testBypass ? '' : userId ?? '';
@@ -126,6 +127,7 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
       profileFirstName = fn || null;
       profileLastName = ln || null;
       profileComplete = Boolean(fn && ln);
+      onboardingCommsComplete = Boolean(u?.onboardingCommsCompletedAt);
 
       if (
         u &&
@@ -144,6 +146,7 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
       // HI-5: Fail closed — DB outage or missing table should not bypass profile gate
       console.error('[middleware] user profile sync', err);
       profileComplete = false;
+      onboardingCommsComplete = false;
       // Set a flag so UI can show appropriate error (maintenance mode / try again)
       locals.profileCheckError = true;
     }
@@ -156,6 +159,7 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
     };
   }
   locals.profileComplete = testBypass ? true : profileComplete;
+  locals.onboardingCommsComplete = testBypass ? true : onboardingCommsComplete;
 
   // Public routes + marketing `/` on apex (see site-host.ts)
   if (isUnauthenticatedAllowed(request, pathname)) {
@@ -223,6 +227,30 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
       }
       const returnTo = encodeURIComponent(pathname + url.search);
       return redirect(`/onboarding/verify-email?returnTo=${returnTo}`);
+    }
+  }
+
+  // After name is saved, require `/onboarding/preferences` once (email toggles).
+  if (!testBypass && userId && profileComplete && !onboardingCommsComplete) {
+    const allowedCommsIncomplete =
+      pathname === '/onboarding/preferences' ||
+      pathname === '/onboarding/profile' ||
+      pathname.startsWith('/api/me/profile') ||
+      pathname.startsWith('/api/me/onboarding-comms') ||
+      pathname.startsWith('/api/auth/signout') ||
+      pathname === '/sign-out';
+    if (!allowedCommsIncomplete) {
+      if (pathname.startsWith('/api/')) {
+        return new Response(
+          JSON.stringify({
+            error: 'Complete subscription preferences first',
+            code: 'onboarding_comms_incomplete',
+          }),
+          { status: 403, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      const returnTo = encodeURIComponent(pathname + url.search);
+      return redirect(`/onboarding/preferences?returnTo=${returnTo}`);
     }
   }
 
