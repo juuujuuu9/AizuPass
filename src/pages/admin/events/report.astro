@@ -1,0 +1,5 @@
+---
+/** Redirect legacy singular URL to `/admin/events/reports`. */
+const q = Astro.url.search;
+return Astro.redirect(`/admin/events/reports${q}`);
+---

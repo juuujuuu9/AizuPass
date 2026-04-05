@@ -1,7 +1,8 @@
 import type { APIRoute } from 'astro';
 import { csvResponse, errorResponse } from '../../../lib/api-response';
-import { getAllAttendeesForUser } from '../../../lib/db';
+import { fetchAllAttendeesForUser } from '../../../lib/db';
 import { requireEventAccess, requireUserId } from '../../../lib/access';
+import { formatLocalDate, formatLocalDateTime } from '../../../lib/formatters';
 
 /**
  * Sanitizes CSV values to prevent formula injection.
@@ -35,6 +36,7 @@ export const GET: APIRoute = async (context) => {
     const { request } = context;
     const url = new URL(request.url);
     const eventId = url.searchParams.get('eventId')?.trim();
+    const filterRaw = url.searchParams.get('filter')?.trim().toLowerCase() ?? '';
 
     if (!eventId) {
       return errorResponse('eventId is required');
@@ -42,7 +44,15 @@ export const GET: APIRoute = async (context) => {
     const access = await requireEventAccess(context, eventId);
     if (access instanceof Response) return access;
 
-    const { data: attendees } = await getAllAttendeesForUser(userId, eventId);
+    const attendees = await fetchAllAttendeesForUser(userId, eventId);
+    let rows = attendees;
+    if (filterRaw === 'noshows' || filterRaw === 'no-shows') {
+      rows = attendees.filter((a) => !a.checkedIn);
+    } else if (filterRaw === 'checkedin' || filterRaw === 'checked-in') {
+      rows = attendees.filter((a) => a.checkedIn);
+    } else if (filterRaw && filterRaw !== 'all') {
+      return errorResponse('filter must be all, noShows, or checkedIn');
+    }
     const headers = [
       'First Name',
       'Last Name',
@@ -54,7 +64,7 @@ export const GET: APIRoute = async (context) => {
       'Check-in Time',
       'Registration Date',
     ];
-    const rows = attendees.map((a) =>
+    const csvRows = rows.map((a) =>
       [
         a.firstName,
         a.lastName,
@@ -63,14 +73,21 @@ export const GET: APIRoute = async (context) => {
         a.company ?? '',
         a.dietaryRestrictions ?? '',
         a.checkedIn ? 'Yes' : 'No',
-        a.checkedInAt ? new Date(a.checkedInAt).toLocaleString() : '',
-        new Date(a.rsvpAt).toLocaleDateString(),
+        a.checkedInAt ? formatLocalDateTime(a.checkedInAt) : '',
+        formatLocalDate(a.rsvpAt),
       ]
         .map(escapeCsvField)
         .join(',')
     );
-    const csv = [headers.map(escapeCsvField).join(','), ...rows].join('\n');
-    const filename = `event-attendees-${new Date().toISOString().split('T')[0]}.csv`;
+    const csv = [headers.map(escapeCsvField).join(','), ...csvRows].join('\n');
+    const day = new Date().toISOString().split('T')[0];
+    const suffix =
+      filterRaw === 'noshows' || filterRaw === 'no-shows'
+        ? '-no-shows'
+        : filterRaw === 'checkedin' || filterRaw === 'checked-in'
+          ? '-checked-in'
+          : '';
+    const filename = `event-attendees${suffix}-${day}.csv`;
 
     return csvResponse(csv, filename);
   } catch (err) {

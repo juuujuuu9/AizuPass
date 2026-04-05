@@ -29,54 +29,65 @@ let canManageOrganization = false;
 let showEventImport = false;
 
 if (eventIdParam) {
-  const ev = userId ? await getEventByIdForUser(eventIdParam, userId) : null;
-  if (!ev) {
-    return Astro.redirect('/admin/events');
+  try {
+    const ev = userId ? await getEventByIdForUser(eventIdParam, userId) : null;
+    if (!ev) {
+      return Astro.redirect('/admin/events');
+    }
+    showEventDashboard = true;
+    event = ev;
+
+    const eventsResult = userId ? await getAllEventsForUser(userId) : { data: [] };
+    const events = eventsResult.data ?? [];
+    eventOptions = events.map((e) => ({ id: e.id, name: e.name, slug: e.slug }));
+
+    organization = ev.organizationId ? await getOrganizationById(ev.organizationId) : null;
+    const attendeesPage = userId
+      ? await getAllAttendeesForUser(userId, eventIdParam, { limit: 100, offset: 0 })
+      : null;
+    const dbAttendees = attendeesPage?.data ?? [];
+
+    initialAttendees = dbAttendees.map((a) => ({
+      id: a.id,
+      firstName: a.firstName,
+      lastName: a.lastName,
+      email: a.email,
+      phone: a.phone ?? undefined,
+      company: a.company ?? undefined,
+      dietaryRestrictions: a.dietaryRestrictions ?? undefined,
+      checkedIn: a.checkedIn,
+      checkedInAt: a.checkedInAt ?? undefined,
+      rsvpAt: a.rsvpAt,
+      qrExpiresAt: a.qrExpiresAt ?? undefined,
+      qrUsedAt: a.qrUsedAt ?? undefined,
+      qrUsedByDevice: a.qrUsedByDevice ?? undefined,
+      eventId: a.eventId ?? undefined,
+      micrositeEntryId: a.micrositeEntryId ?? undefined,
+      sourceData: a.sourceData ?? undefined,
+      createdAt: a.createdAt,
+    }));
+
+    canManageOrganization = Astro.locals.isAdmin || organization?.ownerUserId === userId;
+    showEventImport = organization
+      ? await isUserOrganizerForOrganization(userId, organization)
+      : false;
+  } catch (err) {
+    console.error('[admin] event workspace data', err);
+    return Astro.redirect('/error/profile-check');
   }
-  showEventDashboard = true;
-  event = ev;
-
-  const eventsResult = userId ? await getAllEventsForUser(userId) : { data: [] };
-  const events = eventsResult.data ?? [];
-  eventOptions = events.map((e) => ({ id: e.id, name: e.name, slug: e.slug }));
-
-  organization = ev.organizationId ? await getOrganizationById(ev.organizationId) : null;
-  const attendeesPage = userId
-    ? await getAllAttendeesForUser(userId, eventIdParam, { limit: 100, offset: 0 })
-    : null;
-  const dbAttendees = attendeesPage?.data ?? [];
-
-  initialAttendees = dbAttendees.map((a) => ({
-    id: a.id,
-    firstName: a.firstName,
-    lastName: a.lastName,
-    email: a.email,
-    phone: a.phone ?? undefined,
-    company: a.company ?? undefined,
-    dietaryRestrictions: a.dietaryRestrictions ?? undefined,
-    checkedIn: a.checkedIn,
-    checkedInAt: a.checkedInAt ?? undefined,
-    rsvpAt: a.rsvpAt,
-    qrExpiresAt: a.qrExpiresAt ?? undefined,
-    qrUsedAt: a.qrUsedAt ?? undefined,
-    qrUsedByDevice: a.qrUsedByDevice ?? undefined,
-    eventId: a.eventId ?? undefined,
-    micrositeEntryId: a.micrositeEntryId ?? undefined,
-    sourceData: a.sourceData ?? undefined,
-    createdAt: a.createdAt,
-  }));
-
-  canManageOrganization = Astro.locals.isAdmin || organization?.ownerUserId === userId;
-  showEventImport = organization
-    ? await isUserOrganizerForOrganization(userId, organization)
-    : false;
 }
 
-const organizations = !showEventDashboard && userId ? await getAllOrganizationsForUser(userId) : [];
+let organizations: OrganizationWithRole[] = [];
+let organizationsWithEvents: (OrganizationWithRole & {
+  hasEvent: boolean;
+  eventName: string | null;
+})[] = [];
 
-const organizationsWithEvents =
-  !showEventDashboard && organizations.length > 0
-    ? await Promise.all(
+if (!showEventDashboard && userId) {
+  try {
+    organizations = await getAllOrganizationsForUser(userId);
+    if (organizations.length > 0) {
+      organizationsWithEvents = await Promise.all(
         organizations.map(async (org) => {
           const ev = await getEventForOrganization(org.id);
           return {
@@ -85,8 +96,13 @@ const organizationsWithEvents =
             eventName: ev?.name ?? null,
           };
         })
-      )
-    : [];
+      );
+    }
+  } catch (err) {
+    console.error('[admin] organizations list', err);
+    return Astro.redirect('/error/profile-check');
+  }
+}
 
 function formatRelativeDate(dateString: string | undefined): string {
   if (!dateString) return 'Recently';

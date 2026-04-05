@@ -18,6 +18,7 @@
     "migrate-staff-preferences": "node scripts/migrate-staff-preferences.mjs",
     "migrate-organizer-welcome-email": "node scripts/migrate-organizer-welcome-email.mjs",
     "migrate-onboarding-comms": "node scripts/migrate-onboarding-comms.mjs",
+    "migrate-attendee-timestamps-tz": "node scripts/migrate-attendee-timestamps-tz.mjs",
     "wipe-events": "node scripts/wipe-events.mjs",
     "test:edge-cases": "node scripts/test-edge-cases.mjs",
     "test:edge-cases:ci": "node scripts/ci-test-edge-cases.mjs",

@@ -21,14 +21,22 @@ export default defineConfig({
     plugins: [tailwindcss()],
     // Reduces flaky "504 (Outdated Optimize Dep)" + failed island hydration when the optimizer cache churns.
     optimizeDeps: {
-      include: ['sonner', 'html5-qrcode', 'lucide-react', '@clerk/astro/react'],
+      include: [
+        'react',
+        'react-dom',
+        'react/jsx-runtime',
+        'sonner',
+        'html5-qrcode',
+        'lucide-react',
+        '@clerk/astro/react',
+      ],
     },
-    ssr: {
-      // React’s main entry is CJS; Vite’s SSR runner is ESM. Externalize so Node loads them in CJS context.
-      external: ['react', 'react-dom'],
-    },
+    // Do not set `ssr.external` to react/react-dom: Vite 6's dev SSR runner then
+    // evaluates react/index.js (CJS) without `module` and every React page returns 500.
     resolve: {
-      alias: { '@': path.resolve(__dirname, './src') },
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
       dedupe: ['react', 'react-dom'],
     },
   },

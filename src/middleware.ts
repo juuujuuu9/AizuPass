@@ -73,9 +73,21 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
     }
   }
 
-  const summary = userId
-    ? await getUserAccessSummary(userId)
-    : { hasMembership: false, hasOrganizerRole: false, organizationCount: 0, eventCount: 0 };
+  let summary: {
+    hasMembership: boolean;
+    hasOrganizerRole: boolean;
+    organizationCount: number;
+    eventCount: number;
+  } = { hasMembership: false, hasOrganizerRole: false, organizationCount: 0, eventCount: 0 };
+  if (userId) {
+    try {
+      summary = await getUserAccessSummary(userId);
+    } catch (err) {
+      // DB down / misconfig — same recovery path as ensureUserRow failure (HI-5)
+      console.error('[middleware] getUserAccessSummary', err);
+      locals.profileCheckError = true;
+    }
+  }
 
   locals.user = userId
     ? {

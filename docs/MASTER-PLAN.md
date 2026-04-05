@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-04-05 — **No-shows (admin):** `AdminDashboard` status filter (All / Checked in / Not checked in) + **Export no-shows** CSV; search/filter empty state. **§11:** Offline + multi-station checkbox verified. **Hardware scanner:** keyboard wedge. Previous: QR print + scannability.
+**Last updated:** 2026-04-04 — **Roadmap:** Added **[§15 Paid ticketing & invite designer](#15-paid-ticketing--invite-designer-upcoming)** — phased WYSIWYG / drag-and-drop invite design with **mobile / tablet / desktop / large desktop** breakpoints; structured layout JSON and email-vs-web constraints called out. *(Prior 2026-04-05 notes: export all, attendee TIMESTAMPTZ migration, reports, no-shows filters, hardware wedge — unchanged in substance.)*
 
 ---
 
@@ -78,11 +78,12 @@
 | Multi-event / central hub | **Done** | Events table, event-scoped attendees; guestlist: **CSV primary**; **Eventbrite** pull sync on **Integrations** (private token); Zapier/Make first-class TBD — see [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md). |
 | Event-scoped scanner/manual override hardening | Partial | Event scoping exists broadly; scanner entry path/manual UX still needs stricter guardrails. |
 | Persistent event selection | **Done** | staff_preferences table; last_selected_event_id survives logout/login, works across devices. |
-| Attendance export with operational presets | **Partial** | Full CSV + **Export no-shows** (all not checked in); row **Export** still selection-based. Checked-in-only export preset still optional. |
-| No-shows report | **Partial** | **Admin (2026-04-05):** status filter All / Checked in / Not checked in + **Export no-shows** CSV; search + filter empty state. Dedicated report page / presets still optional. |
-| Real-time check-in counter dashboard | Partial | 30s polling exists; near real-time organizer dashboard still limited. |
+| Attendance export with operational presets | **Partial** | **Export all** + sidebar/API full roster; **`filter=noShows` / `checkedIn`**; **Export selected** for row subset. Guest list presets still expandable. |
+| No-shows report | **Partial** | **Organizer reports page (2026-04-05):** `/admin/events/reports?event=` — summary + exports. **Admin list:** status filter + **Export no-shows** CSV; search + filter empty state. Live counter / analytics dashboards still optional. |
+| Real-time check-in counter dashboard | Partial | Guest list: **12s** poll while tab visible + **visibilitychange** refresh; stats row shows live counts. SSE / sub-second still optional. |
 | Add to Wallet / Group / Capacity / Analytics | Not implemented | Optional; prioritize later. |
-| Paid ticketing (Stripe, ticket types, inventory) | Not implemented | Fourth attendee path: Checkout → webhook → attendee + payment metadata; catalog vs fulfillment split. Platform processing fee matches Eventbrite (3.5% + $1.79, attendee pays). Payout speed tiered: 7 days (Free) → 48hr (Pro $39) → Daily (Business $99). See [TICKETING-TYPES-PRICING-STRATEGY.md §4](TICKETING-TYPES-PRICING-STRATEGY.md). |
+| Paid ticketing (Stripe, ticket types, inventory) | Not implemented | Fourth attendee path: Checkout → webhook → attendee + payment metadata; catalog vs fulfillment split. Platform processing fee matches Eventbrite (3.5% + $1.79, attendee pays). Payout speed tiered: 7 days (Free) → 48hr (Pro $39) → Daily (Business $99). See [TICKETING-TYPES-PRICING-STRATEGY.md §4](TICKETING-TYPES-PRICING-STRATEGY.md). **Creative invite designer** (WYSIWYG, responsive breakpoints) is **[§15](#15-paid-ticketing--invite-designer-upcoming)** — ships **after** core checkout, in phases. |
+| Ticketing: invite designer (WYSIWYG) | Planned | Drag-and-drop (eventually), **four breakpoints** (mobile / tablet / desktop / large desktop), fun/creative brand expression. Phased delivery + technical constraints: [§15](#15-paid-ticketing--invite-designer-upcoming). |
 | Rate limiting on RSVP/APIs | **Done** | `lib/rate-limit.ts`; attendees, check-in, sync, etc.; distributed KV optional in production. |
 | Scanner duplicate suppression (was debounce) | **Done** | `config/qr.ts` debounceMs: 500 — same-payload suppression window; first decode not delayed (2026-04-04). |
 | QR error correction H | **Done** | `config/qr.ts`; webhook email uses QR_GENERATION. |
@@ -148,7 +149,7 @@ Follow this order; check off and date as you complete each item.
 - [ ] **Integrations — Zapier / Make (first-class):** Published connector(s) or maintained recipes with **parity** to the HTTP guestlist API for LC/NC users; same strategic weight as API improvements. Strategy: [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md). **See also: §14.9 Zapier / Make connector parity.**
 - [ ] Capacity widget and/or no-show analytics.
 - [ ] Add to Wallet, group check-in — if needed.
-- [ ] **Paid ticketing:** Stripe Checkout → webhook → attendee creation with ticket type + payment metadata + platform fee (3.5% + $1.79, Eventbrite-matching); reuse QR email flow. Implement payout speed tiers (7 days/48hr/daily). Strategy: [TICKETING-TYPES-PRICING-STRATEGY.md §4](TICKETING-TYPES-PRICING-STRATEGY.md).
+- [ ] **Paid ticketing:** Stripe Checkout → webhook → attendee creation with ticket type + payment metadata + platform fee (3.5% + $1.79, Eventbrite-matching); reuse QR email flow. Implement payout speed tiers (7 days/48hr/daily). Strategy: [TICKETING-TYPES-PRICING-STRATEGY.md §4](TICKETING-TYPES-PRICING-STRATEGY.md). **Invite / confirmation UX:** follow phased roadmap in [§15 Paid ticketing & invite designer](#15-paid-ticketing--invite-designer-upcoming) (do not block checkout on full WYSIWYG v1).
 - [ ] **Public OpenAPI surface:** See [§14 Public OpenAPI](#14-public-openapi-developer-surface) for full roadmap: per-event API keys, CRUD, check-in API, batch ops, outbound webhooks.
 
 ### 11. Edge-case hardening (operational)
@@ -174,8 +175,8 @@ Follow this order; check off and date as you complete each item.
   - Enforce scanner vs admin route/API boundaries in middleware. **Done (2026-03-18):** middleware/API boundaries enforced, now org/membership scoped.
   - Tighten scanner-device re-auth/session-expiry flow. **Done (2026-04-04):** Clerk token refresh (`getToken({ skipCache: true })`) before session probe; probe on mount, `visibilitychange`, `window` `focus`, `online`, and **5 min** interval while tab visible; session banner **Refresh session** button with loading state + helper copy (`CheckInScanner.tsx`). **Earlier (2026-03-23):** `GET /api/me/profile` probe, tab visibility, banner + toasts on 401/403 for scan, manual check-in, cache, queue sync.
 - [ ] **Post-event reporting**
-  - Dedicated no-shows report/filter + export. **Partial (2026-04-05):** `AdminDashboard` status filter + **Export no-shows** (`{event}-no-shows-{date}.csv`); list reflects filter + search; clear empty state.
-  - Enhanced live counter (`checked-in / total`) with tighter update cadence.
+  - Dedicated no-shows report/filter + export. **Partial (2026-04-05):** organizer-only **`/admin/events/reports`** + server CSV filters (`filter=noShows` / `checkedIn`); `AdminDashboard` guest list filter + client **Export no-shows**.
+  - Enhanced live counter (`checked-in / total`) with tighter update cadence. **Partial (2026-04-05):** 12s auto-refresh + refresh when returning to tab; relative times + export columns use UTC-aware parsing (`formatters.ts` + `postgres-timestamp.ts`).
 
 #### 11.A Priority sequence (execution order)
 
@@ -317,6 +318,35 @@ Follow this order; check off and date as you complete each item.
 
 ---
 
+### 15. Paid ticketing & invite designer (upcoming)
+
+**Intent:** Paid ticketing is a **major upcoming feature**. Beyond checkout, organizers should be able to ship **unusually fun, creative** ticket/invite experiences—without sacrificing reliability, email client compatibility, or mobile-first reading.
+
+**Responsive design targets:** Organizers work in a **WYSIWYG-style** surface with explicit **breakpoints** so layouts are intentional, not accidental:
+
+| Breakpoint | Role |
+|------------|------|
+| Mobile | Primary: email and share links opened on phones; smallest type, stacked sections, tap targets. |
+| Tablet | Two-column or relaxed spacing where appropriate. |
+| Desktop | Full marketing-width layout for review and “send test.” |
+| Large desktop | Optional wide canvas for hero art / grids (still export-safe). |
+
+**Phased delivery (do not ship everything at once):**
+
+1. **Core ticketing (P0)** — Stripe Checkout → webhook → attendee + ticket/payment metadata; inventory and ticket types; reuse existing QR/email flows; refunds baseline per [TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md).
+2. **Designed invite v1** — Curated **themes** (palette + typography + hero image slots) + merge fields (`{{eventName}}`, time, venue, CTA); **live preview per breakpoint**; no free-form drag-drop yet.
+3. **Block editor (WYSIWYG v2)** — **Drag-and-drop** within **sections** (hero, body, image, button, divider); per-breakpoint **overrides** (stack order, hide block, font size); structured **layout JSON** in DB (not raw arbitrary HTML) for consistent rendering and future export.
+4. **Full canvas (optional)** — Broader compositional freedom only if usage and support load justify it; keep **guardrails** (grid/snap, max width) so invites stay readable.
+
+**Technical guardrails:**
+
+- Store **structured layout JSON** (versioned schema) so the same design can render to **web**, **email** (likely simplified/inline), and optional **PDF**—accept that **email clients may get a constrained subset** while the web confirmation page can be richer.
+- **“Fun” without chaos:** optional presets (e.g. illustration slots, confetti on web-only, theme “moods”) that snap layout + motion—creativity inside constraints.
+
+**Depends on:** Core ticketing (phase 1) and stable event/attendee models. **Related:** [TICKETING-TYPES-PRICING-STRATEGY.md §4](TICKETING-TYPES-PRICING-STRATEGY.md), [PRODUCT-STRATEGY.md](PRODUCT-STRATEGY.md) (positioning).
+
+---
+
 ### Backlog (from OpenKlaw architecture review)
 
 Quick wins (≈30 min each):
@@ -353,10 +383,11 @@ Deferred / lower priority:
 | [TESTING-AND-QUALITY-WORKFLOW.md](TESTING-AND-QUALITY-WORKFLOW.md) | How roadmap completion ties to edge-case docs, automation, manual lists, and [TEST-RESULTS-LOG.md](TEST-RESULTS-LOG.md). Rule: `.cursor/rules/quality-and-testing.mdc`. |
 | [TEST-RESULTS-LOG.md](TEST-RESULTS-LOG.md) | Append-only verification log (dates, scope, automated vs manual, PR links). |
 | [AUTH-CLERK-SETUP.md](AUTH-CLERK-SETUP.md) | Item 2 + 12: Clerk auth setup, org/membership-based authorization, onboarding/invites. |
-| [TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md) | Future: paid ticketing — ticket type catalog, Eventbrite-matching fees (3.5% + $1.79), payout speed tiers (§4), Stripe alignment, fulfillment vs SaaS billing, idempotency, build sequencing. |
+| [TICKETING-TYPES-PRICING-STRATEGY.md](TICKETING-TYPES-PRICING-STRATEGY.md) | Future: paid ticketing — ticket type catalog, Eventbrite-matching fees (3.5% + $1.79), payout speed tiers (§4), Stripe alignment, fulfillment vs SaaS billing, idempotency, build sequencing. **Invite UX:** [MASTER-PLAN §15](#15-paid-ticketing--invite-designer-upcoming). |
 | [PRODUCT-STRATEGY.md](PRODUCT-STRATEGY.md) | ICPs, tier pricing ($39/$99), competitive positioning vs Eventbrite, payout speed differentiation, customization philosophy. |
 | [DB-MODULE-LAYOUT.md](DB-MODULE-LAYOUT.md) | Incremental split of `src/lib/db.ts` into `src/lib/db/*.ts`; public imports stay `@/lib/db`. |
 | MASTER-PLAN §14 | Public OpenAPI: per-event API keys, guestlist CRUD, check-in API, batch operations, outbound webhooks, Zapier/Make parity. |
+| MASTER-PLAN §15 | Paid ticketing + phased **invite designer** (WYSIWYG, four breakpoints, structured JSON, email vs web). |
 
 ---
 

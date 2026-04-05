@@ -16,8 +16,8 @@ function isUUID(s) {
 async function main() {
   // 1. Add new columns if not present (one ALTER per column in Postgres)
   await sql`ALTER TABLE attendees ADD COLUMN IF NOT EXISTS qr_token TEXT`;
-  await sql`ALTER TABLE attendees ADD COLUMN IF NOT EXISTS qr_expires_at TIMESTAMP`;
-  await sql`ALTER TABLE attendees ADD COLUMN IF NOT EXISTS qr_used_at TIMESTAMP`;
+  await sql`ALTER TABLE attendees ADD COLUMN IF NOT EXISTS qr_expires_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE attendees ADD COLUMN IF NOT EXISTS qr_used_at TIMESTAMPTZ`;
   await sql`ALTER TABLE attendees ADD COLUMN IF NOT EXISTS qr_used_by_device VARCHAR(255)`;
   console.log('Added QR token columns (if missing)');
 

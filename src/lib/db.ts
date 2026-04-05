@@ -462,6 +462,63 @@ export async function getAllAttendeesForUser(
   return { data, pagination: { total, limit, offset, hasMore: offset + data.length < total } };
 }
 
+/**
+ * All attendees for an event (paginated internally). Same access rules as {@link getAllAttendeesForUser}.
+ * Used for CSV export and other full-roster operations.
+ */
+export async function fetchAllAttendeesForUser(userId: string, eventId: string): Promise<Attendee[]> {
+  const out: Attendee[] = [];
+  let offset = 0;
+  const limit = 100;
+  for (;;) {
+    const page = await getAllAttendeesForUser(userId, eventId, { limit, offset });
+    out.push(...page.data);
+    if (!page.pagination.hasMore) break;
+    offset += limit;
+  }
+  return out;
+}
+
+/** Aggregate check-in stats for an event (organizer/reporting). Scoped by org membership like list queries. */
+export type EventAttendeeStats = {
+  total: number;
+  checkedIn: number;
+  notCheckedIn: number;
+  firstCheckInAt: string | null;
+  lastCheckInAt: string | null;
+};
+
+export async function getEventAttendeeStatsForUser(
+  userId: string,
+  eventId: string
+): Promise<EventAttendeeStats | null> {
+  if (!userId || !eventId) return null;
+  const db = getDb();
+  const rows = await db`
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE a.checked_in)::int AS checked_in,
+      MIN(a.checked_in_at) FILTER (WHERE a.checked_in) AS first_check_in_at,
+      MAX(a.checked_in_at) FILTER (WHERE a.checked_in) AS last_check_in_at
+    FROM attendees a
+    INNER JOIN events e ON e.id = a.event_id
+    INNER JOIN organization_memberships m ON m.organization_id = e.organization_id
+    WHERE a.event_id = ${eventId} AND m.user_id = ${userId}
+  `;
+  if (!rows.length) return null;
+  const row = rows[0] as Record<string, unknown>;
+  const total = Number(row.total) || 0;
+  const checkedIn = Number(row.checked_in) || 0;
+  const notCheckedIn = Math.max(0, total - checkedIn);
+  return {
+    total,
+    checkedIn,
+    notCheckedIn,
+    firstCheckInAt: (row.first_check_in_at as string | null) ?? null,
+    lastCheckInAt: (row.last_check_in_at as string | null) ?? null,
+  };
+}
+
 /** Minimal attendee data including qr_token for offline cache. Staff-only. */
 export type OfflineCacheAttendee = {
   id: string;

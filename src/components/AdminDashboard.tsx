@@ -10,7 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { formatRelativeTime } from '@/lib/formatters';
+import {
+  formatLocalDate,
+  formatLocalDateTime,
+  formatRelativeTime,
+} from '@/lib/formatters';
+
+/** Guest list auto-refresh while tab is visible (multi-staff check-ins). */
+const ATTENDEES_POLL_MS = 12_000;
 import {
   Dialog,
   DialogContent,
@@ -108,8 +115,8 @@ function buildAttendeeCsvLines(rows: Attendee[], escapeCsvField: (v: string | nu
         a.company ?? '',
         a.dietaryRestrictions ?? '',
         a.checkedIn ? 'Yes' : 'No',
-        a.checkedInAt ? new Date(a.checkedInAt).toLocaleString() : '',
-        new Date(a.rsvpAt).toLocaleDateString(),
+        a.checkedInAt ? formatLocalDateTime(a.checkedInAt) : '',
+        formatLocalDate(a.rsvpAt),
       ]
         .map(escapeCsvField)
         .join(',')
@@ -186,10 +193,18 @@ export function AdminDashboard({
   }, [attendees]);
 
   useEffect(() => {
-    const id = setInterval(() => {
+    const tick = () => {
       if (document.visibilityState === 'visible') onRefresh();
-    }, 30000);
-    return () => clearInterval(id);
+    };
+    const id = setInterval(tick, ATTENDEES_POLL_MS);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') onRefresh();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, [onRefresh]);
 
   useEffect(() => {
@@ -264,6 +279,30 @@ export function AdminDashboard({
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     toast.success(`Exported ${toExport.length} attendee(s)`);
+  };
+
+  const triggerServerCsvDownload = (href: string) => {
+    const a = document.createElement('a');
+    a.href = href;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleExportFullRosterServer = () => {
+    if (!eventId) {
+      toast.error('Select an event first.');
+      return;
+    }
+    if (attendees.length === 0) {
+      toast.info('No attendees to export.');
+      return;
+    }
+    triggerServerCsvDownload(
+      `/api/attendees/export?eventId=${encodeURIComponent(eventId)}`
+    );
+    toast.success('Downloading full roster…');
   };
 
   const handleExportNoShows = () => {
@@ -692,6 +731,16 @@ export function AdminDashboard({
             </div>
             <div className="flex flex-wrap items-center gap-2 shrink-0 sm:ml-auto">
               <Button
+                onClick={handleExportFullRosterServer}
+                variant="outline"
+                size="sm"
+                disabled={!eventId || attendees.length === 0}
+                title="Full guest list CSV from server (same as sidebar Export)"
+              >
+                <Download className="h-4 w-4 mr-1.5" />
+                Export all
+              </Button>
+              <Button
                 onClick={handleExportNoShows}
                 variant="outline"
                 size="sm"
@@ -705,10 +754,13 @@ export function AdminDashboard({
                 <Download className="h-4 w-4 mr-1.5" />
                 Export no-shows
               </Button>
-              <Button onClick={onRefresh} variant="outline" size="sm">
+              <Button onClick={onRefresh} variant="outline" size="sm" title="Also refreshes when you return to this tab">
                 <RotateCcw className="h-4 w-4 mr-1.5" />
                 Refresh
               </Button>
+              <span className="text-xs text-muted-foreground hidden sm:inline max-w-[9rem] leading-tight">
+                Auto-refresh every {ATTENDEES_POLL_MS / 1000}s while open
+              </span>
               <div className="hidden sm:flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Density:</span>
               <div className="flex rounded-md border overflow-hidden">
@@ -803,9 +855,10 @@ export function AdminDashboard({
                   size="sm"
                   variant="outline"
                   onClick={handleBulkExport}
+                  title="CSV for selected rows only"
                 >
                   <Download className="h-4 w-4 mr-1" />
-                  Export
+                  Export selected
                 </Button>
                 {eventId && canImportCsv && (
                   <>
@@ -1200,9 +1253,7 @@ export function AdminDashboard({
                     <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       Registered
                     </dt>
-                    <dd>
-                      {new Date(mobileDetailAttendee.rsvpAt).toLocaleString()}
-                    </dd>
+                    <dd>{formatLocalDateTime(mobileDetailAttendee.rsvpAt)}</dd>
                   </div>
                   <div>
                     <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

@@ -42,7 +42,7 @@ async function main() {
     await sql`ALTER TABLE attendees ADD COLUMN IF NOT EXISTS event_id UUID`;
     await sql`ALTER TABLE attendees ADD COLUMN IF NOT EXISTS microsite_entry_id TEXT`;
     await sql`ALTER TABLE attendees ADD COLUMN IF NOT EXISTS source_data JSONB`;
-    await sql`ALTER TABLE attendees ADD COLUMN IF NOT EXISTS created_at TIMESTAMP`;
+    await sql`ALTER TABLE attendees ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ`;
     console.log('Attendees columns ready');
   }
 

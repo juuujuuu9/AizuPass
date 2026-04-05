@@ -1,0 +1,234 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import DashboardHeader from '../../../components/DashboardHeader.astro';
+import AdminSidebar from '../../../components/AdminSidebar.astro';
+import { LocalDateTime } from '../../../components/LocalDateTime';
+import {
+  getEventByIdForUser,
+  getAllEventsForUser,
+  getOrganizationById,
+  getEventAttendeeStatsForUser,
+  isUserOrganizerForOrganization,
+} from '../../../lib/db';
+
+const userId = Astro.locals.user?.id ?? '';
+const eventId = Astro.url.searchParams.get('event')?.trim();
+let event: Awaited<ReturnType<typeof getEventByIdForUser>> = null;
+const eventsResult = userId ? await getAllEventsForUser(userId) : null;
+const events = eventsResult?.data ?? [];
+
+const reportableEvents: typeof events = [];
+for (const ev of events) {
+  if (!ev.organizationId) continue;
+  const org = await getOrganizationById(ev.organizationId);
+  if (org && (await isUserOrganizerForOrganization(userId, org))) {
+    reportableEvents.push(ev);
+  }
+}
+
+if (eventId && userId) {
+  event = await getEventByIdForUser(eventId, userId);
+}
+
+const organization = event?.organizationId ? await getOrganizationById(event.organizationId) : null;
+
+if (organization && event && !(await isUserOrganizerForOrganization(userId, organization))) {
+  return Astro.redirect(`/admin?event=${event.id}`);
+}
+
+const showEventImport = organization
+  ? await isUserOrganizerForOrganization(userId, organization)
+  : false;
+
+const stats =
+  event && userId ? await getEventAttendeeStatsForUser(userId, event.id) : null;
+
+const checkInRatePct =
+  stats && stats.total > 0 ? Math.round((1000 * stats.checkedIn) / stats.total) / 10 : null;
+---
+
+<Layout title={event ? `${event.name} | Reports` : 'Event reports'}>
+  <div class="min-h-screen bg-background">
+    <DashboardHeader
+      homeHref="/admin"
+      showThemeToggle={true}
+      showSignOut={true}
+      isAdmin={Astro.locals.isAdmin}
+      userEmail={Astro.locals.user?.email ?? ''}
+      userFirstName={Astro.locals.user?.firstName ?? ''}
+      userLastName={Astro.locals.user?.lastName ?? ''}
+      userRole={Astro.locals.user?.role ?? ''}
+      organization={
+        organization
+          ? {
+              label: organization.name,
+              href: event?.id ? `/admin?event=${event.id}` : '/admin',
+            }
+          : undefined
+      }
+      event={event ? { label: event.name, badge: 'Reports' } : undefined}
+    />
+
+    <div class="flex min-h-[calc(100vh-4rem)] min-w-0 flex-col md:flex-row">
+      {event && (
+        <AdminSidebar
+          variant="event"
+          eventId={event.id}
+          active="reports"
+          eventWorkspaceOrganizationId={organization?.id ?? event?.organizationId ?? ''}
+          showEventImport={showEventImport}
+        />
+      )}
+
+      <main class="min-w-0 flex-1 px-4 py-8">
+        <div class="mx-auto max-w-4xl space-y-6">
+          <div>
+            <h1 class="text-2xl font-bold text-foreground">Event reports</h1>
+            <p class="mt-1 text-sm text-muted-foreground">
+              Check-in summary and exports. Visible to organizers only; staff use the guest list and scanner.
+            </p>
+          </div>
+
+          {!eventId || !event ? (
+            <div class="rounded-lg border border-border bg-card p-6 max-w-2xl">
+              <p class="text-muted-foreground mb-4">Select an event to view its reports:</p>
+              <ul class="space-y-2">
+                {reportableEvents.map((ev) => (
+                  <li>
+                    <a
+                      href={`/admin/events/reports?event=${ev.id}`}
+                      class="text-primary hover:underline font-medium"
+                    >
+                      {ev.name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              {reportableEvents.length === 0 && (
+                <p class="text-sm text-muted-foreground">
+                  {events.length === 0 ? (
+                    Astro.locals.isAdmin ? (
+                      <>
+                        No events yet.{' '}
+                        <a href="/admin/events/new" class="text-primary hover:underline">
+                          Create one
+                        </a>{' '}
+                        first.
+                      </>
+                    ) : (
+                      <>No events yet. Ask an organizer to create one, then refresh this page.</>
+                    )
+                  ) : (
+                    <>Only organizers can open event reports. Use the attendees page to check people in.</>
+                  )}
+                </p>
+              )}
+            </div>
+          ) : (
+            <>
+              <section
+                class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+                aria-label="Attendance summary"
+              >
+                <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
+                  <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Registered
+                  </p>
+                  <p class="mt-2 text-3xl font-semibold tabular-nums text-foreground">
+                    {stats?.total ?? 0}
+                  </p>
+                </div>
+                <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
+                  <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Checked in
+                  </p>
+                  <p class="mt-2 text-3xl font-semibold tabular-nums text-foreground">
+                    {stats?.checkedIn ?? 0}
+                  </p>
+                </div>
+                <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
+                  <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    No-shows
+                  </p>
+                  <p class="mt-2 text-3xl font-semibold tabular-nums text-foreground">
+                    {stats?.notCheckedIn ?? 0}
+                  </p>
+                </div>
+                <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
+                  <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Check-in rate
+                  </p>
+                  <p class="mt-2 text-3xl font-semibold tabular-nums text-foreground">
+                    {checkInRatePct != null ? `${checkInRatePct}%` : '—'}
+                  </p>
+                </div>
+              </section>
+
+              <section
+                class="rounded-xl border border-border bg-card p-5 shadow-sm"
+                aria-label="Check-in times"
+              >
+                <h2 class="text-sm font-semibold text-foreground">Check-in window</h2>
+                <dl class="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <dt class="text-xs text-muted-foreground">First check-in</dt>
+                    <dd class="mt-1 text-sm font-medium text-foreground">
+                      <LocalDateTime iso={stats?.firstCheckInAt} client:load />
+                    </dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs text-muted-foreground">Last check-in</dt>
+                    <dd class="mt-1 text-sm font-medium text-foreground">
+                      <LocalDateTime iso={stats?.lastCheckInAt} client:load />
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section class="rounded-xl border border-border bg-card p-5 shadow-sm" aria-label="Exports">
+                <h2 class="text-sm font-semibold text-foreground">Exports</h2>
+                <p class="mt-1 text-xs text-muted-foreground">
+                  Download CSV files for spreadsheets or follow-up campaigns.
+                </p>
+                <ul class="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  <li>
+                    <a
+                      href={`/api/attendees/export?eventId=${event.id}`}
+                      class="inline-flex items-center justify-center rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                    >
+                      Full roster
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href={`/api/attendees/export?eventId=${event.id}&filter=noShows`}
+                      class="inline-flex items-center justify-center rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                    >
+                      No-shows only
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href={`/api/attendees/export?eventId=${event.id}&filter=checkedIn`}
+                      class="inline-flex items-center justify-center rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                    >
+                      Checked in only
+                    </a>
+                  </li>
+                </ul>
+              </section>
+
+              <p class="text-sm text-muted-foreground">
+                <a href={`/admin?event=${event.id}`} class="text-primary font-medium hover:underline">
+                  Open guest list
+                </a>
+                {' '}
+                for search, QR tools, and door operations.
+              </p>
+            </>
+          )}
+        </div>
+      </main>
+    </div>
+  </div>
+</Layout>

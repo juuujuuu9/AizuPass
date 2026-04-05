@@ -24,11 +24,11 @@ async function main() {
       company VARCHAR(255),
       dietary_restrictions TEXT,
       checked_in BOOLEAN DEFAULT FALSE,
-      checked_in_at TIMESTAMP,
-      rsvp_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      checked_in_at TIMESTAMPTZ,
+      rsvp_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
       qr_token TEXT,
-      qr_expires_at TIMESTAMP,
-      qr_used_at TIMESTAMP,
+      qr_expires_at TIMESTAMPTZ,
+      qr_used_at TIMESTAMPTZ,
       qr_used_by_device VARCHAR(255)
     )
   `);

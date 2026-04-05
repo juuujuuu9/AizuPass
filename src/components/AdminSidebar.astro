@@ -2,7 +2,7 @@
 /**
  * Shared admin nav: organization settings area vs per-event workspace.
  * variant=organization — active: overview | staff | finance | settings
- * variant=event — eventId required; active: attendees | import | export | integrations | settings (import/integrations optional via showEventImport)
+ * variant=event — eventId required; active: attendees | import | export | reports | integrations | settings (import/reports/integrations optional via showEventImport)
  */
 export interface Props {
   variant: 'organization' | 'event';
@@ -14,6 +14,7 @@ export interface Props {
     | 'attendees'
     | 'import'
     | 'export'
+    | 'reports'
     | 'integrations';
   eventId?: string;
   /** Appended to organization admin links (e.g. `?id=…` for staff). */
@@ -74,6 +75,9 @@ const mobileTabIdle =
               <a href={`/admin/events/import?event=${eventId}`} class={active === 'import' ? mobileTabActive : mobileTabIdle}>Import</a>
             )}
             <a href={`/api/attendees/export?eventId=${eventId}`} class={active === 'export' ? mobileTabActive : mobileTabIdle}>Export</a>
+            {showEventImport && (
+              <a href={`/admin/events/reports?event=${eventId}`} class={active === 'reports' ? mobileTabActive : mobileTabIdle}>Reports</a>
+            )}
             {showEventImport && (
               <a href={`/admin/events/integrations?event=${eventId}`} class={active === 'integrations' ? mobileTabActive : mobileTabIdle}>Integrations</a>
             )}
@@ -206,6 +210,18 @@ const mobileTabIdle =
           </svg>
           <span class="admin-sidebar-link-label">Export</span>
         </a>
+        {showEventImport && (
+          <a
+            href={`/admin/events/reports?event=${eventId}`}
+            class={active === 'reports' ? linkActive : linkIdle}
+            title="Reports"
+          >
+            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span class="admin-sidebar-link-label">Reports</span>
+          </a>
+        )}
         {showEventImport && (
           <a
             href={`/admin/events/integrations?event=${eventId}`}
