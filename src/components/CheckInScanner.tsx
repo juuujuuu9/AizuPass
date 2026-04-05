@@ -115,6 +115,9 @@ export function CheckInScanner({
   const { isLoaded, isSignedIn, getToken } = useAuth();
   /** Suppress duplicate html5-qrcode decodes of the same payload (see QR_SCANNER.debounceMs). */
   const lastDecodeRef = useRef<{ text: string; at: number } | null>(null);
+  /** Keyboard-wedge laser scanners: characters until Enter/Tab (see keydown capture listener). */
+  const wedgeBufferRef = useRef('');
+  const wedgeIdleClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const consecutiveInvalidScanRef = useRef(0);
   const scannerRef = useRef<HTMLDivElement>(null);
   const html5QrCodeRef = useRef<{ stop: () => Promise<void> } | null>(null);
@@ -410,6 +413,165 @@ export function CheckInScanner({
     return () => clearTimeout(t);
   }, [announcement]);
 
+  const stopScanning = useCallback(() => {
+    if (html5QrCodeRef.current) {
+      html5QrCodeRef.current.stop().catch(console.error);
+      html5QrCodeRef.current = null;
+    }
+    setScanning(false);
+    setTorchSupported(false);
+    setTorchOn(false);
+  }, []);
+
+  const processDecodedPayload = useCallback(
+    async (decodedText: string, options: { stopCamera: boolean }) => {
+      const trimmed = decodedText.trim();
+      if (!trimmed || !activeEventId) return;
+      if (trimmed.length > 500) {
+        toast.error('QR data is too long');
+        return;
+      }
+
+      if (processingRef.current) return;
+      const now = Date.now();
+      const prev = lastDecodeRef.current;
+      if (
+        prev &&
+        prev.text === trimmed &&
+        now - prev.at < QR_SCANNER.debounceMs
+      ) {
+        return;
+      }
+      lastDecodeRef.current = { text: trimmed, at: now };
+
+      processingRef.current = true;
+      setProcessing(true);
+      const t0 = performance.now();
+      if (options.stopCamera && !standalone) stopScanning();
+
+      try {
+        let result: CheckInResult;
+        try {
+          result = await apiService.checkInAttendee(trimmed, activeEventId);
+        } catch (err) {
+          if (isNetworkError(err) && !isOnline()) {
+            const offlineResult = await checkInOffline(trimmed, activeEventId);
+            result = toCheckInResult(offlineResult);
+            setPendingQueueCount(await getPendingQueueCount());
+          } else {
+            const st = httpStatus(err);
+            if (st === 401) {
+              setSessionBlock('signin');
+              result = {
+                success: false,
+                message: 'Sign-in expired. Sign in again, then scan.',
+              };
+            } else if (st === 403) {
+              setSessionBlock('profile');
+              result = {
+                success: false,
+                message: 'Finish account setup before checking in.',
+              };
+            } else {
+              throw err;
+            }
+          }
+        }
+        recordCheckInRoundTripMs(performance.now() - t0);
+        setScanResult(result);
+        updateDoorResilienceAfterResult(result);
+        const ftype = feedbackTypeFromResult(result);
+        provideFeedback(ftype, result.message, setAnnouncement);
+
+        if (result.success) {
+          toast.success(result.message);
+          onCheckIn?.();
+        } else if (result.alreadyCheckedIn) {
+          toast.warning(result.message);
+        } else {
+          toast.error(result.message);
+        }
+      } catch (error) {
+        console.error('Check-in error:', error);
+        recordCheckInRoundTripMs(performance.now() - t0);
+        provideFeedback('error', 'Check-in failed', setAnnouncement);
+        const failed: CheckInResult = {
+          success: false,
+          message: 'Check-in failed',
+        };
+        setScanResult(failed);
+        updateDoorResilienceAfterResult(failed);
+        toast.error('Check-in failed');
+      } finally {
+        setProcessing(false);
+        if (!standalone) processingRef.current = false;
+      }
+    },
+    [
+      activeEventId,
+      standalone,
+      onCheckIn,
+      updateDoorResilienceAfterResult,
+      stopScanning,
+    ]
+  );
+
+  useEffect(() => {
+    if (!activeEventId) return;
+
+    const clearIdle = () => {
+      if (wedgeIdleClearRef.current) {
+        clearTimeout(wedgeIdleClearRef.current);
+        wedgeIdleClearRef.current = null;
+      }
+    };
+
+    const scheduleIdleClear = () => {
+      clearIdle();
+      wedgeIdleClearRef.current = setTimeout(() => {
+        wedgeBufferRef.current = '';
+        wedgeIdleClearRef.current = null;
+      }, 600);
+    };
+
+    const isManualTextInputTarget = (t: EventTarget | null) => {
+      if (!(t instanceof HTMLElement)) return false;
+      if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) {
+        return true;
+      }
+      return t.isContentEditable;
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isManualTextInputTarget(e.target)) return;
+
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        const raw = wedgeBufferRef.current.trim();
+        wedgeBufferRef.current = '';
+        clearIdle();
+        if (!raw) return;
+        e.preventDefault();
+        e.stopPropagation();
+        void processDecodedPayload(raw, { stopCamera: false });
+        return;
+      }
+
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (wedgeBufferRef.current.length >= 500) return;
+        wedgeBufferRef.current += e.key;
+        scheduleIdleClear();
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true);
+      clearIdle();
+    };
+  }, [activeEventId, processDecodedPayload]);
+
   const startScanning = async () => {
     if (!activeEventId) {
       toast.error('Select an event before scanning');
@@ -438,82 +600,7 @@ export function CheckInScanner({
         { facingMode: 'environment' },
         config,
         (decodedText: string) => {
-          if (processingRef.current) return;
-          const now = Date.now();
-          const prev = lastDecodeRef.current;
-          if (
-            prev &&
-            prev.text === decodedText &&
-            now - prev.at < QR_SCANNER.debounceMs
-          ) {
-            return;
-          }
-          lastDecodeRef.current = { text: decodedText, at: now };
-
-          processingRef.current = true;
-          setProcessing(true);
-          const t0 = performance.now();
-          if (!standalone) stopScanning();
-
-          void (async () => {
-            try {
-              let result: CheckInResult;
-              try {
-                result = await apiService.checkInAttendee(decodedText, activeEventId);
-              } catch (err) {
-                if (isNetworkError(err) && !isOnline()) {
-                  const offlineResult = await checkInOffline(decodedText, activeEventId);
-                  result = toCheckInResult(offlineResult);
-                  setPendingQueueCount(await getPendingQueueCount());
-                } else {
-                  const st = httpStatus(err);
-                  if (st === 401) {
-                    setSessionBlock('signin');
-                    result = {
-                      success: false,
-                      message: 'Sign-in expired. Sign in again, then scan.',
-                    };
-                  } else if (st === 403) {
-                    setSessionBlock('profile');
-                    result = {
-                      success: false,
-                      message: 'Finish account setup before checking in.',
-                    };
-                  } else {
-                    throw err;
-                  }
-                }
-              }
-              recordCheckInRoundTripMs(performance.now() - t0);
-              setScanResult(result);
-              updateDoorResilienceAfterResult(result);
-              const ftype = feedbackTypeFromResult(result);
-              provideFeedback(ftype, result.message, setAnnouncement);
-
-              if (result.success) {
-                toast.success(result.message);
-                onCheckIn?.();
-              } else if (result.alreadyCheckedIn) {
-                toast.warning(result.message);
-              } else {
-                toast.error(result.message);
-              }
-            } catch (error) {
-              console.error('Check-in error:', error);
-              recordCheckInRoundTripMs(performance.now() - t0);
-              provideFeedback('error', 'Check-in failed', setAnnouncement);
-              const failed: CheckInResult = {
-                success: false,
-                message: 'Check-in failed',
-              };
-              setScanResult(failed);
-              updateDoorResilienceAfterResult(failed);
-              toast.error('Check-in failed');
-            } finally {
-              setProcessing(false);
-              if (!standalone) processingRef.current = false;
-            }
-          })();
+          void processDecodedPayload(decodedText, { stopCamera: true });
         },
         () => {}
       );
@@ -530,16 +617,6 @@ export function CheckInScanner({
       );
       setScanning(false);
     }
-  };
-
-  const stopScanning = () => {
-    if (html5QrCodeRef.current) {
-      html5QrCodeRef.current.stop().catch(console.error);
-      html5QrCodeRef.current = null;
-    }
-    setScanning(false);
-    setTorchSupported(false);
-    setTorchOn(false);
   };
 
   const toggleTorch = async () => {
@@ -885,6 +962,12 @@ export function CheckInScanner({
 
   const buttons = (
     <div className="flex flex-col gap-2">
+      {activeEventId ? (
+        <p className="text-center text-xs text-muted-foreground">
+          USB or Bluetooth <span className="text-foreground font-medium">keyboard-wedge</span> scanners
+          work without the camera—scan anytime. To type in name search below, click that field first.
+        </p>
+      ) : null}
       <div className="flex gap-2">
         {!scanning ? (
           <Button

@@ -47,6 +47,7 @@ import {
   UserCheck,
   FolderArchive,
   Printer,
+  ListFilter,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Fuse from 'fuse.js';
@@ -77,6 +78,43 @@ function getInitials(attendee: Attendee): string {
   const f = attendee.firstName?.charAt(0) ?? '';
   const l = attendee.lastName?.charAt(0) ?? '';
   return (f + l).toUpperCase() || '?';
+}
+
+/** Guest list: filter by check-in status (search is applied first). */
+type AttendeeStatusFilter = 'all' | 'checked-in' | 'not-checked-in';
+
+function buildAttendeeCsvLines(rows: Attendee[], escapeCsvField: (v: string | number | null | undefined) => string): string {
+  const headers = [
+    'Attendee ID',
+    'First Name',
+    'Last Name',
+    'Email',
+    'Phone',
+    'Company',
+    'Dietary Restrictions',
+    'Checked In',
+    'Check-in Time',
+    'Registration Date',
+  ];
+  return [
+    headers.map(escapeCsvField).join(','),
+    ...rows.map((a) =>
+      [
+        a.id,
+        a.firstName,
+        a.lastName,
+        a.email,
+        a.phone ?? '',
+        a.company ?? '',
+        a.dietaryRestrictions ?? '',
+        a.checkedIn ? 'Yes' : 'No',
+        a.checkedInAt ? new Date(a.checkedInAt).toLocaleString() : '',
+        new Date(a.rsvpAt).toLocaleDateString(),
+      ]
+        .map(escapeCsvField)
+        .join(',')
+    ),
+  ].join('\n');
 }
 
 interface AdminDashboardProps {
@@ -123,6 +161,7 @@ export function AdminDashboard({
   /** Mobile: attendee id for bottom-sheet details (null = closed). */
   const [mobileDetailId, setMobileDetailId] = useState<string | null>(null);
   const [badgePrintOpen, setBadgePrintOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<AttendeeStatusFilter>('all');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const duplicateNameKeySet = useMemo(
@@ -214,37 +253,7 @@ export function AdminDashboard({
   const handleBulkExport = () => {
     const toExport = sortedAttendees.filter((a) => selectedIds.has(a.id));
     if (toExport.length === 0) return;
-    const headers = [
-      'Attendee ID',
-      'First Name',
-      'Last Name',
-      'Email',
-      'Phone',
-      'Company',
-      'Dietary Restrictions',
-      'Checked In',
-      'Check-in Time',
-      'Registration Date',
-    ];
-    const csvContent = [
-      headers.map(escapeCsvField).join(','),
-      ...toExport.map((a) =>
-        [
-          a.id,
-          a.firstName,
-          a.lastName,
-          a.email,
-          a.phone ?? '',
-          a.company ?? '',
-          a.dietaryRestrictions ?? '',
-          a.checkedIn ? 'Yes' : 'No',
-          a.checkedInAt ? new Date(a.checkedInAt).toLocaleString() : '',
-          new Date(a.rsvpAt).toLocaleDateString(),
-        ]
-          .map(escapeCsvField)
-          .join(',')
-      ),
-    ].join('\n');
+    const csvContent = buildAttendeeCsvLines(toExport, escapeCsvField);
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -255,6 +264,30 @@ export function AdminDashboard({
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     toast.success(`Exported ${toExport.length} attendee(s)`);
+  };
+
+  const handleExportNoShows = () => {
+    const noShows = attendees.filter((a) => !a.checkedIn);
+    if (noShows.length === 0) {
+      toast.info('Everyone has checked in — nothing to export.');
+      return;
+    }
+    const csvContent = buildAttendeeCsvLines(noShows, escapeCsvField);
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeEv = (eventName ?? 'event')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48) || 'event';
+    a.download = `${safeEv}-no-shows-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${noShows.length} not checked in`);
   };
 
   const handleBulkQrZip = async () => {
@@ -342,15 +375,35 @@ export function AdminDashboard({
     }
   };
 
-  const filteredAttendees = searchTerm.trim()
-    ? fuse.search(searchTerm).map((r) => r.item)
-    : attendees;
+  const searchFilteredAttendees = useMemo(() => {
+    if (!searchTerm.trim()) return attendees;
+    return fuse.search(searchTerm).map((r) => r.item);
+  }, [attendees, searchTerm]);
 
-  const sortedAttendees = [...filteredAttendees].sort((a, b) => {
-    const cmp = a.lastName.localeCompare(b.lastName, undefined, { sensitivity: 'base' })
-      || a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' });
-    return sortDescending ? -cmp : cmp;
-  });
+  const statusFilteredAttendees = useMemo(() => {
+    return searchFilteredAttendees.filter((a) => {
+      if (statusFilter === 'all') return true;
+      if (statusFilter === 'checked-in') return a.checkedIn;
+      return !a.checkedIn;
+    });
+  }, [searchFilteredAttendees, statusFilter]);
+
+  const sortedAttendees = useMemo(() => {
+    return [...statusFilteredAttendees].sort((a, b) => {
+      const cmp = a.lastName.localeCompare(b.lastName, undefined, { sensitivity: 'base' })
+        || a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' });
+      return sortDescending ? -cmp : cmp;
+    });
+  }, [statusFilteredAttendees, sortDescending]);
+
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const visible = new Set(sortedAttendees.map((a) => a.id));
+      const next = new Set([...prev].filter((id) => visible.has(id)));
+      if (prev.size === next.size && [...prev].every((id) => next.has(id))) return prev;
+      return next;
+    });
+  }, [sortedAttendees]);
 
   const mobileDetailAttendee =
     mobileDetailId === null
@@ -588,8 +641,40 @@ export function AdminDashboard({
           <div>
             <CardTitle className="text-2xl font-semibold">Attendee List</CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
-              {filteredAttendees.length} of {attendees.length} attendees
+              {statusFilteredAttendees.length} of {attendees.length} attendees
+              {searchTerm.trim() ? ' match search' : ''}
+              {statusFilter !== 'all' ? (
+                <span className="text-foreground/90">
+                  {' · '}
+                  {statusFilter === 'checked-in' ? 'Checked in only' : 'Not checked in only'}
+                </span>
+              ) : null}
             </CardDescription>
+          </div>
+          <div
+            className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/30 px-2 py-2"
+            role="group"
+            aria-label="Filter by check-in status"
+          >
+            <span className="inline-flex items-center gap-1.5 pl-1 text-xs font-medium text-muted-foreground">
+              <ListFilter className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Status
+            </span>
+            {(['all', 'checked-in', 'not-checked-in'] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={statusFilter === key}
+                onClick={() => setStatusFilter(key)}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                  statusFilter === key
+                    ? 'bg-background text-foreground shadow-sm ring-1 ring-border'
+                    : 'text-muted-foreground hover:bg-background/80 hover:text-foreground'
+                }`}
+              >
+                {key === 'all' ? 'All' : key === 'checked-in' ? 'Checked in' : 'Not checked in'}
+              </button>
+            ))}
           </div>
           <div className="flex flex-row items-center gap-2 sm:gap-4 w-full">
             <div className="relative flex-1 min-w-0">
@@ -605,7 +690,21 @@ export function AdminDashboard({
                 <span className="text-[10px]">⌘</span>K
               </kbd>
             </div>
-            <div className="flex items-center gap-4 shrink-0 sm:ml-auto">
+            <div className="flex flex-wrap items-center gap-2 shrink-0 sm:ml-auto">
+              <Button
+                onClick={handleExportNoShows}
+                variant="outline"
+                size="sm"
+                disabled={attendees.length === 0 || pendingCount === 0}
+                title={
+                  pendingCount === 0
+                    ? 'Everyone has checked in'
+                    : 'Download CSV of everyone not checked in (full guest list)'
+                }
+              >
+                <Download className="h-4 w-4 mr-1.5" />
+                Export no-shows
+              </Button>
               <Button onClick={onRefresh} variant="outline" size="sm">
                 <RotateCcw className="h-4 w-4 mr-1.5" />
                 Refresh
@@ -642,7 +741,26 @@ export function AdminDashboard({
         </CardHeader>
         <CardContent className="min-w-0">
           {sortedAttendees.length === 0 ? (
-            !eventId && !canCreateEvent ? (
+            attendees.length > 0 ? (
+              <div className="flex flex-col items-center justify-center py-14 px-4 text-center">
+                <p className="text-sm font-medium text-foreground">No attendees match</p>
+                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                  Try another search, choose <strong className="text-foreground">All</strong> under status, or widen your filters.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-4"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setStatusFilter('all');
+                  }}
+                >
+                  Clear search and status filter
+                </Button>
+              </div>
+            ) : !eventId && !canCreateEvent ? (
               <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
                   <Users className="h-8 w-8 text-muted-foreground" />

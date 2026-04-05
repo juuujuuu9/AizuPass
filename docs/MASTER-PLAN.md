@@ -2,7 +2,7 @@
 
 **Purpose:** Single source of truth for development progress. Use as the dev checklist; update when completing work; reference from other docs. Feeds into later documentation.
 
-**Last updated:** 2026-04-04 — **QR print + scannability:** `QR_PRINT` + `profile: 'print'` in `qr-client`; Admin **Print badges** (dialog + `@media print`), bulk **QR ZIP** uses print profile; CSV **Attendee ID** + duplicate-name short id in table/mobile; `docs/qr-scannability-matrix.md`. Previous: Bulk QR ZIP API; scanner session ergonomics.
+**Last updated:** 2026-04-05 — **No-shows (admin):** `AdminDashboard` status filter (All / Checked in / Not checked in) + **Export no-shows** CSV; search/filter empty state. **§11:** Offline + multi-station checkbox verified. **Hardware scanner:** keyboard wedge. Previous: QR print + scannability.
 
 ---
 
@@ -59,7 +59,7 @@
 | Audio / haptic feedback | Done | Preload + vibrate + success/error/already tones; aria-live. src/lib/feedback.ts, CheckInScanner. |
 | Target overlay / distance hint | **Done** | "6–10 inches" hint when scanning; qrbox. |
 | Flashlight / torch | **Done** | Custom torch button via getRunningTrackCameraCapabilities when supported. |
-| Hardware scanner (keyboard wedge) | Missing | No hidden input for laser scanners. |
+| Hardware scanner (keyboard wedge) | **Done** | Keyboard-wedge capture on scanner page when event selected; skips `input`/`textarea`/`select`/contenteditable (name search); Enter/Tab commits; 600ms idle clears buffer; same check-in as camera (`CheckInScanner.tsx`). |
 | Stolen screenshot / scan count | Partial | Option A is implemented (clear already-checked-in guidance in scanner); Option B (duplicate scan counters in DB/admin) is still pending. |
 | Brightness / high-contrast QR | **Done** | Explicit black/white QR colors + `errorCorrectionLevel: 'H'` in `src/config/qr.ts`; scanner guidance includes attendee brightness reminder. |
 | Demo check-in codes gated | **Done** | Demo codes (`DEMO-SUCCESS`/`DEMO-ALREADY`/`DEMO-INVALID`) gated behind `!import.meta.env.PROD` in `api/checkin.ts`. |
@@ -78,8 +78,8 @@
 | Multi-event / central hub | **Done** | Events table, event-scoped attendees; guestlist: **CSV primary**; **Eventbrite** pull sync on **Integrations** (private token); Zapier/Make first-class TBD — see [INTEGRATIONS-STRATEGY.md](INTEGRATIONS-STRATEGY.md). |
 | Event-scoped scanner/manual override hardening | Partial | Event scoping exists broadly; scanner entry path/manual UX still needs stricter guardrails. |
 | Persistent event selection | **Done** | staff_preferences table; last_selected_event_id survives logout/login, works across devices. |
-| Attendance export with operational presets | Partial | Export with timestamps exists; dedicated checked-in/no-show presets pending. |
-| No-shows report | Missing | Can be derived from CSV, but no explicit in-app no-shows view/export flow. |
+| Attendance export with operational presets | **Partial** | Full CSV + **Export no-shows** (all not checked in); row **Export** still selection-based. Checked-in-only export preset still optional. |
+| No-shows report | **Partial** | **Admin (2026-04-05):** status filter All / Checked in / Not checked in + **Export no-shows** CSV; search + filter empty state. Dedicated report page / presets still optional. |
 | Real-time check-in counter dashboard | Partial | 30s polling exists; near real-time organizer dashboard still limited. |
 | Add to Wallet / Group / Capacity / Analytics | Not implemented | Optional; prioritize later. |
 | Paid ticketing (Stripe, ticket types, inventory) | Not implemented | Fourth attendee path: Checkout → webhook → attendee + payment metadata; catalog vs fulfillment split. Platform processing fee matches Eventbrite (3.5% + $1.79, attendee pays). Payout speed tiered: 7 days (Free) → 48hr (Pro $39) → Daily (Business $99). See [TICKETING-TYPES-PRICING-STRATEGY.md §4](TICKETING-TYPES-PRICING-STRATEGY.md). |
@@ -127,7 +127,7 @@ Follow this order; check off and date as you complete each item.
 
 ### 6. Hardware scanner (keyboard wedge)
 
-- [ ] Hidden/minimal focused input on scanner page; on Enter, treat value as scanned code and call same check-in logic.
+- [x] **Done (2026-04-05).** Document-level `keydown` capture (with event selected) buffers printable keys, commits on Enter or Tab, ignores typing in name search / other text fields; reuses `processDecodedPayload` with camera path. Hint copy above camera button. `CheckInScanner.tsx`.
 
 ### 7. Stolen screenshot visibility
 
@@ -165,23 +165,22 @@ Follow this order; check off and date as you complete each item.
   - Low-light/damaged-code fallback UX. **Done (2026-04-04):** torch + name search; after two consecutive invalid scans, amber banner with steady-hands / brightness / torch / name copy; turning torch on clears the banner (`CheckInScanner.tsx`).
   - Sub-second perceived feedback + measurable latency. **Done (2026-04-04):** first decode triggers check-in immediately (duplicate suppression window only); `recordCheckInRoundTripMs` + `getScanRoundTripStats`, dev logs + `window.__aizuScanMetrics`; `QR_SCANNER.targetRoundTripMs` (1000 ms ops target).
   - Clear re-scan copy and differentiated already-checked-in cues. **Done (2026-03-18):** explicit ID-check guidance + distinct warning-state feedback in scanner (`src/components/CheckInScanner.tsx`, `src/lib/feedback.ts`).
-- [ ] **Offline + multi-station correctness**
+- [x] **Offline + multi-station correctness**
   - Sync retry/backoff and queue visibility for operators. **Done (2026-03-18):** retry-with-backoff + live queued count (`src/lib/offline.ts`, `src/components/CheckInScanner.tsx`).
   - Manual check-in path made atomic/idempotent (409 on duplicate). **Done (2026-03-18):** conditional DB update + 409 replay behavior (`src/lib/db.ts`, `src/pages/api/checkin.ts`).
   - Duplicate submission protection for offline replay. **Done (2026-03-23):** single-transaction dedupe in `addToQueue`; `syncQueue` runs serialized; initial online mount drains queue; 401/403 stops sync without dropping rows (`src/lib/offline.ts`, `CheckInScanner.tsx`).
+  - **Note:** “Multi-station” here means **offline queue + idempotent check-in** across devices/tabs, not live admin cross-staff refresh—that stays **[Real-time sync (multi-staff)](#concern-audit-current-vs-target)** in the concern audit.
 - [x] **Roles + session ergonomics**
   - Enforce scanner vs admin route/API boundaries in middleware. **Done (2026-03-18):** middleware/API boundaries enforced, now org/membership scoped.
   - Tighten scanner-device re-auth/session-expiry flow. **Done (2026-04-04):** Clerk token refresh (`getToken({ skipCache: true })`) before session probe; probe on mount, `visibilitychange`, `window` `focus`, `online`, and **5 min** interval while tab visible; session banner **Refresh session** button with loading state + helper copy (`CheckInScanner.tsx`). **Earlier (2026-03-23):** `GET /api/me/profile` probe, tab visibility, banner + toasts on 401/403 for scan, manual check-in, cache, queue sync.
 - [ ] **Post-event reporting**
-  - Dedicated no-shows report/filter + export.
+  - Dedicated no-shows report/filter + export. **Partial (2026-04-05):** `AdminDashboard` status filter + **Export no-shows** (`{event}-no-shows-{date}.csv`); list reflects filter + search; clear empty state.
   - Enhanced live counter (`checked-in / total`) with tighter update cadence.
 
 #### 11.A Priority sequence (execution order)
 
-- **P1 — correctness + door reliability (do first)**
-  - Offline + multi-station correctness
-  - Door-operations resilience
-  - Roles + session ergonomics (API/route boundaries first)
+- **P1 — correctness + door reliability** — **Done** for scoped §11 items (offline queue/sync, door UX, roles/session). See §11 checkboxes above.
+- **P1 follow-on (still backlog):** near–real-time organizer visibility for multiple staff is separate — [Real-time sync (multi-staff)](#concern-audit-current-vs-target) in the concern audit, not the §11 offline block.
 - **P2 — attendee asset quality**
   - QR delivery + print
   - QR scannability safeguards
